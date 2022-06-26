@@ -1,0 +1,16 @@
+[submodule "libs/glm"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm
+[submodule "libs/stb"]
+	path = libs/stb
+	url = https://github.com/nothings/stb
+[submodule "libs/vkbootstrap"]
+	path = libs/vkbootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap
+[submodule "libs/imgui"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui
+	shallow = true
+[submodule "libs/vma"]
+	path = libs/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
