@@ -31,12 +31,13 @@ private:
     void initDescriptors();
     void initPipeline();
     void initData();
+    void initImGUI();
 
     // Initialisation info helper
     void printPhysDeviceProps();
 
     // Command Helper
-    // void execOneTimeCmd();
+    void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);
 
     // Core functions
     void draw();
@@ -89,9 +90,12 @@ private:
     VkPipelineLayout _pipelineLayout{};
     VkPipeline _graphicPipeline{};
 
+    // descriptor
+
+
     // Data
-    VkBuffer _vertexBuffer;
-    VkBuffer _idxBuffer;
+    VkBuffer _vertexBuffer{};
+    VkBuffer _idxBuffer{};
     vector<Vertex> _mVertex = {
             {{0, -0.5, 0}, {1, 0, 0}},
             {{-0.5, 0.5, 0}, {0, 0, 1}},

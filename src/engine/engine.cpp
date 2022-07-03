@@ -4,6 +4,9 @@
 #include <SDL_vulkan.h>
 #include <filesystem>
 #include <bitset>
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <backends/imgui_impl_sdl.h>
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -20,6 +23,7 @@ void Engine::initialize() {
     initDescriptors();
     initPipeline();
     initData();
+    initImGUI();
 }
 
 void Engine::setRequiredFeatures() {
@@ -155,10 +159,18 @@ void Engine::run() {
     while (!bQuit) {
         //Handle events on queue
         while (SDL_PollEvent(&e)) {
+            ImGui_ImplSDL2_ProcessEvent(&e);  // handle event in ImGUI
             if (e.type == SDL_QUIT) {
                 bQuit = true;
             }
         }
+
+        //imgui new frame
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL2_NewFrame(_window);
+        ImGui::NewFrame();  // Put your imgui draw code after NewFrame
+        ImGui::ShowDemoWindow();
+
         draw();
     }
 }
@@ -441,6 +453,67 @@ void Engine::initData() {
     vmaUnmapMemory(_allocator, allocation);
 }
 
+void Engine::initImGUI() {
+    // 1: Create Descriptor pool for ImGUI
+    // the size of the pool is very oversize, but it's copied from imgui demo itself.
+    VkDescriptorPoolSize pool_sizes[] =
+            {
+                    {VK_DESCRIPTOR_TYPE_SAMPLER,                400},
+                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 400},
+                    {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          400},
+                    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          400},
+                    {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   400},
+                    {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   400},
+                    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         400},
+                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         400},
+                    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 400},
+                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 400},
+                    {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       400}
+            };
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 400;
+    pool_info.poolSizeCount = std::size(pool_sizes);
+    pool_info.pPoolSizes = pool_sizes;
+
+    VkDescriptorPool imguiPool;
+    if (vkCreateDescriptorPool(_device, &pool_info, nullptr, &imguiPool) != VK_SUCCESS)
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create imgui descriptor pool");
+
+    // 2: initialize imgui library
+    // initializes the core structures of imgui + SDL
+    ImGui::CreateContext();
+    ImGui_ImplSDL2_InitForVulkan(_window);
+
+    // initializes imgui for Vulkan
+    ImGui_ImplVulkan_InitInfo initInfo = {};
+    initInfo.Instance = _instance;
+    initInfo.PhysicalDevice = _gpu;
+    initInfo.Device = _device;
+    initInfo.Queue = _graphicsQueue;
+    initInfo.DescriptorPool = imguiPool;
+    initInfo.MinImageCount = _swapchainImageViews.size();
+    initInfo.ImageCount = _swapchainImageViews.size();
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&initInfo, _renderPass);
+
+    //execute a gpu command to upload imgui font textures
+    execOneTimeCmd([](VkCommandBuffer cmd) {
+        ImGui_ImplVulkan_CreateFontsTexture(cmd);
+    });
+
+    // clear font textures from cpu data
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+    // add the destroy the imgui created structures
+    _globCleanup.emplace([this, imguiPool]() {
+        vkDestroyDescriptorPool(_device, imguiPool, nullptr);
+        ImGui_ImplVulkan_Shutdown();
+    });
+}
+
 void Engine::draw() {
     // Wait for previous frame to finish (takes array of fences)
     vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
@@ -542,6 +615,10 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     // Issue draw
     vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
 
+    // ImGUI Draw as last call
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
     // RENDER END --------------------------------------------------------
     vkCmdEndRenderPass(commandBuffer);
 
@@ -549,3 +626,50 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to end record command buffer!");
     }
 }
+
+void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function) {
+    // Create new command buffer
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = _oneTimeCmdPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    if (vkAllocateCommandBuffers(_device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    // Immediately record command buffer (one time)
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+
+    // execute the function
+    function(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
+
+    // Execute command buffer to transfer
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit command buffer!");
+    }
+
+    // Wait transfer queue to become idle (you can use fence too for simultaneous copy)
+    vkQueueWaitIdle(_graphicsQueue);
+
+    // Free it because we're only using it one time
+    vkFreeCommandBuffers(_device, _oneTimeCmdPool, 1, &commandBuffer);
+}
+
