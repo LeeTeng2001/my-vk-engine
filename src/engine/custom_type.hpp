@@ -38,3 +38,9 @@ struct Vertex {
         return attributeDescriptions;
     }
 };
+
+// It's better to use a shared data between vertex and fragment
+struct PushConstantData {
+    glm::vec3 vertexOffset;
+    float time;
+};

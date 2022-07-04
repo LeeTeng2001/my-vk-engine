@@ -165,10 +165,11 @@ void Engine::run() {
             }
         }
 
-        //imgui new frame
+        // imgui new frame
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL2_NewFrame(_window);
         ImGui::NewFrame();  // Put your imgui draw code after NewFrame
+        drawImGUI();
         ImGui::ShowDemoWindow();
 
         draw();
@@ -200,6 +201,7 @@ void Engine::printPhysDeviceProps() {
     SDL_Log("\tTotal MSAA color samples bits: %d", _gpuProperties.limits.framebufferColorSampleCounts);
     SDL_Log("\tTotal MSAA depth samples bits: %d", _gpuProperties.limits.framebufferDepthSampleCounts);
     SDL_Log("\tMax color attachment: %d", _gpuProperties.limits.maxColorAttachments);
+    SDL_Log("\tMax push constant size: %d", _gpuProperties.limits.maxPushConstantsSize);
     for (auto &q_family: queueFamilies)
         SDL_Log("\t-> Queue Counts: %d, Flag: %s", q_family.queueCount, std::bitset<4>(q_family.queueFlags).to_string().c_str());
     SDL_Log("\tSelected graphic queue family idx: %d", _graphicsQueueFamily);
@@ -382,13 +384,18 @@ void Engine::initPipeline() {
     vertexInputInfo.vertexAttributeDescriptionCount = attributeDescription.size();
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescription.data();
 
+    // Push constant
+    VkPushConstantRange pushConstantRange{};
+    pushConstantRange.size = sizeof(PushConstantData);
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // best to share directly
+
     // pipeline layout, specify which descriptor set to use (like uniform)
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 0;
     pipelineLayoutInfo.pSetLayouts = nullptr;
-    pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout) != VK_SUCCESS)
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Pipeline layout fail to create!");
@@ -612,8 +619,19 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     // vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout,
     //                         0, 1, &_descriptorSets[currentFrame], 0, nullptr);
 
-    // Issue draw
-    vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
+    for (int i = 0; i < 2; ++i) {
+        PushConstantData pushConstantData{};
+        pushConstantData.time = SDL_GetTicks();
+        pushConstantData.vertexOffset = {1, 1, 0};
+
+        // Push constant
+        vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                           0, sizeof(PushConstantData), &pushConstantData);
+
+        // Issue draw
+        vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
+    }
+
 
     // ImGUI Draw as last call
     ImGui::Render();
@@ -671,5 +689,9 @@ void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function
 
     // Free it because we're only using it one time
     vkFreeCommandBuffers(_device, _oneTimeCmdPool, 1, &commandBuffer);
+}
+
+void Engine::drawImGUI() {
+
 }
 

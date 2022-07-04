@@ -41,6 +41,7 @@ private:
 
     // Core functions
     void draw();
+    void drawImGUI();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIdx);
 
 private:
