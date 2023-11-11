@@ -6,7 +6,7 @@
 #include <bitset>
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
-#include <backends/imgui_impl_sdl.h>
+#include <backends/imgui_impl_sdl3.h>
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -39,8 +39,6 @@ void Engine::initBase() {
     uint32_t window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
     _window = SDL_CreateWindow(
             "My Vulkan Engine",
-            SDL_WINDOWPOS_CENTERED,
-            SDL_WINDOWPOS_CENTERED,
             _windowExtent.width,
             _windowExtent.height,
             window_flags
@@ -76,7 +74,7 @@ void Engine::initBase() {
     _debug_messenger = vkbInst.debug_messenger;
 
     // Surface (window handle for different os)
-    if (!SDL_Vulkan_CreateSurface(_window, _instance, &_surface))
+    if (!SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface))
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "ERROR when trying to create SDL surface");
 
     // Select physical device, same pattern  ---------------------------------------------
@@ -159,15 +157,15 @@ void Engine::run() {
     while (!bQuit) {
         //Handle events on queue
         while (SDL_PollEvent(&e)) {
-            ImGui_ImplSDL2_ProcessEvent(&e);  // handle event in ImGUI
-            if (e.type == SDL_QUIT) {
+            ImGui_ImplSDL3_ProcessEvent(&e);  // handle event in ImGUI
+            if (e.type == SDL_EVENT_QUIT) {
                 bQuit = true;
             }
         }
 
         // imgui new frame
         ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplSDL2_NewFrame(_window);
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();  // Put your imgui draw code after NewFrame
         drawImGUI();
         ImGui::ShowDemoWindow();
@@ -491,7 +489,7 @@ void Engine::initImGUI() {
     // 2: initialize imgui library
     // initializes the core structures of imgui + SDL
     ImGui::CreateContext();
-    ImGui_ImplSDL2_InitForVulkan(_window);
+    ImGui_ImplSDL3_InitForVulkan(_window);
 
     // initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo initInfo = {};
@@ -507,12 +505,12 @@ void Engine::initImGUI() {
     ImGui_ImplVulkan_Init(&initInfo, _renderPass);
 
     //execute a gpu command to upload imgui font textures
-    execOneTimeCmd([](VkCommandBuffer cmd) {
-        ImGui_ImplVulkan_CreateFontsTexture(cmd);
-    });
+    ImGui_ImplVulkan_CreateFontsTexture();
+//    execOneTimeCmd([](VkCommandBuffer cmd) {
+//    });
 
     // clear font textures from cpu data
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
+    ImGui_ImplVulkan_DestroyFontsTexture();
 
     // add the destroy the imgui created structures
     _globCleanup.emplace([this, imguiPool]() {

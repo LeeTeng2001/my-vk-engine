@@ -4,6 +4,7 @@
 #include <functional>
 #include <stack>
 #include <vector>
+#include <SDL.h>
 #include "vk_mem_alloc.h"
 #include "custom_type.hpp"
 
@@ -48,7 +49,7 @@ private:
     // Core member
     int _frameNumber{0};
     VkExtent2D _windowExtent{1700, 900};
-    class SDL_Window *_window{};
+    SDL_Window *_window{};
     stack<function<void ()>> _globCleanup;
 
     // Required feature & extensions

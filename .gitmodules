@@ -14,3 +14,6 @@
 [submodule "libs/vma"]
 	path = libs/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "libs/sdl"]
+	path = libs/sdl
+	url = https://github.com/libsdl-org/SDL.git

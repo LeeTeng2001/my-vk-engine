@@ -141,3 +141,4 @@ $RECYCLE.BIN/
 
 # Custom ignore
 *.spv
+*.dll
