@@ -5,7 +5,7 @@ layout (location = 0) in vec3 fragColor;
 layout (location = 0) out vec4 outColor;
 
 layout (push_constant) uniform PushConstantData {
-    vec3 vertexOffset;
+    mat4 viewTransform;
     uint64_t time;
 } pushC;
 

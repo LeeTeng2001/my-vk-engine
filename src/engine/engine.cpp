@@ -9,6 +9,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <vk_mem_alloc.h>
+#include "camera.hpp"
 
 namespace fs = std::filesystem;
 
@@ -23,6 +24,7 @@ void Engine::initialize() {
     initPipeline();
     initData();
     initImGUI();
+    initCamera();
 }
 
 void Engine::setRequiredFeatures() {
@@ -158,11 +160,21 @@ void Engine::run() {
     SDL_Event e;
     bool bQuit = false;
     while (!bQuit) {
-        //Handle events on queue
+        float delta  = 1 / static_cast<float>(SDL_GetTicks() - lastFrameTick);
+
+        // Handle external events
         while (SDL_PollEvent(&e)) {
             ImGui_ImplSDL3_ProcessEvent(&e);  // handle event in ImGUI
-            if (e.type == SDL_EVENT_QUIT) {
-                bQuit = true;
+            switch (e.type) {
+                case SDL_EVENT_KEY_DOWN:
+                    cam->HandleKey(delta, e.key.keysym.sym);
+                    break;
+                case SDL_EVENT_MOUSE_MOTION:
+                    cam->HandleMouseMotion(e.motion.xrel, e.motion.yrel);
+                    break;
+                case SDL_EVENT_QUIT:
+                    bQuit = true;
+                    break;
             }
         }
 
@@ -519,6 +531,11 @@ void Engine::initImGUI() {
     });
 }
 
+void Engine::initCamera() {
+    cam = new Camera(_windowExtent.width, _windowExtent.height, 1000, false);
+    cam->SetPerspective(30, 10);
+}
+
 void Engine::draw() {
     // Wait for previous frame to finish (takes array of fences)
     vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
@@ -618,18 +635,16 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     // vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout,
     //                         0, 1, &_descriptorSets[currentFrame], 0, nullptr);
 
-    for (int i = 0; i < 2; ++i) {
-        PushConstantData pushConstantData{};
-        pushConstantData.time = SDL_GetTicks();
-        pushConstantData.vertexOffset = {1, 1, 0};
 
-        // Push constant
-        vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                           0, sizeof(PushConstantData), &pushConstantData);
+    // Push constant
+    PushConstantData pushConstantData{};
+    pushConstantData.time = SDL_GetTicks();
+    pushConstantData.viewTransform = cam->GetTransformMatrix();
+    vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                       0, sizeof(PushConstantData), &pushConstantData);
 
-        // Issue draw
-        vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
-    }
+    // Issue draw
+    vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
 
 
     // ImGUI Draw as last call
@@ -693,4 +708,5 @@ void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function
 void Engine::drawImGUI() {
 
 }
+
 

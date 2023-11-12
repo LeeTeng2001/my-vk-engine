@@ -33,6 +33,7 @@ private:
     void initPipeline();
     void initData();
     void initImGUI();
+    void initCamera();
 
     // Initialisation info helper
     void printPhysDeviceProps();
@@ -51,6 +52,7 @@ private:
     VkExtent2D _windowExtent{1700, 900};
     SDL_Window *_window{};
     stack<function<void ()>> _globCleanup;
+    uint64_t lastFrameTick{0};
 
     // Required feature & extensions
     VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures{};
@@ -99,11 +101,14 @@ private:
     VkBuffer _vertexBuffer{};
     VkBuffer _idxBuffer{};
     vector<Vertex> _mVertex = {
-            {{0, -0.5, 0}, {1, 0, 0}},
-            {{-0.5, 0.5, 0}, {0, 0, 1}},
-            {{0.5, 0.5, 0}, {0, 1, 0}},
+            {{0, -300, 10}, {1, 0, 0}},
+            {{-200, 300, 10}, {0, 0, 1}},
+            {{200, 300, 10}, {0, 1, 0}},
     };
     vector<uint32_t> _mIdx = {
             0, 1, 2
     };
+
+    // Helper
+    class Camera *cam;
 };

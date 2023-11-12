@@ -41,6 +41,6 @@ struct Vertex {
 
 // It's better to use a shared data between vertex and fragment
 struct PushConstantData {
-    glm::vec3 vertexOffset;
+    glm::mat4 viewTransform;
     unsigned long long time;
 };

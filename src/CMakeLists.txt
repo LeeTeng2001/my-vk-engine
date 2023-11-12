@@ -10,8 +10,8 @@ add_executable(${EXE_NAME}
         engine/engine.cpp
         engine/custom_type.hpp
         engine/creation_helper.hpp
-        engine/creation_helper.cpp
-        )
+        engine/camera.hpp
+)
 
 target_include_directories(${EXE_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${EXE_NAME}
