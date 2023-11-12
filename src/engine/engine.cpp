@@ -1,5 +1,6 @@
 #include "engine.hpp"
 #include "creation_helper.hpp"
+#include "utils.h"
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <filesystem>
@@ -7,8 +8,6 @@
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
-
-#define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
 namespace fs = std::filesystem;
@@ -31,14 +30,15 @@ void Engine::setRequiredFeatures() {
     _requiredPhysicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
     _requiredPhysicalDeviceFeatures.sampleRateShading = VK_TRUE;
     _requiredPhysicalDeviceFeatures.wideLines = VK_TRUE;
+    _requiredPhysicalDeviceFeatures.shaderInt64 = VK_TRUE;
 }
 
 void Engine::initBase() {
-    // Create window
+    // Create SDL window
     SDL_Init(SDL_INIT_VIDEO);
     uint32_t window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
     _window = SDL_CreateWindow(
-            "My Vulkan Engine",
+            "Luna's Vulkan Engine",
             _windowExtent.width,
             _windowExtent.height,
             window_flags
@@ -58,8 +58,8 @@ void Engine::initBase() {
             }
     );
     auto instBuildRes = instBuilder
-            .set_app_name ("Awesome Vulkan Application")
-            .set_engine_name("Excellent Game Engine")
+            .set_app_name("Luna Vulkan Engine")
+            .set_engine_name("Luna Engine")
             .enable_validation_layers()
             .require_api_version(1, 3)
             .build();
@@ -115,7 +115,6 @@ void Engine::initBase() {
             .use_default_format_selection()  // B8G8R8A8_SRGB + SRGB non linear
             .use_default_present_mode_selection()  // mailbox, falback to fifo
             .use_default_image_usage_flags()  // Color attachment
-            .set_desired_extent(_windowExtent.width, _windowExtent.height)
             .build();
 
     if (!vkbSwapchainRes){
@@ -127,6 +126,10 @@ void Engine::initBase() {
     _swapchain = vkbSwapchain.swapchain;
     _swapchainImages = vkbSwapchain.get_images().value();
     _swapChainExtent = vkbSwapchain.extent;
+    // TODO: Fix extent, should query SDL: https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Window extent: %d, %d", _windowExtent.width, _windowExtent.height);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Swapchain extent: %d, %d", vkbSwapchain.extent.width, vkbSwapchain.extent.height);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Swapchain image counts: %d", vkbSwapchain.get_images()->size());
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
     _swapchainImageFormat = vkbSwapchain.image_format;
 
@@ -169,7 +172,6 @@ void Engine::run() {
         ImGui::NewFrame();  // Put your imgui draw code after NewFrame
         drawImGUI();
         ImGui::ShowDemoWindow();
-
         draw();
     }
 }
@@ -222,6 +224,7 @@ void Engine::initCommand() {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create command pool");
     }
 
+    // Command buffer is implicitly deleted when pool is destroyed
     _globCleanup.emplace([this](){
         vkDestroyCommandPool(_device, _renderCmdPool, nullptr);
         vkDestroyCommandPool(_device, _oneTimeCmdPool, nullptr);
@@ -244,6 +247,8 @@ void Engine::initRenderPass() {
     // Attachment in render pass
     VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
             _swapchainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+//    VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
+//            _swapchainImageFormat, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR);
 
     vector<VkAttachmentDescription> allAttachments{
         colorAttachment
@@ -503,17 +508,12 @@ void Engine::initImGUI() {
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
     ImGui_ImplVulkan_Init(&initInfo, _renderPass);
-
     //execute a gpu command to upload imgui font textures
     ImGui_ImplVulkan_CreateFontsTexture();
-//    execOneTimeCmd([](VkCommandBuffer cmd) {
-//    });
-
-    // clear font textures from cpu data
-    ImGui_ImplVulkan_DestroyFontsTexture();
 
     // add the destroy the imgui created structures
     _globCleanup.emplace([this, imguiPool]() {
+        ImGui_ImplVulkan_DestroyFontsTexture();
         vkDestroyDescriptorPool(_device, imguiPool, nullptr);
         ImGui_ImplVulkan_Shutdown();
     });
@@ -527,6 +527,7 @@ void Engine::draw() {
     uint32_t imageIdx;
     VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX,
                                             _presentSemaphore, VK_NULL_HANDLE, &imageIdx);
+    VK_CHECK_RESULT(result);
 
     // reset to unsignaled only if we're sure we have work to do.
     vkResetFences(_device, 1, &_renderFence);

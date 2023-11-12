@@ -5,7 +5,7 @@
 #include <stack>
 #include <vector>
 #include <SDL.h>
-#include "vk_mem_alloc.h"
+#include <vk_mem_alloc.h>
 #include "custom_type.hpp"
 
 using std::function;
@@ -83,7 +83,7 @@ private:
     VkSemaphore _presentSemaphore{}, _renderSemaphore{};
     VkFence _renderFence{};
 
-    // Commands
+    // Commands pool and buffers
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
     VkCommandBuffer _renderCmdBuffer{};
