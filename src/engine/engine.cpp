@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <bitset>
 #include <imgui.h>
+#include <tiny_obj_loader.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <vk_mem_alloc.h>
@@ -15,6 +16,7 @@ namespace fs = std::filesystem;
 
 void Engine::initialize() {
     setRequiredFeatures();
+    initAssets();
     initBase();
     initCommand();
     initRenderPass();
@@ -35,6 +37,55 @@ void Engine::setRequiredFeatures() {
     _requiredPhysicalDeviceFeatures.shaderInt64 = VK_TRUE;
 }
 
+void Engine::initAssets() {
+    //attrib will contain the vertex arrays of the file
+    std::string modelPath = "assets/models/teapot.obj";
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    //error and warning output from the load function
+    std::string warn;
+    std::string err;
+    // Right now a hardcoded path for file
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading model: %s", modelPath.c_str());
+    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str(), nullptr);
+    if (!warn.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, warn.c_str());
+    }
+    if (!err.empty()) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, err.c_str());
+        return;
+    }
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model shapes: %i", shapes.size());
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model materials: %i", materials.size());
+
+    // Loop over shapes
+    // By default obj is already in counter-clockwise order
+    for (auto &shape : shapes) {
+        for (const auto& index : shape.mesh.indices) {
+            Vertex vertex{};
+
+            // vertex position
+            tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
+            tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
+            tinyobj::real_t vz = attrib.vertices[3 * index.vertex_index + 2];
+
+            vertex.pos.x = vx;
+            vertex.pos.y = vy;
+            vertex.pos.z = vz;
+
+            vertex.color.x = vx;
+            vertex.color.y = vy;
+            vertex.color.z = vz;
+
+            _mVertex.push_back(vertex);
+            _mIdx.push_back(_mIdx.size());
+        }
+    }
+}
+
 void Engine::initBase() {
     // Create SDL window
     SDL_Init(SDL_INIT_VIDEO);
@@ -48,17 +99,25 @@ void Engine::initBase() {
 
     // Initialise vulkan through bootstrap  ---------------------------------------------
     vkb::InstanceBuilder instBuilder;
-    instBuilder.set_debug_callback (
+    instBuilder.set_debug_callback(
             [] (VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                 VkDebugUtilsMessageTypeFlagsEXT messageType,
                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                 void *pUserData) -> VkBool32 {
                 auto severity = vkb::to_string_message_severity(messageSeverity);
                 auto type = vkb::to_string_message_type(messageType);
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[%s: %s] %s\n", severity, type, pCallbackData->pMessage);
+                switch (messageSeverity) {
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s\n", pCallbackData->pMessage);
+                    break;
+                default:
+                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "vk [%s: %s] %s\n", severity, type, pCallbackData->pMessage);
+                }
                 return VK_FALSE;
             }
     );
+    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+    instBuilder.set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT);  // To enable output from shader
     auto instBuildRes = instBuilder
             .set_app_name("Luna Vulkan Engine")
             .set_engine_name("Luna Engine")
@@ -532,8 +591,8 @@ void Engine::initImGUI() {
 }
 
 void Engine::initCamera() {
-    cam = new Camera(_windowExtent.width, _windowExtent.height, 1000, false);
-    cam->SetPerspective(30, 10);
+    cam = new Camera(10, 6, 10000, false);
+    cam->SetPerspective(90, 1);
 }
 
 void Engine::draw() {
@@ -639,11 +698,12 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     // Push constant
     PushConstantData pushConstantData{};
     pushConstantData.time = SDL_GetTicks();
-    pushConstantData.viewTransform = cam->GetTransformMatrix();
+//    pushConstantData.viewTransform = cam->GetOrthographicTransformMatrix();
+    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix();
     vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(PushConstantData), &pushConstantData);
 
-    // Issue draw
+    // Issue drawb
     vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
 
 

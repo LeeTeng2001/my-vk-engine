@@ -5,6 +5,8 @@ add_library(vma INTERFACE)
 add_library(stb_image INTERFACE)
 
 # Include package with provided CMakeList
+add_subdirectory(tinyobjloader)
+add_subdirectory(googletest)
 add_subdirectory(vkbootstrap)
 add_subdirectory(glm)
 add_subdirectory(sdl EXCLUDE_FROM_ALL)

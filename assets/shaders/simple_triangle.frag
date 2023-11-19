@@ -14,5 +14,8 @@ void main() {
 //    if (sinVal < 0) sinVal *= -1;
 //    outColor = vec4(fragColor * sinVal, 1.0);
     outColor = vec4(fragColor, 1.0);
+
+    // Assuming light source is the same as position of camera.
+//    outColor = vec4(fragColor, 1.0);
 }
 

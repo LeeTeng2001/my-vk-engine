@@ -20,9 +20,15 @@ target_link_libraries(${EXE_NAME}
         vk-bootstrap::vk-bootstrap  # Bootstrap vulkan
         vma  # Memory allocator by AMD
         glm  # Math lib
+        tinyobjloader # model loader
         imgui
         stb_image
         )
 
 add_dependencies(${EXE_NAME} Shaders)
+
+# Unit tests ----------------------------------------------------------------------
+add_executable(CameraUnitTest tests/cameraTest.cpp)
+target_include_directories(CameraUnitTest PUBLIC engine)
+target_link_libraries(CameraUnitTest gtest gtest_main glm SDL3::SDL3)
 

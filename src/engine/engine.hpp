@@ -24,6 +24,7 @@ public:
 private:
     // Initialization helper
     void setRequiredFeatures();
+    void initAssets();
     void initBase();
     void initCommand();
     void initRenderPass();
@@ -100,14 +101,8 @@ private:
     // Data
     VkBuffer _vertexBuffer{};
     VkBuffer _idxBuffer{};
-    vector<Vertex> _mVertex = {
-            {{0, -300, 10}, {1, 0, 0}},
-            {{-200, 300, 10}, {0, 0, 1}},
-            {{200, 300, 10}, {0, 1, 0}},
-    };
-    vector<uint32_t> _mIdx = {
-            0, 1, 2
-    };
+    vector<Vertex> _mVertex = {};
+    vector<uint32_t> _mIdx = {};
 
     // Helper
     class Camera *cam;
