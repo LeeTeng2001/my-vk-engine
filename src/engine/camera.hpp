@@ -1,8 +1,12 @@
 #pragma once
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <SDL_keycode.h>
 
 constexpr float movSpeed = 100;
@@ -10,8 +14,8 @@ constexpr float movSpeed = 100;
 class Camera {
 private:
     // General properties
-    glm::vec3 position{0, -3, -10};  // center of camera
-    glm::vec3 lookAt{0, -1, 0};
+    glm::vec3 position{0, 0, -5};  // center of camera
+    glm::quat rotation{};             // rotation in quaternion
     int viewWidth;
     int viewHeight;
     int viewDepth;
@@ -34,9 +38,10 @@ public:
         this->nearDepth = nearPlane;
     }
 
-    void Set(glm::vec3 pos, glm::vec3 newLookAt) {
+    void SetCameraPosLookAt(glm::vec3 pos, glm::vec3 newLookAt) {
         position = pos;
-        lookAt = newLookAt;
+        // Do the math to calculation quatenium
+//        lookAt = newLookAt;
     }
 
     void HandleKey(float delta, SDL_Keycode keyPressed) {
@@ -66,18 +71,17 @@ public:
         // Build look at matrix (combine new basis axis and translation)
         // The rotation is inverse of R = transpose of R
         glm::vec3 upVec(0, -1, 0);
+        glm::vec3 lookAt(0, 0, 0);
+        position = {0, 0, 5};
         glm::vec3 lookAtDir = glm::normalize(lookAt - position);
         glm::vec3 right = glm::normalize(glm::cross(lookAtDir, upVec));
         glm::vec3 camUp = glm::normalize(glm::cross(right, lookAtDir));
         glm::mat4 camMatrix{
-                {},
-                {},
-                {},
-                {},
+                glm::vec4{right.x, camUp.x, lookAtDir.x, 0},
+                glm::vec4{right.y, camUp.y, lookAtDir.y, 0},
+                glm::vec4{right.z, camUp.z, lookAtDir.z, 0},
+                glm::vec4{-position.x, -position.y, -position.z, 1},
         };  // construct new axis, where 4th arg is the translation
-        camMatrix[0] = glm::vec4(right, -position.x);
-        camMatrix[1] = glm::vec4(camUp, -position.y);
-        camMatrix[2] = glm::vec4(lookAtDir, -position.z);
 
         return camMatrix;
     }
@@ -85,9 +89,10 @@ public:
     glm::mat4 GetPerspectiveTransformMatrix(bool useGlm = true) {
         if (useGlm) {  // use glm implementation to calculate transform
             // remember glm uses a column based matrix
-            glm::mat4 view = glm::translate(glm::mat4(1.f), position);
+//            glm::mat4 view = glm::translate(glm::mat4(1.f), position);
+            glm::mat4 view = GetCamTransform();
             glm::mat4 projection = glm::perspective(glm::radians(fov), float(viewWidth) / float(viewHeight), float(nearDepth), float(viewDepth));
-            projection[1][1] *= -1;  // invert y
+//            projection[1][1] *= -1;  // invert y
             return projection * view;
         } else {
             glm::mat4 res(1);
@@ -128,12 +133,16 @@ public:
     glm::mat4 GetOrthographicTransformMatrix(bool useGlm = true) {
         if (useGlm) {
             // we don't need to invert y manually after calculation because we're passing in inverted y directly
-            glm::mat4 view = glm::translate(glm::mat4(1.f), position);
+//            glm::mat4 view = glm::translate(glm::mat4(1.f), -position);
+//            glm::mat4 view = glm::lookAt(position, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
+
+            glm::mat4 view = glm::lookAt(glm::vec3{5, -3, 0}, glm::vec3{0, 0, 0}, glm::vec3{0, -1, 0});
+            view = glm::scale(view, glm::vec3{1, 1, -1});
             glm::mat4 projection = glm::ortho(-float(viewWidth)/2, float(viewWidth)/2, float(viewWidth)/2, -float(viewWidth)/2, float(nearDepth), float(viewDepth));
             return projection * view;
         } else {
             glm::mat4 res(1);
-            res = GetCamTransform() * res;
+//            res = GetCamTransform() * res;
 
             // fit into canonical view box
             // last one is 1/d because vulkan uses [0, 1] instead of [-1, 1] depth
