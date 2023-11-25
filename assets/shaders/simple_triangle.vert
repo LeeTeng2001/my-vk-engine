@@ -19,6 +19,6 @@ void main() {
 //    gl_Position = vec4(inPosition + pushC.vertexOffset * sinVal, 1.0);
 
     gl_Position = pushC.viewTransform * vec4(inPosition, 1.0);
-//    debugPrintfEXT("in: (%f, %f, %f), final (%f, %f, %f)", inPosition.x, inPosition.y, inPosition.z, gl_Position.x, gl_Position.y, gl_Position.z);
+    debugPrintfEXT("in: (%f, %f, %f, %f), final (%f, %f, %f, %f)", inPosition.x, inPosition.y, inPosition.z, inPosition.w, gl_Position.x, gl_Position.y, gl_Position.z, gl_Position.w);
     fragColor = inColor;
 }

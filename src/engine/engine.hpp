@@ -25,6 +25,7 @@ private:
     // Initialization helper
     void setRequiredFeatures();
     void initAssets();
+    void initDebugAssets();
     void initBase();
     void initCommand();
     void initRenderPass();

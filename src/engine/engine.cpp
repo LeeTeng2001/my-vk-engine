@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 
 void Engine::initialize() {
     setRequiredFeatures();
-    initAssets();
+    initDebugAssets();
     initBase();
     initCommand();
     initRenderPass();
@@ -84,6 +84,28 @@ void Engine::initAssets() {
             _mIdx.push_back(_mIdx.size());
         }
     }
+}
+
+void Engine::initDebugAssets() {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading debug model cube");
+
+    // a cube in vulkan axis space
+    float scale = 2;
+    _mVertex = {
+            {{scale, -scale, -scale}, {}, {scale, -scale, -scale}},   //0 front, tr
+            {{scale, scale, -scale}, {}, {scale, scale, -scale}},     //1 front, br
+            {{-scale, -scale, -scale}, {}, {-scale, -scale, -scale}}, //2 front, tl
+            {{-scale, scale, -scale}, {}, {-scale, scale, -scale}},   //3 front, bl
+            {{scale, -scale, scale}, {}, {scale, -scale, scale}},     //4 back, tr
+            {{scale, scale, scale}, {}, {scale, scale, scale}},       //5 back, br
+            {{-scale, -scale, scale}, {}, {-scale, -scale, scale}},   //6 back, tl
+            {{-scale, scale, scale}, {}, {-scale, scale, scale}},     //7 back, bl
+    };
+    _mIdx = {
+            // front
+            0, 2, 1,
+            2, 3, 1,
+    };
 }
 
 void Engine::initBase() {
@@ -591,7 +613,7 @@ void Engine::initImGUI() {
 }
 
 void Engine::initCamera() {
-    cam = new Camera(10, 6, 10000, false);
+    cam = new Camera(20, 10, 10000, false);
     cam->SetPerspective(90, 1);
 }
 
