@@ -94,19 +94,33 @@ void Engine::initDebugAssets() {
     // a cube in vulkan axis space
     float scale = 2;
     _mVertex = {
-            {{scale, -scale, -scale}, {}, {scale, -scale, -scale}},   //0 front, tr
-            {{scale, scale, -scale}, {}, {scale, scale, -scale}},     //1 front, br
-            {{-scale, -scale, -scale}, {}, {-scale, -scale, -scale}}, //2 front, tl
-            {{-scale, scale, -scale}, {}, {-scale, scale, -scale}},   //3 front, bl
-            {{scale, -scale, scale}, {}, {scale, -scale, scale}},     //4 back, tr
-            {{scale, scale, scale}, {}, {scale, scale, scale}},       //5 back, br
-            {{-scale, -scale, scale}, {}, {-scale, -scale, scale}},   //6 back, tl
-            {{-scale, scale, scale}, {}, {-scale, scale, scale}},     //7 back, bl
+            // normal cube in world space: up:+y, right:+x, forward: +z
+            // draw in counter-clockwise order
+            {{scale, scale, -scale}, {}, {0, 0, 0}},      //0 front, tr
+            {{scale, -scale, -scale}, {}, {1, 0, 0}},     //1 front, br
+            {{-scale, scale, -scale}, {}, {0, 1, 0}},     //2 front, tl
+            {{-scale, -scale, -scale}, {}, {1, 1, 0}},    //3 front, bl
+            {{scale, scale, scale}, {}, {0, 0, 1}},       //4 back, tr
+            {{scale, -scale, scale}, {}, {1, 0, 1}},      //5 back, br
+            {{-scale, scale, scale}, {}, {0, 1, 1}  },    //6 back, tl
+            {{-scale, -scale, scale}, {}, {1, 1, 1} },    //7 back, bl
+            // RAW TRIANGLE! directly in clip space: up:-y, right:+x, forward: +z
+            // draw in counter-clockwise order
+//            {{0, -0.5, 0}, {}, {1, 0, 0}},       //8 top
+//            {{-0.5, 0.5, 0}, {}, {0, 0, 1}},     //9 bottom left
+//            {{0.5, 0.5, 0}, {}, {0, 1, 0}},      //10 bottom right
     };
     _mIdx = {
+            // debug raw triangle
+//            8, 9, 10
             // front
             0, 2, 1,
             2, 3, 1,
+            // top
+            4, 6, 0,
+            6, 2, 0,
+            // back
+//            2, 3, 1,
     };
 }
 
@@ -525,10 +539,12 @@ void Engine::initData() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+    SDL_Log("copy total of vertex buffer to gpu (size: %d, total: %d)", sizeof(Vertex), _mVertex.size());
+
     // Memory info
     VmaAllocationCreateInfo allocInfo{};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;  // vma way of doing stuff, read doc!
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
     VmaAllocation allocation;  // represent underlying memory
     if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &_vertexBuffer, &allocation, nullptr) != VK_SUCCESS)
@@ -542,6 +558,7 @@ void Engine::initData() {
     vmaMapMemory(_allocator, allocation, &mappedData);
     memcpy(mappedData, _mVertex.data(), bufferInfo.size);
     vmaUnmapMemory(_allocator, allocation);
+    vmaFlushAllocation(_allocator, allocation, 0, bufferInfo.size); // TODO: Transfer to staging buffer
 
     // Buffer info
     bufferInfo.size = sizeof(_mIdx[0]) * _mIdx.size();
@@ -556,6 +573,7 @@ void Engine::initData() {
     vmaMapMemory(_allocator, allocation, &mappedData);
     memcpy(mappedData, _mIdx.data(), bufferInfo.size);
     vmaUnmapMemory(_allocator, allocation);
+    vmaFlushAllocation(_allocator, allocation, 0, bufferInfo.size); // TODO: Transfer to staging buffer
 }
 
 void Engine::initImGUI() {
@@ -615,8 +633,7 @@ void Engine::initImGUI() {
 }
 
 void Engine::initCamera() {
-    cam = new Camera(20, 10, 10000, false);
-    cam->SetPerspective(90, 1);
+    cam = new Camera(1980, 1080, 1, 100, 60);
 }
 
 void Engine::draw() {
@@ -723,7 +740,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     PushConstantData pushConstantData{};
     pushConstantData.time = SDL_GetTicks();
 //    pushConstantData.viewTransform = cam->GetOrthographicTransformMatrix();
-    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix();
+    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix(false);
     vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(PushConstantData), &pushConstantData);
 

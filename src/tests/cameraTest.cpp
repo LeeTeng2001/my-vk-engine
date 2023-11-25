@@ -2,6 +2,8 @@
 #include <glm/gtc/epsilon.hpp>
 #include "camera.hpp"
 
+// TODO: Fix test
+
 glm::mat4 getPerspectiveProjectionFromFormula(float fovy, float aspect, float near, float far) {
     const float tanHalfFovy = tan(fovy / 2.0f);
     glm::mat4 projectionMatrix = glm::mat4{ 0 };
