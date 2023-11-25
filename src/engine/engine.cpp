@@ -16,7 +16,8 @@ namespace fs = std::filesystem;
 
 void Engine::initialize() {
     setRequiredFeatures();
-    initDebugAssets();
+//    initDebugAssets();
+    initAssets();
     initBase();
     initCommand();
     initRenderPass();
@@ -63,28 +64,105 @@ void Engine::initAssets() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model shapes: %i", shapes.size());
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model materials: %i", materials.size());
 
+    // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
     // Loop over shapes
     // By default obj is already in counter-clockwise order
     for (auto &shape : shapes) {
-        for (const auto& index : shape.mesh.indices) {
-            Vertex vertex{};
+        // Loop over faces (polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            bool shouldGenerateNormal = false;
+            // Loop over vertices in the face. (rn I hardcode 3 vertices for a face)
+            for (size_t v = 0; v < 3; v++) {
+                Vertex vertex{};
 
-            // vertex position
-            tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
-            tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
-            tinyobj::real_t vz = attrib.vertices[3 * index.vertex_index + 2];
+                // access to vertex
+                tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+                tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+                tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
 
-            vertex.pos.x = vx;
-            vertex.pos.y = vy;
-            vertex.pos.z = vz;
+                vertex.pos.x = vx;
+                vertex.pos.y = vy;
+                vertex.pos.z = vz;
+                vertex.color.x = vx;
+                vertex.color.y = vy;
+                vertex.color.z = vz;
 
-            vertex.color.x = vx;
-            vertex.color.y = vy;
-            vertex.color.z = vz;
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                if (idx.normal_index >= 0) {
+                    tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
+                    tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
+                    tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+                    vertex.normal.x = nx;
+                    vertex.normal.y = ny;
+                    vertex.normal.z = nz;
+                } else {
+                    shouldGenerateNormal = true;
+                }
+//                // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+//                if (idx.texcoord_index >= 0) {
+//                    tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+//                    tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+//                }
+                // Optional: vertex colors
+                // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+                // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+                // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
 
-            _mVertex.push_back(vertex);
-            _mIdx.push_back(_mIdx.size());
+                _mVertex.push_back(vertex);
+                _mIdx.push_back(_mIdx.size());
+            }
+
+            if (shouldGenerateNormal) {
+                // since our model is being drawn in counter-clockwise
+                glm::vec3 v1 = _mVertex[index_offset+2].pos - _mVertex[index_offset+1].pos;
+                glm::vec3 v2 = _mVertex[index_offset].pos - _mVertex[index_offset+1].pos;
+                glm::vec3 norm = -glm::normalize(glm::cross(v1, v2));
+                for (int i = 0; i < 3; ++i) {
+                    _mVertex[index_offset+i].normal = norm;
+                }
+            }
+
+            index_offset += 3;
         }
+
+//        for (const auto& index : shape.mesh.indices) {
+//            Vertex vertex{};
+//
+//            // vertex position
+//            tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
+//            tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
+//            tinyobj::real_t vz = attrib.vertices[3 * index.vertex_index + 2];
+//
+//            vertex.pos.x = vx;
+//            vertex.pos.y = vy;
+//            vertex.pos.z = vz;
+//
+//            if (index.normal_index == -1) { // no normal, we'll just use the position as a rough estimation
+//                glm::vec3 approxNorm{vx, vy, vz};
+//                approxNorm = glm::normalize(approxNorm);
+//
+//                vertex.normal.x = approxNorm.x;
+//                vertex.normal.y = approxNorm.y;
+//                vertex.normal.z = approxNorm.z;
+//            } else {
+//                tinyobj::real_t nx = attrib.vertices[3 * index.normal_index + 0];
+//                tinyobj::real_t ny = attrib.vertices[3 * index.normal_index + 1];
+//                tinyobj::real_t nz = attrib.vertices[3 * index.normal_index + 2];
+//
+//                vertex.normal.x = nx;
+//                vertex.normal.y = ny;
+//                vertex.normal.z = nz;
+//            }
+//
+//            vertex.color.x = vx;
+//            vertex.color.y = vy;
+//            vertex.color.z = vz;
+//
+//            _mVertex.push_back(vertex);
+//            _mIdx.push_back(_mIdx.size());
+//        }
     }
 }
 
@@ -559,6 +637,7 @@ void Engine::initData() {
     memcpy(mappedData, _mVertex.data(), bufferInfo.size);
     vmaUnmapMemory(_allocator, allocation);
     vmaFlushAllocation(_allocator, allocation, 0, bufferInfo.size); // TODO: Transfer to staging buffer
+    // Flush: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
 
     // Buffer info
     bufferInfo.size = sizeof(_mIdx[0]) * _mIdx.size();
@@ -740,7 +819,8 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     PushConstantData pushConstantData{};
     pushConstantData.time = SDL_GetTicks();
 //    pushConstantData.viewTransform = cam->GetOrthographicTransformMatrix();
-    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix(false);
+    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix();
+    pushConstantData.sunPos = cam->GetCamPos();
     vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(PushConstantData), &pushConstantData);
 

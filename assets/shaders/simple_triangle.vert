@@ -10,6 +10,7 @@ layout (location = 2) in vec3 inColor;
 
 layout (push_constant) uniform PushConstantData {
     mat4 viewTransform;
+    vec3 sunPos;
     uint64_t time;
 } pushC;
 
@@ -21,5 +22,8 @@ void main() {
     gl_Position = pushC.viewTransform * vec4(inPosition, 1.0);
 //    gl_Position = vec4(inPosition, 1.0);
 //    debugPrintfEXT("in: (%v), final (%v)", inPosition, gl_Position);
-    fragColor = inColor + inNormal;
+//    fragColor = inColor;
+
+    // Very simple shader, assuming the position of the sun is coming from camera
+    fragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
 }

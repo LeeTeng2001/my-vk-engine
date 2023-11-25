@@ -32,6 +32,8 @@ public:
                                                                                     viewDepth(viewDepth), fovYInAngle(fov),
                                                                                     nearDepth(nearDepth) {}
 
+    [[nodiscard]] glm::vec3 GetCamPos() { return position; }
+
     void SetCameraPosLookAt(glm::vec3 pos, glm::vec3 newLookAt) {
         position = pos;
         // Do the math to calculation quatenium
