@@ -33,7 +33,9 @@ void Engine::setRequiredFeatures() {
     // Required device feature
     _requiredPhysicalDeviceFeatures.samplerAnisotropy = VK_TRUE;
     _requiredPhysicalDeviceFeatures.sampleRateShading = VK_TRUE;
+#ifndef __APPLE__
     _requiredPhysicalDeviceFeatures.wideLines = VK_TRUE;
+#endif
     _requiredPhysicalDeviceFeatures.shaderInt64 = VK_TRUE;
 }
 
@@ -138,7 +140,7 @@ void Engine::initBase() {
                 return VK_FALSE;
             }
     );
-    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+//    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
     instBuilder.set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT);  // To enable output from shader
     auto instBuildRes = instBuilder
             .set_app_name("Luna Vulkan Engine")

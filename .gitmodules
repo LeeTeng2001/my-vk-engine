@@ -9,7 +9,7 @@
 	url = https://github.com/charles-lunarg/vk-bootstrap
 [submodule "libs/imgui"]
 	path = libs/imgui
-	url = https://github.com/ocornut/imgui
+	url = git@github.com:ocornut/imgui.git
 	shallow = true
 [submodule "libs/vma"]
 	path = libs/vma
