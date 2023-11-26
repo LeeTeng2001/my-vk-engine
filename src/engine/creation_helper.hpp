@@ -15,7 +15,7 @@ public:
     static VkAttachmentDescription createVkAttDesc(VkFormat format, VkImageLayout finalLayout) {
         VkAttachmentDescription attachment{};
         attachment.format = format;
-        attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        attachment.samples = VK_SAMPLE_COUNT_1_BIT;  // todo; customise
         attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; // what to do with the data when load?
         attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // we're not using stencil
@@ -24,6 +24,43 @@ public:
         attachment.finalLayout = finalLayout; // msaa final image
 
         return attachment;
+    }
+
+    static VkImageCreateInfo imageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent2D extent) {
+        VkImageCreateInfo info {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+
+        info.imageType = VK_IMAGE_TYPE_2D;
+        info.format = format;
+        info.extent = {
+                extent.width,
+                extent.height,
+                1,
+        };
+
+        info.mipLevels = 1;  // todo: customisable?
+        info.arrayLayers = 1;
+        info.samples = VK_SAMPLE_COUNT_1_BIT; // todo; customise for color attachment
+        info.tiling = VK_IMAGE_TILING_OPTIMAL; // not possible to read the image without transforming, but optimal for access
+        info.usage = usageFlags;
+
+        return info;
+    }
+
+    static VkImageViewCreateInfo imageViewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags) {
+        VkImageViewCreateInfo info {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.image = image;
+        info.format = format;
+        info.subresourceRange.baseMipLevel = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.layerCount = 1;
+        info.subresourceRange.aspectMask = aspectFlags;
+
+        return info;
     }
 
     static VkFenceCreateInfo createFenceInfo(bool initSignalOn = false) {
@@ -128,9 +165,9 @@ public:
         // Depth and stencil
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = VK_FALSE;  // pixel should be discarded?
-        depthStencil.depthWriteEnable = VK_FALSE;  // write new depth?
-        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;  // lower depth nearer.
+        depthStencil.depthTestEnable = VK_TRUE;  // pixel should be discarded?
+        depthStencil.depthWriteEnable = VK_TRUE;  // write new depth?
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;  // lower depth nearer.
         depthStencil.depthBoundsTestEnable = VK_FALSE;  // only keep fragment in range
         depthStencil.minDepthBounds = 0.0f; // Optional
         depthStencil.maxDepthBounds = 1.0f; // Optional

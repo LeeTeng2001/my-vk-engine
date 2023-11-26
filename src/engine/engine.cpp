@@ -20,6 +20,7 @@ void Engine::initialize() {
     initAssets();
     initBase();
     initCommand();
+    initDepthResources();
     initRenderPass();
     initFramebuffer();
     initSync();
@@ -118,11 +119,17 @@ void Engine::initAssets() {
                 // since our model is being drawn in counter-clockwise
                 glm::vec3 v1 = _mVertex[index_offset+2].pos - _mVertex[index_offset+1].pos;
                 glm::vec3 v2 = _mVertex[index_offset].pos - _mVertex[index_offset+1].pos;
-                glm::vec3 norm = -glm::normalize(glm::cross(v1, v2));
+                glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
                 for (int i = 0; i < 3; ++i) {
                     _mVertex[index_offset+i].normal = norm;
                 }
             }
+
+            // By default obj uses counter-clockwise face
+            // since, our front face is counter clockwise, and the
+            // viewport get flipped during projection transformation
+            // we need to swap front faces to clockwise in world space
+            std::swap(_mVertex[index_offset+1], _mVertex[index_offset+2]);
 
             index_offset += 3;
         }
@@ -391,11 +398,11 @@ void Engine::initRenderPass() {
     // Attachment in render pass
     VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
             _swapchainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-//    VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
-//            _swapchainImageFormat, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR);
+    VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
+            _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     vector<VkAttachmentDescription> allAttachments{
-        colorAttachment
+        colorAttachment, depthAttachment
     };
 
     // Subpass attachments
@@ -403,11 +410,16 @@ void Engine::initRenderPass() {
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     // Subpass & dependencies
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -419,6 +431,18 @@ void Engine::initRenderPass() {
     dependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
+    VkSubpassDependency depthDependency{};
+    depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    depthDependency.dstSubpass = 0;
+    depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
+    depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    vector<VkSubpassDependency > allDependencies{
+            dependency, depthDependency
+    };
+
     // create render pass
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -426,8 +450,8 @@ void Engine::initRenderPass() {
     renderPassInfo.pAttachments = allAttachments.data();
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
+    renderPassInfo.dependencyCount = allDependencies.size();
+    renderPassInfo.pDependencies = allDependencies.data();
 
     if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create render pass");
@@ -435,6 +459,29 @@ void Engine::initRenderPass() {
 
     _globCleanup.emplace([this](){
         vkDestroyRenderPass(_device,  _renderPass, nullptr);
+    });
+}
+
+void Engine::initDepthResources() {
+    // This resource should probably be recreated if screen size change?
+    _depthFormat = VK_FORMAT_D32_SFLOAT;  // TODO: Should query! not hardcode
+    VkImageCreateInfo depthImgInfo = CreationHelper::imageCreateInfo(_depthFormat,
+                                                                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                     _swapChainExtent);
+    // allocate from GPU LOCAL memory
+    VmaAllocationCreateInfo depthAllocInfo {};
+    depthAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    depthAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkResult result = vmaCreateImage(_allocator, &depthImgInfo, &depthAllocInfo, &_depthImage._image, &_depthImage._allocation, nullptr);
+    VK_CHECK_RESULT(result);
+
+    VkImageViewCreateInfo ivInfo = CreationHelper::imageViewCreateInfo(_depthFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
+    result = vkCreateImageView(_device, &ivInfo, nullptr, &_depthImageView);
+    VK_CHECK_RESULT(result);
+
+    _globCleanup.emplace([this](){
+        vkDestroyImageView(_device, _depthImageView, nullptr);
+        vmaDestroyImage(_allocator, _depthImage._image, _depthImage._allocation);
     });
 }
 
@@ -453,7 +500,7 @@ void Engine::initFramebuffer() {
     for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
         // Can have multiple attachment
         VkImageView attachments[] = {
-                _swapchainImageViews[i]
+                _swapchainImageViews[i], _depthImageView
         };
 
         framebufferInfo.attachmentCount = std::size(attachments);
@@ -755,8 +802,9 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
 
     // Clear value for attachment load op clear
     // Should have the same order as attachments binding index
-    VkClearValue clearColor[1] = {};
-    clearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}};
+    VkClearValue clearColor[2] = {};
+    clearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
+    clearColor[1].depthStencil.depth = 1.0f; // depth attachment
     renderPassInfo.clearValueCount = std::size(clearColor);
     renderPassInfo.pClearValues = clearColor;
 

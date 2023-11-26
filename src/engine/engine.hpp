@@ -29,6 +29,7 @@ private:
     void initBase();
     void initCommand();
     void initRenderPass();
+    void initDepthResources();
     void initFramebuffer();
     void initSync();
     void initDescriptors();
@@ -83,6 +84,11 @@ private:
     vector<VkFramebuffer> _swapChainFramebuffers;
     VkRenderPass _renderPass{};
 
+    // depth (swapchain doesn't come with depth image, we should create it ourselves)
+    VkImageView _depthImageView;
+    AllocatedImage _depthImage;
+    VkFormat _depthFormat;
+
     // Sync structure
     VkSemaphore _presentSemaphore{}, _renderSemaphore{};
     VkFence _renderFence{};
@@ -95,6 +101,7 @@ private:
     // Pipeline layout
     VkPipelineLayout _pipelineLayout{};
     VkPipeline _graphicPipeline{};
+
 
     // descriptor
 

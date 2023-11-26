@@ -15,10 +15,6 @@ layout (push_constant) uniform PushConstantData {
 } pushC;
 
 void main() {
-//    float sinVal = sin(pushC.time * 0.001);
-//    if (sinVal < 0) sinVal *= -1;
-//    gl_Position = vec4(inPosition + pushC.vertexOffset * sinVal, 1.0);
-
     gl_Position = pushC.viewTransform * vec4(inPosition, 1.0);
 //    gl_Position = vec4(inPosition, 1.0);
 //    debugPrintfEXT("in: (%v), final (%v)", inPosition, gl_Position);

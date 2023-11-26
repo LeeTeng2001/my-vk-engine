@@ -45,6 +45,11 @@ struct Vertex {
     }
 };
 
+struct AllocatedImage {
+    VkImage _image;
+    VmaAllocation _allocation;
+};
+
 // It's better to use a shared data between vertex and fragment
 struct PushConstantData {
     glm::mat4 viewTransform;
