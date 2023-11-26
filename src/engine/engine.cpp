@@ -126,43 +126,6 @@ void Engine::initAssets() {
 
             index_offset += 3;
         }
-
-//        for (const auto& index : shape.mesh.indices) {
-//            Vertex vertex{};
-//
-//            // vertex position
-//            tinyobj::real_t vx = attrib.vertices[3 * index.vertex_index + 0];
-//            tinyobj::real_t vy = attrib.vertices[3 * index.vertex_index + 1];
-//            tinyobj::real_t vz = attrib.vertices[3 * index.vertex_index + 2];
-//
-//            vertex.pos.x = vx;
-//            vertex.pos.y = vy;
-//            vertex.pos.z = vz;
-//
-//            if (index.normal_index == -1) { // no normal, we'll just use the position as a rough estimation
-//                glm::vec3 approxNorm{vx, vy, vz};
-//                approxNorm = glm::normalize(approxNorm);
-//
-//                vertex.normal.x = approxNorm.x;
-//                vertex.normal.y = approxNorm.y;
-//                vertex.normal.z = approxNorm.z;
-//            } else {
-//                tinyobj::real_t nx = attrib.vertices[3 * index.normal_index + 0];
-//                tinyobj::real_t ny = attrib.vertices[3 * index.normal_index + 1];
-//                tinyobj::real_t nz = attrib.vertices[3 * index.normal_index + 2];
-//
-//                vertex.normal.x = nx;
-//                vertex.normal.y = ny;
-//                vertex.normal.z = nz;
-//            }
-//
-//            vertex.color.x = vx;
-//            vertex.color.y = vy;
-//            vertex.color.z = vz;
-//
-//            _mVertex.push_back(vertex);
-//            _mIdx.push_back(_mIdx.size());
-//        }
     }
 }
 
@@ -335,18 +298,13 @@ void Engine::run() {
     SDL_Event e;
     bool bQuit = false;
     while (!bQuit) {
-        float delta  = 1 / static_cast<float>(SDL_GetTicks() - lastFrameTick);
+        float delta  = 1 / static_cast<float>(SDL_GetTicks() - lastFrameTick) * 1000;
 
         // Handle external events
         while (SDL_PollEvent(&e)) {
             ImGui_ImplSDL3_ProcessEvent(&e);  // handle event in ImGUI
+            cam->ProcessInputEvent(delta, &e);
             switch (e.type) {
-                case SDL_EVENT_KEY_DOWN:
-                    cam->HandleKey(delta, e.key.keysym.sym);
-                    break;
-                case SDL_EVENT_MOUSE_MOTION:
-                    cam->HandleMouseMotion(e.motion.xrel, e.motion.yrel);
-                    break;
                 case SDL_EVENT_QUIT:
                     bQuit = true;
                     break;
@@ -358,7 +316,6 @@ void Engine::run() {
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();  // Put your imgui draw code after NewFrame
         drawImGUI();
-        ImGui::ShowDemoWindow();
         draw();
     }
 }
@@ -887,7 +844,9 @@ void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function
 }
 
 void Engine::drawImGUI() {
-
+//    ImGui::ShowDemoWindow();
+    ImGui::Text("World coord: up +y, right +x, forward +z");
+    ImGui::Text("Cam Pos    : %s", glm::to_string(cam->GetCamPos()).c_str());
 }
 
 

@@ -8,14 +8,24 @@
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <SDL_keycode.h>
+#include <SDL_events.h>
 
-constexpr float movSpeed = 100;
+constexpr float movSpeed = 3;
+constexpr float rotateSpeedAngle = 10;
 
 class Camera {
 private:
     // General properties
     glm::vec3 position{0, 2, -10};  // center of camera
-//    glm::quat rotation{};           // rotation in quaternion
+    // look into z
+    float camPitchAngle = 0; // head updown [-85, 85], ++ up
+    float camYawAngle = 0; // head rightleft [0, 360], ++ to the right, clockwise
+
+    // states
+    bool shouldMoveCam = false;
+    int moveForwardState = 0; // 1 forward, -1 backward
+    int moveRightState = 0; // 1 right, -1 left
+
     int viewWidth;
     int viewHeight;
     int viewDepth;
@@ -34,32 +44,78 @@ public:
 
     [[nodiscard]] glm::vec3 GetCamPos() { return position; }
 
-    void SetCameraPosLookAt(glm::vec3 pos, glm::vec3 newLookAt) {
-        position = pos;
-        // Do the math to calculation quatenium
-//        lookAt = newLookAt;
-    }
-
-    void HandleKey(float delta, SDL_Keycode keyPressed) {
-        switch (keyPressed) {
-            case SDLK_LEFT:
-                position.x -= delta * movSpeed;
+    void ProcessInputEvent(float delta, const SDL_Event *e) {
+        switch (e->type) {
+            case SDL_EVENT_KEY_DOWN:
+                switch (e->key.keysym.sym) {
+                    case SDLK_LSHIFT:
+                        shouldMoveCam = true;
+                        break;
+                    case SDLK_w:
+                        moveForwardState = 1;
+                        break;
+                    case SDLK_s:
+                        moveForwardState = -1;
+                        break;
+                    case SDLK_d:
+                        moveRightState = 1;
+                        break;
+                    case SDLK_a:
+                        moveRightState = -1;
+                        break;
+                }
                 break;
-            case SDLK_RIGHT:
-                position.x += delta * movSpeed;
+            case SDL_EVENT_KEY_UP:
+                switch (e->key.keysym.sym) {
+                    case SDLK_LSHIFT:
+                        shouldMoveCam = false;
+                        break;
+                    case SDLK_w:
+                        moveForwardState = 0;
+                        break;
+                    case SDLK_s:
+                        moveForwardState = 0;
+                        break;
+                    case SDLK_d:
+                        moveRightState =0;
+                        break;
+                    case SDLK_a:
+                        moveRightState = 0;
+                        break;
+                }
                 break;
-            case SDLK_DOWN:
-                position.y += delta * movSpeed;
-                break;
-            case SDLK_UP:
-                position.y -= delta * movSpeed;
+            case SDL_EVENT_MOUSE_MOTION:
+                if (!shouldMoveCam) {
+                    return;
+                }
+                camYawAngle = (camYawAngle + e->motion.xrel * rotateSpeedAngle * delta);
+                // SDL uses top down y coord, so minus it
+                camPitchAngle = (camPitchAngle - e->motion.yrel * rotateSpeedAngle * delta);
+                camPitchAngle = glm::clamp(camPitchAngle, -85.0f, 85.0f);
+                while (camYawAngle > 360) {
+                    camYawAngle -= 360;
+                }
+                while (camYawAngle < 0) {
+                    camYawAngle += 360;
+                }
                 break;
         }
-//        SDL_Log("%s, %f", glm::to_string(position).c_str(), delta * movSpeed);
-    }
 
-    void HandleMouseMotion(float xRel, float yRel) {
-
+        // update cam position
+        if (shouldMoveCam) {
+            glm::vec3 lookAtDir{
+                    glm::sin(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
+                    glm::sin(glm::radians(camPitchAngle)),
+                    glm::cos(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
+            };
+            if (moveForwardState != 0) {
+                position += lookAtDir * delta * movSpeed * float(moveForwardState);
+            }
+            if (moveRightState != 0) {
+                glm::vec3 r = -glm::cross(lookAtDir, glm::vec3{0, 1, 0});
+                position += r * delta * movSpeed * float(moveRightState);
+            }
+        }
     }
 
     // our world coordinate is x right, y up, z in
@@ -70,16 +126,25 @@ public:
         // The rotation is inverse of R = transpose of R
         // carefully study the cross product axis! thus we need to have -lookAtDir
         glm::vec3 upVec(0, 1, 0);
-        glm::vec3 lookAt(0, 0, 0);
-        glm::vec3 lookAtDir = glm::normalize(lookAt - position);
+
+        // calculate forward vector from two rotation angle, already normalised
+        glm::vec3 lookAtDir{
+                glm::sin(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
+                glm::sin(glm::radians(camPitchAngle)),
+                glm::cos(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
+        };
+
+        // use cross product to determine cam base axis
         glm::vec3 right = glm::normalize(glm::cross(-lookAtDir, upVec));
         glm::vec3 camUp = glm::normalize(glm::cross(right, -lookAtDir));
         glm::mat4 camMatrix{
                 glm::vec4{right.x, camUp.x, lookAtDir.x, 0},
                 glm::vec4{right.y, camUp.y, lookAtDir.y, 0},
                 glm::vec4{right.z, camUp.z, lookAtDir.z, 0},
-                glm::vec4{-position.x, -position.y, -position.z, 1},
+                glm::vec4{-glm::dot(position, right), -glm::dot(position, camUp), -glm::dot(position, lookAtDir), 1},
         };  // construct new axis, where 4th arg is the translation
+        // REMEMBER translation is the projection of the lenght onto the NEW axis, so
+        // you can't just straight up use position.x!! Must be projected into the new axis
 
         return camMatrix;
     }
