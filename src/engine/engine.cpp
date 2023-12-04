@@ -6,27 +6,31 @@
 #include <filesystem>
 #include <bitset>
 #include <imgui.h>
+#include <stb_image.h>
 #include <tiny_obj_loader.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <vk_mem_alloc.h>
+// TODO: Fix use Vulkan header instead of SDL header
+#include <array>
 #include "camera.hpp"
 
 namespace fs = std::filesystem;
 
 void Engine::initialize() {
     setRequiredFeatures();
-//    initDebugAssets();
-    initAssets();
     initBase();
     initCommand();
     initDepthResources();
+//    initDebugAssets();
+    initAssets();
+    initData();
+    initSampler();
+    initDescriptors();
     initRenderPass();
     initFramebuffer();
     initSync();
-    initDescriptors();
     initPipeline();
-    initData();
     initImGUI();
     initCamera();
 }
@@ -42,25 +46,27 @@ void Engine::setRequiredFeatures() {
 }
 
 void Engine::initAssets() {
-    //attrib will contain the vertex arrays of the file
-    std::string modelPath = "assets/models/teapot.obj";
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-
-    //error and warning output from the load function
-    std::string warn;
-    std::string err;
     // Right now a hardcoded path for file
+    fs::path modelPath("assets/models/cottage.obj");
+    fs::path diffusePath("assets/models/cottage_textures/cottage_diffuse.png");
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading model: %s", modelPath.c_str());
-    tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str(), nullptr);
-    if (!warn.empty()) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, warn.c_str());
-    }
-    if (!err.empty()) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, err.c_str());
+    tinyobj::ObjReader objReader;
+    tinyobj::ObjReaderConfig reader_config;
+    if (!objReader.ParseFromFile(modelPath.generic_string(), reader_config)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Load model return error");
+        if (!objReader.Error().empty()) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, objReader.Error().c_str());
+        }
         return;
     }
+    if (!objReader.Warning().empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, objReader.Warning().c_str());
+    }
+    //attrib will contain the vertex arrays of the file
+    tinyobj::attrib_t attrib = objReader.GetAttrib();
+    std::vector<tinyobj::shape_t> shapes = objReader.GetShapes();
+    std::vector<tinyobj::material_t> materials = objReader.GetMaterials();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model shapes: %i", shapes.size());
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model materials: %i", materials.size());
@@ -101,11 +107,15 @@ void Engine::initAssets() {
                 } else {
                     shouldGenerateNormal = true;
                 }
-//                // Check if `texcoord_index` is zero or positive. negative = no texcoord data
-//                if (idx.texcoord_index >= 0) {
-//                    tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
-//                    tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
-//                }
+                // TODO: Normal view transformation https://www.google.com/search?q=Normal+Vector+Transformation&rlz=1C1CHBD_enMY1006MY1006&oq=normal+vec&gs_lcrp=EgZjaHJvbWUqBggBEEUYOzIGCAAQRRg5MgYIARBFGDsyBggCEEUYOzIGCAMQRRg70gEIMjA0OGowajeoAgCwAgA&sourceid=chrome&ie=UTF-8
+                // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+                if (idx.texcoord_index >= 0) {
+                    tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+                    tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+                    // need to flip sign becase vulkan use tex from topy -> btm, inverse to OBJ
+                    vertex.texCoord.x = tx;
+                    vertex.texCoord.y = 1-ty;
+                }
                 // Optional: vertex colors
                 // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
                 // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
@@ -134,6 +144,25 @@ void Engine::initAssets() {
             index_offset += 3;
         }
     }
+
+    // Read material images
+    // TODO: Rn we hardcode diffuse texture
+//    for (const auto &mat: materials) {
+//        fs::path diffuseTexPath = modelPath.parent_path() / mat.name;
+//    }
+    RawAppImage imgInfo;
+    imgInfo.path = diffusePath.generic_string();
+    imgInfo.stbRef = stbi_load(imgInfo.path.c_str(), &imgInfo.texWidth, &imgInfo.texHeight, &imgInfo.texChannels, 4);
+    if (!imgInfo.stbRef) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to load diffuse texture");
+    }
+    _mInitTextures.push_back(imgInfo);
+
+    _globCleanup.emplace([this]() {
+        for (const auto &cpuTex: _mInitTextures) {
+            stbi_image_free(cpuTex.stbRef);
+        }
+    });
 }
 
 void Engine::initDebugAssets() {
@@ -203,7 +232,8 @@ void Engine::initBase() {
             }
     );
 //    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
-    instBuilder.set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT);  // To enable output from shader
+//    instBuilder.set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT);  // To enable output from shader
+    instBuilder.set_debug_messenger_severity(VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT);  // Normal applicaiton usage
     auto instBuildRes = instBuilder
             .set_app_name("Luna Vulkan Engine")
             .set_engine_name("Luna Engine")
@@ -536,7 +566,68 @@ void Engine::initSync() {
 }
 
 void Engine::initDescriptors() {
+    // Describe individual binding in a set
+    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+    samplerLayoutBinding.binding = 0;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // must indicate stage
 
+    // holds information about the layout of a set
+    std::array<VkDescriptorSetLayoutBinding, 1> bindings = {samplerLayoutBinding};
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+
+    // create the set layout
+    VkResult result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_globalSetLayout);
+    VK_CHECK_RESULT(result);
+
+    // Creat pool for binding resources
+    std::vector<VkDescriptorPoolSize> sizes = {
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
+    };
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = 0;
+    pool_info.maxSets = 10;
+    pool_info.poolSizeCount = (uint32_t)sizes.size();
+    pool_info.pPoolSizes = sizes.data();
+    vkCreateDescriptorPool(_device, &pool_info, nullptr, &_globalDescPool);
+
+    // Now that we have info for the pipeline, we need to actually bind them to resources
+    // Allocate desc set from?
+    VkDescriptorSetAllocateInfo allocInfo ={};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = _globalDescPool;
+    allocInfo.descriptorSetCount = 1; // should change
+    allocInfo.pSetLayouts = &_globalSetLayout;
+    vkAllocateDescriptorSets(_device, &allocInfo, &_globalDescSet);
+
+    // TODO: Rn we hardcode the first texture resource only
+    // The actual resource
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = _textureImagesView[0];
+    imageInfo.sampler = _textureImagesSampler[0];
+
+    // update set description, could be in batch
+    VkWriteDescriptorSet setWrite = {};
+    setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    setWrite.dstBinding = 0;  // destination binding
+    setWrite.dstSet = _globalDescSet;
+    setWrite.descriptorCount = 1;
+    setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    setWrite.pImageInfo = &imageInfo;
+    vkUpdateDescriptorSets(_device, 1, &setWrite, 0, nullptr);
+
+    _globCleanup.emplace([this]() {
+        vkDestroyDescriptorPool(_device, _globalDescPool, nullptr);
+        vkDestroyDescriptorSetLayout(_device, _globalSetLayout, nullptr);
+    });
 }
 
 void Engine::initPipeline() {
@@ -586,8 +677,8 @@ void Engine::initPipeline() {
     // pipeline layout, specify which descriptor set to use (like uniform)
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pSetLayouts = nullptr;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &_globalSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -614,6 +705,7 @@ void Engine::initPipeline() {
 }
 
 void Engine::initData() {
+    // VMA best usage info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
     // Buffer info
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -623,40 +715,113 @@ void Engine::initData() {
 
     SDL_Log("copy total of vertex buffer to gpu (size: %d, total: %d)", sizeof(Vertex), _mVertex.size());
 
-    // Memory info
-    VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;  // vma way of doing stuff, read doc!
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    // Memory info, must have VMA_ALLOCATION_CREATE_MAPPED_BIT to create persistent map area so we can avoid map / unmap memory
+    VmaAllocationCreateInfo stagingAllocInfo{};
+    stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;  // vma way texBufferInfo doing stuff, read doc!
+    stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    stagingAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
 
-    VmaAllocation allocation;  // represent underlying memory
-    if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &_vertexBuffer, &allocation, nullptr) != VK_SUCCESS)
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot create vertex buffer!");
-    _globCleanup.emplace([this, allocation](){
-        vmaDestroyBuffer(_allocator, _vertexBuffer, allocation);
+    VmaAllocation stagingAllocation;  // represent underlying memory
+    VmaAllocationInfo stagingAllocationInfo; // for persistent mapping: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+    VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_vertexBuffer, &stagingAllocation, &stagingAllocationInfo))
+    _globCleanup.emplace([this, stagingAllocation](){
+        vmaDestroyBuffer(_allocator, _vertexBuffer, stagingAllocation);
     });
 
     // Copy vertex data to staging buffer physical memory
-    void* mappedData;
-    vmaMapMemory(_allocator, allocation, &mappedData);
-    memcpy(mappedData, _mVertex.data(), bufferInfo.size);
-    vmaUnmapMemory(_allocator, allocation);
-    vmaFlushAllocation(_allocator, allocation, 0, bufferInfo.size); // TODO: Transfer to staging buffer
-    // Flush: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+    memcpy(stagingAllocationInfo.pMappedData, _mVertex.data(), bufferInfo.size);
+    // TODO: Check stagingAllocationInfo.memoryType for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT to avoid flushing all
+    // https://stackoverflow.com/questions/44366839/meaning-of-memorytypes-in-vulkan
+    vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
+    // Flush for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
 
     // Buffer info
     bufferInfo.size = sizeof(_mIdx[0]) * _mIdx.size();
     bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-    if (vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &_idxBuffer, &allocation, nullptr) != VK_SUCCESS)
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot create index buffer!");
-    _globCleanup.emplace([this, allocation](){
-        vmaDestroyBuffer(_allocator, _idxBuffer, allocation);
+    VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_idxBuffer, &stagingAllocation, &stagingAllocationInfo))
+    _globCleanup.emplace([this, stagingAllocation](){
+        vmaDestroyBuffer(_allocator, _idxBuffer, stagingAllocation);
     });
 
-    vmaMapMemory(_allocator, allocation, &mappedData);
-    memcpy(mappedData, _mIdx.data(), bufferInfo.size);
-    vmaUnmapMemory(_allocator, allocation);
-    vmaFlushAllocation(_allocator, allocation, 0, bufferInfo.size); // TODO: Transfer to staging buffer
+    memcpy(stagingAllocationInfo.pMappedData, _mIdx.data(), bufferInfo.size);
+    vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
+
+    // Use staging buffer to transfer texture data to local memory
+    for (const auto &cpuTex: _mInitTextures) {
+        // Create buffer for transfer source image
+        VkBuffer texBuffer;
+        VkBufferCreateInfo texBufferInfo = bufferInfo;
+        texBufferInfo.size = cpuTex.texWidth * cpuTex.texHeight * cpuTex.texChannels;
+        texBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+        VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &texBufferInfo, &stagingAllocInfo, &texBuffer, &stagingAllocation, &stagingAllocationInfo))
+        memcpy(stagingAllocationInfo.pMappedData, cpuTex.stbRef, texBufferInfo.size);
+        vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferInfo.size); // TODO: Transfer to destination buffer
+
+        // Create GPU local sampled image
+        // TODO: Query format?
+        VkExtent2D ext{static_cast<uint32_t>(cpuTex.texWidth), static_cast<uint32_t>(cpuTex.texHeight)};
+        VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(VK_FORMAT_R8G8B8A8_SRGB,
+                                                                             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                                             ext);
+        // allocate from GPU LOCAL memory
+        VmaAllocationCreateInfo texAllocInfo {};
+        texAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        texAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        AllocatedImage allocatedTexImage{};
+        VkResult result = vmaCreateImage(_allocator, &textureImageInfo, &texAllocInfo, &allocatedTexImage._image, &allocatedTexImage._allocation, nullptr);
+        VK_CHECK_RESULT(result);
+
+        // transition the layout image for layout destination
+        transitionImgLayout(allocatedTexImage._image, VK_FORMAT_R8G8B8A8_SRGB,
+                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        _textureImages.push_back(allocatedTexImage);
+
+        // perform copy operation
+        copyBufferToImg(texBuffer, allocatedTexImage._image, ext);
+
+        // make it optimal for sampling
+        transitionImgLayout(allocatedTexImage._image, VK_FORMAT_R8G8B8A8_SRGB,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        // staging buffer can be destroyed as src textures are no longer used
+        vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);
+    }
+
+    _globCleanup.emplace([this]() {
+        for (const auto &img: _textureImages) {
+            vmaDestroyImage(_allocator, img._image, img._allocation);
+        }
+    });
+}
+
+void Engine::initSampler() {
+    for (const auto &texImg: _textureImages) {
+        // Image view
+        VkImageView imgView;
+        VkImageViewCreateInfo ivInfo = CreationHelper::imageViewCreateInfo(
+                VK_FORMAT_R8G8B8A8_SRGB, texImg._image, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkResult result = vkCreateImageView(_device, &ivInfo, nullptr, &imgView);
+        VK_CHECK_RESULT(result);
+
+        // sampler, note that it doesn't reference any image view!
+        VkSampler sampler;
+        VkSamplerCreateInfo sampInfo = CreationHelper::samplerCreateInfo(_gpu,
+                                                                         VK_FILTER_LINEAR,
+                                                                         VK_FILTER_LINEAR);
+        result = vkCreateSampler(_device, &sampInfo, nullptr, &sampler);
+        VK_CHECK_RESULT(result);
+
+        _textureImagesView.push_back(imgView);
+        _textureImagesSampler.push_back(sampler);
+
+        _globCleanup.emplace([this, imgView, sampler]() {
+            vkDestroySampler(_device, sampler, nullptr);
+            vkDestroyImageView(_device, imgView, nullptr);
+        });
+    }
 }
 
 void Engine::initImGUI() {
@@ -758,9 +923,7 @@ void Engine::draw() {
     submitInfo.pSignalSemaphores = signalSemaphores;
 
     // queue submit takes
-    if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _renderFence) != VK_SUCCESS) {
-        throw std::runtime_error("failed to submit draw command buffer!");
-    }
+    VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _renderFence));
 
     // Submit result back to swap chain
     VkPresentInfoKHR presentInfo{};
@@ -816,8 +979,8 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, _idxBuffer, 0, VK_INDEX_TYPE_UINT32);
-    // vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout,
-    //                         0, 1, &_descriptorSets[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout,
+                            0, 1, &_globalDescSet, 0, nullptr);
 
 
     // Push constant
@@ -846,6 +1009,11 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageId
 }
 
 void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function) {
+    // One time sync fence
+    VkFenceCreateInfo fenceInfo = CreationHelper::createFenceInfo(false);
+    VkFence oneTimeFence;
+    VK_CHECK_RESULT(vkCreateFence(_device, &fenceInfo, nullptr, &oneTimeFence));
+
     // Create new command buffer
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -880,15 +1048,88 @@ void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+    if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, oneTimeFence) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit command buffer!");
     }
 
-    // Wait transfer queue to become idle (you can use fence too for simultaneous copy)
-    vkQueueWaitIdle(_graphicsQueue);
+    // Wait operation to complete
+    vkWaitForFences(_device, 1, &oneTimeFence, true, 1000000000);
 
-    // Free it because we're only using it one time
+    // Free one time resources
     vkFreeCommandBuffers(_device, _oneTimeCmdPool, 1, &commandBuffer);
+    vkDestroyFence(_device, oneTimeFence, nullptr);
+}
+
+void Engine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    auto func = [=](VkCommandBuffer cmdBuf) {
+        VkBufferCopy copyRegion{};
+        copyRegion.size = size;
+        vkCmdCopyBuffer(cmdBuf, srcBuffer, dstBuffer, 1, &copyRegion);
+    };
+    execOneTimeCmd(func);
+}
+
+void Engine::copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent) {
+    auto func = [=](VkCommandBuffer cmdBuf) {
+        VkBufferImageCopy copyRegion{};
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+
+        copyRegion.imageOffset = {0, 0, 0};
+        copyRegion.imageExtent = {extent.width, extent.height, 1};
+        vkCmdCopyBufferToImage(cmdBuf, srcBuffer, dstImg,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    };
+    execOneTimeCmd(func);
+}
+
+void Engine::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+    // We need to handle two kind of layout transformation:
+    // 1. Undefined → transferDst: transfer writes that don't need to wait on anything
+    // 2. transferDst → shaderRead: shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's where we're going to use the texture
+
+    auto func = [=](VkCommandBuffer cmdBuf) {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        // We're not transferring queue ownership
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // this is not default value!
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+        barrier.image = image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+
+        // determine access stage & mask based on source and destination
+        VkPipelineStageFlags sourceStage;
+        VkPipelineStageFlags destStage;
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            barrier.srcAccessMask = VK_ACCESS_NONE;
+            destStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            destStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        } else {
+            throw std::invalid_argument("unsupported layout transition!");
+        }
+
+        vkCmdPipelineBarrier(cmdBuf, sourceStage, destStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    };
+    execOneTimeCmd(func);
 }
 
 void Engine::drawImGUI() {

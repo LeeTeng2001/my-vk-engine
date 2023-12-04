@@ -35,6 +35,7 @@ private:
     void initDescriptors();
     void initPipeline();
     void initData();
+    void initSampler();
     void initImGUI();
     void initCamera();
 
@@ -43,6 +44,9 @@ private:
 
     // Command Helper
     void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
+    void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
     // Core functions
     void draw();
@@ -89,6 +93,11 @@ private:
     AllocatedImage _depthImage;
     VkFormat _depthFormat;
 
+    // gpu textures & samplers
+    vector<AllocatedImage> _textureImages;
+    vector<VkImageView> _textureImagesView;
+    vector<VkSampler> _textureImagesSampler;
+
     // Sync structure
     VkSemaphore _presentSemaphore{}, _renderSemaphore{};
     VkFence _renderFence{};
@@ -102,15 +111,17 @@ private:
     VkPipelineLayout _pipelineLayout{};
     VkPipeline _graphicPipeline{};
 
-
     // descriptor
-
+    VkDescriptorSetLayout _globalSetLayout;
+    VkDescriptorPool _globalDescPool;
+    VkDescriptorSet _globalDescSet;
 
     // Data
     VkBuffer _vertexBuffer{};
     VkBuffer _idxBuffer{};
     vector<Vertex> _mVertex = {};
     vector<uint32_t> _mIdx = {};
+    vector<RawAppImage> _mInitTextures = {};
 
     // Helper
     class Camera *cam;
