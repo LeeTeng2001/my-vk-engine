@@ -23,6 +23,7 @@ target_link_libraries(${EXE_NAME}
         tinyobjloader # model loader
         imgui
         stb_image
+        tinygltf
         )
 
 add_dependencies(${EXE_NAME} Shaders)

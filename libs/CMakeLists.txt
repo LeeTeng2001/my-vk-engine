@@ -5,6 +5,9 @@ add_library(vma INTERFACE)
 add_library(stb_image INTERFACE)
 
 # Include package with provided CMakeList
+set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(tinygltf)
 add_subdirectory(tinyobjloader)
 add_subdirectory(googletest)
 add_subdirectory(vkbootstrap)
