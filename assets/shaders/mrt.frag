@@ -12,6 +12,6 @@ layout(set = 0, binding = 0) uniform sampler2D texColorSampler;
 
 void main() {
     outColor = texture(texColorSampler, inTexCoord);
-    outNormal = vec4(inNormal, 1);
+    outNormal = vec4(inNormal * 0.5 + 0.5, 1);// transforms from [-1,1] to [0,1]
 }
 

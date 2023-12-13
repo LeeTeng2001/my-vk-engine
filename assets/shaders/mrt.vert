@@ -17,7 +17,10 @@ layout (push_constant) uniform PushConstantData {
 } pushC;
 
 void main() {
+    // TODO: transform normal
     // Very simple shader, assuming the position of the sun is coming from camera
     gl_Position = pushC.viewTransform * vec4(inPosition, 1.0);
     outFragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
+    outNormal = inNormal;
+    outTexCoord = inTexCoord;
 }

@@ -101,13 +101,18 @@ private:
 
     // depth (swapchain doesn't come with depth image, we should create it ourselves)
     // and intermediate render target
-    VkImageView _depthImageView;
-    AllocatedImage _depthImage;
     VkFormat _depthFormat;
+    AllocatedImage _depthImage;
+    VkImageView _depthImageView;
     VkSampler _depthImageSampler;
-    VkImageView _colorImageView;
+
     AllocatedImage _colorImage;
+    VkImageView _colorImageView;
     VkSampler _colorImageSampler;
+
+    AllocatedImage _normalImage;
+    VkImageView _normalImageView;
+    VkSampler _normalImageSampler;
 
     // gpu textures & samplers
     vector<AllocatedImage> _textureImages;

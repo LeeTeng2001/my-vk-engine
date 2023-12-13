@@ -433,11 +433,13 @@ void Engine::initRenderPass() {
     // Attachment in render pass
     VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
             _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VkAttachmentDescription normalAttachment = CreationHelper::createVkAttDesc(
+            _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
             _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     vector<VkAttachmentDescription> allAttachments{
-        colorAttachment, depthAttachment
+        colorAttachment, normalAttachment, depthAttachment
     };
 
     // Subpass attachments
@@ -445,26 +447,31 @@ void Engine::initRenderPass() {
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentReference normalAttachmentRef{};
+    normalAttachmentRef.attachment = 1;
+    normalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
     VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.attachment = 2;
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     // Subpass & dependencies
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
+    VkAttachmentReference attachmentsRef[] = {colorAttachmentRef, normalAttachmentRef};
+    subpass.colorAttachmentCount = std::size(attachmentsRef);
+    subpass.pColorAttachments = attachmentsRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
+    VkSubpassDependency inDependency{};
+    inDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    inDependency.dstSubpass = 0;
     // wait for swap-chain to finish reading before accessing it.
     // we should wait at color attachment stage or early fragment testing stage
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    inDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    inDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    inDependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
+    inDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkSubpassDependency depthDependency{};
     depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -484,7 +491,7 @@ void Engine::initRenderPass() {
     outDependency.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 
     vector<VkSubpassDependency > allDependencies{
-            dependency, depthDependency, outDependency
+            inDependency, depthDependency, outDependency
     };
 
     // create render pass
@@ -558,6 +565,8 @@ void Engine::initRenderResources() {
     VK_CHECK_RESULT(result);
     result = vmaCreateImage(_allocator, &colorImgInfo, &localAllocInfo, &_colorImage._image, &_colorImage._allocation, nullptr);
     VK_CHECK_RESULT(result);
+    result = vmaCreateImage(_allocator, &normalImgInfo, &localAllocInfo, &_normalImage._image, &_normalImage._allocation, nullptr);
+    VK_CHECK_RESULT(result);
 
     VkImageViewCreateInfo ivInfo = CreationHelper::imageViewCreateInfo(_depthFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
     result = vkCreateImageView(_device, &ivInfo, nullptr, &_depthImageView);
@@ -565,12 +574,17 @@ void Engine::initRenderResources() {
     ivInfo = CreationHelper::imageViewCreateInfo(_swapchainImageFormat, _colorImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
     result = vkCreateImageView(_device, &ivInfo, nullptr, &_colorImageView);
     VK_CHECK_RESULT(result);
+    ivInfo = CreationHelper::imageViewCreateInfo(_swapchainImageFormat, _normalImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
+    result = vkCreateImageView(_device, &ivInfo, nullptr, &_normalImageView);
+    VK_CHECK_RESULT(result);
 
     _globCleanup.emplace([this](){
         vkDestroyImageView(_device, _depthImageView, nullptr);
         vmaDestroyImage(_allocator, _depthImage._image, _depthImage._allocation);
         vkDestroyImageView(_device, _colorImageView, nullptr);
         vmaDestroyImage(_allocator, _colorImage._image, _colorImage._allocation);
+        vkDestroyImageView(_device, _normalImageView, nullptr);
+        vmaDestroyImage(_allocator, _normalImage._image, _normalImage._allocation);
     });
 }
 
@@ -590,7 +604,7 @@ void Engine::initFramebuffer() {
     for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
         // Can have multiple attachment
         VkImageView attachments[] = {
-                _swapchainImageViews[i] // , _colorImageView, _depthImageView
+                _swapchainImageViews[i]
         };
 
         framebufferInfo.attachmentCount = std::size(attachments);
@@ -601,7 +615,7 @@ void Engine::initFramebuffer() {
 
     // mrt framebuffer
     framebufferInfo.renderPass = _mrtRenderPass;
-    VkImageView attachments[] = {_colorImageView, _depthImageView};
+    VkImageView attachments[] = {_colorImageView, _normalImageView, _depthImageView};
     framebufferInfo.attachmentCount = std::size(attachments);
     framebufferInfo.pAttachments = attachments;
     VK_CHECK_RESULT(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_mrtFramebuffer));
@@ -633,28 +647,7 @@ void Engine::initSync() {
 }
 
 void Engine::initDescriptors() {
-    // Describe individual binding in a set
-    // holds information about the layout of a set
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {};
-    bindings[0].binding = 0;
-    bindings[0].descriptorCount = 1;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[0].pImmutableSamplers = nullptr;
-    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // must indicate stage
-
-    bindings[1] = bindings[0];
-    bindings[1].binding = 1;
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    layoutInfo.pBindings = bindings.data();
-
-    // create the set layout
-    VkResult result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_compSetLayout);
-    VK_CHECK_RESULT(result);
-
-    // Creat pool for binding resources (including imgui
+    // Creat pool for binding resources
     std::vector<VkDescriptorPoolSize> sizes = {
             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
@@ -667,19 +660,72 @@ void Engine::initDescriptors() {
     pool_info.pPoolSizes = sizes.data();
     vkCreateDescriptorPool(_device, &pool_info, nullptr, &_globalDescPool);
 
-    // Now that we have info for the pipeline, we need to actually bind them to resources
-    // Allocate desc set from?
+    // TODO: RN only single set
+    // MRT description layout and set ------------------------------------------------------------------------
+    // describe binding in single set
+    std::array<VkDescriptorSetLayoutBinding, 1> mrtBindings = {};
+    mrtBindings[0].binding = 0;
+    mrtBindings[0].descriptorCount = 1;
+    mrtBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    mrtBindings[0].pImmutableSamplers = nullptr;
+    mrtBindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; // must indicate stage
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(mrtBindings.size());
+    layoutInfo.pBindings = mrtBindings.data();
+
+    // create the set layout
+    VkResult result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_mrtSetLayout);
+    VK_CHECK_RESULT(result);
+
+    // Create actual descriptor set
     VkDescriptorSetAllocateInfo allocInfo ={};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = _globalDescPool;
     allocInfo.descriptorSetCount = 1; // should change
-    allocInfo.pSetLayouts = &_compSetLayout;
-    vkAllocateDescriptorSets(_device, &allocInfo, &_compDescSet);
+    allocInfo.pSetLayouts = &_mrtSetLayout;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(_device, &allocInfo, &_mrtDescSet));
 
-    // TODO: Rn we hardcode the first texture resource only
+    // TODO: Rn we hardcode the first color sampler resource only
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = _textureImagesView[0];
+    imageInfo.sampler = _textureImagesSampler[0];
+
+    // update set description, could be in batch
+    VkWriteDescriptorSet setWrite = {};
+    setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    setWrite.dstBinding = 0;  // destination binding
+    setWrite.dstSet = _mrtDescSet;
+    setWrite.descriptorCount = 1;
+    setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    setWrite.pImageInfo = &imageInfo;
+    vkUpdateDescriptorSets(_device, 1, &setWrite, 0, nullptr);
+
+    // Composition description layout and set ------------------------------------------------------------------------
+    // Describe individual binding in a set
+    std::array<VkDescriptorSetLayoutBinding, 3> compBindings = {};
+    compBindings[0] = mrtBindings[0];
+    compBindings[1] = compBindings[0];
+    compBindings[1].binding = 1;
+    compBindings[2] = compBindings[0];
+    compBindings[2].binding = 2;
+
+    layoutInfo.bindingCount = static_cast<uint32_t>(compBindings.size());
+    layoutInfo.pBindings = compBindings.data();
+
+    // create the set layout
+    result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_compSetLayout);
+    VK_CHECK_RESULT(result);
+
+    // create descriptor set
+    allocInfo.descriptorSetCount = 1; // should change
+    allocInfo.pSetLayouts = &_compSetLayout;
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(_device, &allocInfo, &_compDescSet));
+
     // The actual resource
-    for (int i = 0; i < bindings.size(); ++i) {
-        VkDescriptorImageInfo imageInfo{};
+    for (int i = 0; i < compBindings.size(); ++i) {
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         if (i == 0) {
@@ -688,12 +734,14 @@ void Engine::initDescriptors() {
         } else if (i == 1) {
             imageInfo.imageView = _depthImageView;
             imageInfo.sampler = _depthImageSampler;
+        } else if (i == 2) {
+            imageInfo.imageView = _normalImageView;
+            imageInfo.sampler = _normalImageSampler;
         } else {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "out of range sampler");
         }
 
         // update set description, could be in batch
-        VkWriteDescriptorSet setWrite = {};
         setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         setWrite.dstBinding = i;  // destination binding
         setWrite.dstSet = _compDescSet;
@@ -705,6 +753,7 @@ void Engine::initDescriptors() {
 
     _globCleanup.emplace([this]() {
         vkDestroyDescriptorPool(_device, _globalDescPool, nullptr);
+        vkDestroyDescriptorSetLayout(_device, _mrtSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _compSetLayout, nullptr);
     });
 }
@@ -761,6 +810,8 @@ void Engine::initPipeline() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &_mrtSetLayout;
 
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_mrtPipelineLayout) != VK_SUCCESS) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Pipeline layout fail to create!");
@@ -773,7 +824,7 @@ void Engine::initPipeline() {
     pipelineCreateInfo.layout = _mrtPipelineLayout;
     pipelineCreateInfo.renderPass = _mrtRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
-    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent);
+    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent, 2);
 
     // Free up immediate resources and delegate cleanup
     vkDestroyShaderModule(_device, mrtVertShaderModule, nullptr);
@@ -818,7 +869,7 @@ void Engine::initPipeline() {
     pipelineCreateInfo.layout = _compPipelineLayout;
     pipelineCreateInfo.renderPass = _compositionRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
-    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _compPipeline, _device, _swapChainExtent);
+    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _compPipeline, _device, _swapChainExtent, 1);
 
     _globCleanup.emplace([this](){
         vkDestroyPipelineLayout(_device, _mrtPipelineLayout, nullptr);
@@ -872,6 +923,7 @@ void Engine::initData() {
     vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
 
     // Use staging buffer to transfer texture data to local memory
+    // TODO: Right now only always single color texture
     for (const auto &cpuTex: _mInitTextures) {
         // Create buffer for transfer source image
         VkBuffer texBuffer;
@@ -956,6 +1008,8 @@ void Engine::initSampler() {
     VkResult result = vkCreateSampler(_device, &sampInfo, nullptr, &_colorImageSampler);
     VK_CHECK_RESULT(result);
     result = vkCreateSampler(_device, &sampInfo, nullptr, &_depthImageSampler);
+    VK_CHECK_RESULT(result);
+    result = vkCreateSampler(_device, &sampInfo, nullptr, &_normalImageSampler);
     VK_CHECK_RESULT(result);
 
     _globCleanup.emplace([this]() {
@@ -1116,9 +1170,10 @@ void Engine::recordMrtCommandBuffer(VkCommandBuffer commandBuffer) {
 
     // Clear value for attachment load op clear
     // Should have the same order as attachments binding index
-    VkClearValue clearColor[2] = {};
+    VkClearValue clearColor[3] = {};
     clearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
-    clearColor[1].depthStencil.depth = 1.0f; // depth attachment
+    clearColor[1].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // bg for color frame attach
+    clearColor[2].depthStencil.depth = 1.0f; // depth attachment
     renderPassInfo.clearValueCount = std::size(clearColor);
     renderPassInfo.pClearValues = clearColor;
 
@@ -1126,6 +1181,8 @@ void Engine::recordMrtCommandBuffer(VkCommandBuffer commandBuffer) {
     // RENDER START ----------------------------------------------------
     // Bind components
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
+                            0, 1, &_mrtDescSet, 0, nullptr);
     VkBuffer vertexBuffers[] = {_vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
@@ -1171,13 +1228,7 @@ void Engine::recordCompCommandBuffer(VkCommandBuffer commandBuffer, uint32_t ima
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = _swapChainExtent;
 
-//    // Clear value for attachment load op clear
-//    // Should have the same order as attachments binding index
-//    VkClearValue clearColor[2] = {};
-//    clearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
-//    clearColor[1].depthStencil.depth = 1.0f; // depth attachment
-//    renderPassInfo.clearValueCount = std::size(clearColor);
-//    renderPassInfo.pClearValues = clearColor;
+    // don't clear attachment cuz we're accessing them
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     // RENDER START ----------------------------------------------------
@@ -1189,8 +1240,8 @@ void Engine::recordCompCommandBuffer(VkCommandBuffer commandBuffer, uint32_t ima
 
     // Push constant
     CompPushConstantData pushConstantData{};
-    pushConstantData.sobelWidth = 3;
-    pushConstantData.sobelHeight = 3;
+    pushConstantData.sobelWidth = 1;
+    pushConstantData.sobelHeight = 1;
     vkCmdPushConstants(commandBuffer, _compPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(CompPushConstantData), &pushConstantData);
 

@@ -142,7 +142,7 @@ public:
     }
 
     static void fillAndCreateGPipeline(VkGraphicsPipelineCreateInfo &pipelineCreateInfo, VkPipeline &graphicPipeline,
-                                       VkDevice device, VkExtent2D viewportExtend) {
+                                       VkDevice device, VkExtent2D viewportExtend, int colorAttachmentCount) {
         // Input assembly
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -217,13 +217,18 @@ public:
         colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
         colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
 
+        vector<VkPipelineColorBlendAttachmentState> cbAttachVec{};
+        for (int i = 0; i < colorAttachmentCount; ++i) {
+            cbAttachVec.push_back(colorBlendAttachment);
+        }
+
         // Color blending (global)
         VkPipelineColorBlendStateCreateInfo colorBlending{};
         colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         colorBlending.logicOpEnable = VK_FALSE;  // enable bitwise combination
         colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-        colorBlending.attachmentCount = 1;
-        colorBlending.pAttachments = &colorBlendAttachment;
+        colorBlending.attachmentCount = cbAttachVec.size();
+        colorBlending.pAttachments = cbAttachVec.data();
         colorBlending.blendConstants[0] = 0.0f; // Optional
         colorBlending.blendConstants[1] = 0.0f; // Optional
         colorBlending.blendConstants[2] = 0.0f; // Optional
