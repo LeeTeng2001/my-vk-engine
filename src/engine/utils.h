@@ -7,7 +7,7 @@
 	VkResult res = (f);																					\
 	if (res != VK_SUCCESS)																				\
 	{																									\
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "VkResult false: %s %s \n", __FILE__, __LINE__);     \
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "VkResult false: %s %d \n", __FILE__, __LINE__);     \
 		assert(res == VK_SUCCESS);																		\
 	}																									\
 }

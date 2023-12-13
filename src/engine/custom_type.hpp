@@ -66,8 +66,13 @@ struct AllocatedImage {
 };
 
 // It's better to use a shared data between vertex and fragment
-struct PushConstantData {
+struct MrtPushConstantData {
     glm::mat4 viewTransform;
     glm::vec3 sunPos;
     unsigned long long time;
+};
+
+struct CompPushConstantData {
+    float sobelWidth;
+    float sobelHeight;
 };

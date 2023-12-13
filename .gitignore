@@ -142,3 +142,4 @@ $RECYCLE.BIN/
 # Custom ignore
 *.spv
 *.dll
+imgui.ini

@@ -16,7 +16,7 @@ constexpr float rotateSpeedAngle = 10;
 class Camera {
 private:
     // General properties
-    glm::vec3 position{0, 2, -10};  // center of camera
+    glm::vec3 position{0, 0, -5};  // center of camera
     // look into z
     float camPitchAngle = 0; // head updown [-85, 85], ++ up
     float camYawAngle = 0; // head rightleft [0, 360], ++ to the right, clockwise

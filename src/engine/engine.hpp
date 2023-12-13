@@ -29,7 +29,7 @@ private:
     void initBase();
     void initCommand();
     void initRenderPass();
-    void initDepthResources();
+    void initRenderResources();
     void initFramebuffer();
     void initSync();
     void initDescriptors();
@@ -51,7 +51,8 @@ private:
     // Core functions
     void draw();
     void drawImGUI();
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIdx);
+    void recordMrtCommandBuffer(VkCommandBuffer commandBuffer);
+    void recordCompCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIdx);
 
 private:
     // Core member
@@ -86,12 +87,27 @@ private:
     vector<VkImage> _swapchainImages;
     vector<VkImageView> _swapchainImageViews;
     vector<VkFramebuffer> _swapChainFramebuffers;
-    VkRenderPass _renderPass{};
+    VkFramebuffer _mrtFramebuffer;
+
+    // deffered render multiple renderpass
+    VkRenderPass _mrtRenderPass{}; // render to multiple attachment output
+    VkRenderPass _compositionRenderPass{};  // use multiple attachment as input, do some composition and present
+
+    // Pipeline layout
+    VkPipelineLayout _mrtPipelineLayout{};
+    VkPipelineLayout _compPipelineLayout{};
+    VkPipeline _mrtPipeline{};
+    VkPipeline _compPipeline{};
 
     // depth (swapchain doesn't come with depth image, we should create it ourselves)
+    // and intermediate render target
     VkImageView _depthImageView;
     AllocatedImage _depthImage;
     VkFormat _depthFormat;
+    VkSampler _depthImageSampler;
+    VkImageView _colorImageView;
+    AllocatedImage _colorImage;
+    VkSampler _colorImageSampler;
 
     // gpu textures & samplers
     vector<AllocatedImage> _textureImages;
@@ -99,22 +115,19 @@ private:
     vector<VkSampler> _textureImagesSampler;
 
     // Sync structure
-    VkSemaphore _presentSemaphore{}, _renderSemaphore{};
+    VkSemaphore _presentSemaphore{}, _renderMrtSemaphore{}, _compSemaphore{};
     VkFence _renderFence{};
 
     // Commands pool and buffers
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
-    VkCommandBuffer _renderCmdBuffer{};
-
-    // Pipeline layout
-    VkPipelineLayout _pipelineLayout{};
-    VkPipeline _graphicPipeline{};
+    VkCommandBuffer _mrtCmdBuffer{};
+    VkCommandBuffer _compCmdBuffer{};
 
     // descriptor
-    VkDescriptorSetLayout _globalSetLayout;
     VkDescriptorPool _globalDescPool;
-    VkDescriptorSet _globalDescSet;
+    VkDescriptorSetLayout _compSetLayout;
+    VkDescriptorSet _compDescSet;
 
     // Data
     VkBuffer _vertexBuffer{};

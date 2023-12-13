@@ -63,15 +63,15 @@ public:
         return info;
     }
 
-    static VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice device, VkFilter magFilter, VkFilter minFilter) {
+    static VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice device, VkFilter magFilter, VkFilter minFilter, VkSamplerAddressMode addressMode) {
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerInfo.magFilter = magFilter;
         samplerInfo.minFilter = minFilter;
 
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeU = addressMode;
+        samplerInfo.addressModeV = addressMode;
+        samplerInfo.addressModeW = addressMode;
 
         // get max anisotropy by querying physical device
         VkPhysicalDeviceProperties properties{};
