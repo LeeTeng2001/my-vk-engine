@@ -47,7 +47,7 @@ void Engine::setRequiredFeatures() {
 
 void Engine::initAssets() {
     // Right now a hardcoded path for file
-    fs::path modelPath("assets/models/teapot.obj");
+    fs::path modelPath("assets/models/viking_room.obj");
     fs::path diffusePath("assets/textures/viking_room.png");
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading model: %s", modelPath.c_str());
@@ -541,9 +541,15 @@ void Engine::initRenderResources() {
     VkImageCreateInfo depthImgInfo = CreationHelper::imageCreateInfo(_depthFormat,
                                                                      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                                                      _swapChainExtent);
+    // TODO: optiomise G buffer structure, for example RGB the A component is unused in normal map
+    // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     VkImageCreateInfo colorImgInfo = CreationHelper::imageCreateInfo(_swapchainImageFormat,
                                                                      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                                                      _swapChainExtent);
+    VkImageCreateInfo normalImgInfo = CreationHelper::imageCreateInfo(_swapchainImageFormat,
+                                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                                     _swapChainExtent);
+
     // allocate from GPU LOCAL memory
     VmaAllocationCreateInfo localAllocInfo {};
     localAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;

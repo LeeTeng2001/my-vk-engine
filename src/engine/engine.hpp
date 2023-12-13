@@ -126,6 +126,8 @@ private:
 
     // descriptor
     VkDescriptorPool _globalDescPool;
+    VkDescriptorSetLayout _mrtSetLayout;
+    VkDescriptorSet _mrtDescSet;
     VkDescriptorSetLayout _compSetLayout;
     VkDescriptorSet _compDescSet;
 
