@@ -2,6 +2,7 @@
 
 #include <spdlog/spdlog.h>
 #include <source_location>
+#include <vulkan/vulkan_core.h>
 
 class Log {
 private:
@@ -13,7 +14,7 @@ public:
     void info(const std::string& msg, std::source_location location = std::source_location::current());
     void warn(const std::string& msg, std::source_location location = std::source_location::current());
     void error(const std::string& msg, std::source_location location = std::source_location::current());
-    void vk_res(enum VkResult res, std::source_location location = std::source_location::current());
+    void vk_res(VkResult res, std::source_location location = std::source_location::current());
 };
 
 // global logger handler

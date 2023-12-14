@@ -31,15 +31,15 @@ ButtonState MouseState::getButtonState(int button) const {
     }
 }
 
-bool ControllerState::GetButtonValue(SDL_GameControllerButton button) const {
-    return mCurrButtons[button] == 1;
+bool ControllerState::getButtonValue(SDL_GamepadButton button) const {
+    return _curButtons[button] == 1;
 }
 
-ButtonState ControllerState::GetButtonState(SDL_GameControllerButton button) const {
-    if (mPrevButtons[button] == 0) {
-        return mCurrButtons[button] == 0 ? ENone : EPressed;
+ButtonState ControllerState::getButtonState(SDL_GamepadButton button) const {
+    if (_prevButtons[button] == 0) {
+        return _curButtons[button] == 0 ? ENone : EPressed;
     } else {
-        return mCurrButtons[button] == 0 ? EReleased : EHeld;
+        return _curButtons[button] == 0 ? EReleased : EHeld;
     }
 }
 
@@ -58,9 +58,9 @@ bool InputSystem::initialise() {
     // TODO: We're hardcoding the first controller
     _controller = SDL_OpenGamepad(0);
     // Initialize controller state
-    _inputState.Controller.mIsConnected = (_controller != nullptr);
-    memset(_inputState.Controller.mCurrButtons, 0, SDL_CONTROLLER_BUTTON_MAX);
-    memset(_inputState.Controller.mPrevButtons, 0, SDL_CONTROLLER_BUTTON_MAX);
+    _inputState.Controller._isConnected = (_controller != nullptr);
+    memset(_inputState.Controller._curButtons, 0, SDL_GAMEPAD_BUTTON_MAX);
+    memset(_inputState.Controller._prevButtons, 0, SDL_GAMEPAD_BUTTON_MAX);
 
     return true;
 }
@@ -69,68 +69,51 @@ void InputSystem::shutdown() {
     SDL_CloseGamepad(_controller);
 }
 
-void InputSystem::PrepareForUpdate() {
+void InputSystem::prepareForUpdate() {
     // Copy current state to previous (because SDL overwrite its original key buffer)
-    // Keyboard
+    // Keyboard + Mouse + controller
     memcpy(_inputState.Keyboard._prevState, _inputState.Keyboard._curState, SDL_NUM_SCANCODES);
 
-    // Mouse
     // mState.Mouse.mIsRelative = false;  // TODO: Bug reset?
     _inputState.Mouse._prevButtons = _inputState.Mouse._curButtons;
-    _inputState.Mouse._scrollWheel = Vector2::Zero;  // only triggers on frames where the scroll wheel moves
+    _inputState.Mouse._scrollWheel = {0, 0};  // only triggers on frames where the scroll wheel moves
 
-    // Controller
-    memcpy(_inputState.Controller.mPrevButtons, _inputState.Controller.mCurrButtons, SDL_CONTROLLER_BUTTON_MAX);
+    memcpy(_inputState.Controller._prevButtons, _inputState.Controller._curButtons, SDL_GAMEPAD_BUTTON_MAX);
 }
 
-void InputSystem::Update() {
+void InputSystem::update() {
     // Mouse
-    int x = 0, y = 0;
-    if (_inputState.Mouse._isRelative) {
-        _inputState.Mouse._curButtons = SDL_GetRelativeMouseState(&x, &y);
-    } else {
-        _inputState.Mouse._curButtons = SDL_GetMouseState(&x, &y);
-    }
-
-    _inputState.Mouse._mousePos.x = static_cast<float>(x);
-    _inputState.Mouse._mousePos.y = static_cast<float>(y);
+    float x = 0, y = 0;
+    _inputState.Mouse._curButtons = _inputState.Mouse._isRelative ? SDL_GetRelativeMouseState(&x, &y) : SDL_GetMouseState(&x, &y);
+    _inputState.Mouse._mousePos.x = x;
+    _inputState.Mouse._mousePos.y = y;
 
     // Controller --------------------------------------------------------
     // Buttons
-    for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++) {
-        _inputState.Controller.mCurrButtons[i] =
-                SDL_GameControllerGetButton(_controller,
-                                            SDL_GameControllerButton(i));
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_MAX; i++) {
+        _inputState.Controller._curButtons[i] = SDL_GetGamepadButton(_controller, SDL_GamepadButton(i));
     }
 
     // Triggers
-    _inputState.Controller.mLeftTrigger =
-            Filter1D(SDL_GameControllerGetAxis(_controller,
-                                               SDL_CONTROLLER_AXIS_TRIGGERLEFT));
-    _inputState.Controller.mRightTrigger =
-            Filter1D(SDL_GameControllerGetAxis(_controller,
-                                               SDL_CONTROLLER_AXIS_TRIGGERRIGHT));
+    _inputState.Controller._leftTrigger =
+            filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER));
+    _inputState.Controller._rightTrigger =
+            filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
 
     // Sticks, negates y because SDL report y axis in down positive
-    x = SDL_GameControllerGetAxis(_controller,
-                                  SDL_CONTROLLER_AXIS_LEFTX);
-    y = -SDL_GameControllerGetAxis(_controller,
-                                   SDL_CONTROLLER_AXIS_LEFTY);
-    _inputState.Controller.mLeftStick = Filter2D(x, y);
+    x = SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFTX);
+    y = -SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFTY);
+    _inputState.Controller._leftStick = filter2D(x, y);
 
-    x = SDL_GameControllerGetAxis(_controller,
-                                  SDL_CONTROLLER_AXIS_RIGHTX);
-    y = -SDL_GameControllerGetAxis(_controller,
-                                   SDL_CONTROLLER_AXIS_RIGHTY);
-    _inputState.Controller.mRightStick = Filter2D(x, y);
+    x = SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_RIGHTX);
+    y = -SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_RIGHTY);
+    _inputState.Controller._rightStick = filter2D(x, y);
 }
 
-void InputSystem::ProcessEvent(SDL_Event &event) {
+void InputSystem::processEvent(union SDL_Event &event) {
     switch (event.type) {
-        case SDL_MOUSEWHEEL:
-            _inputState.Mouse._scrollWheel = Vector2(
-                    static_cast<float>(event.wheel.x),
-                    static_cast<float>(event.wheel.y));
+        case SDL_EVENT_MOUSE_WHEEL:
+            _inputState.Mouse._scrollWheel = {event.wheel.x, event.wheel.y};
             break;
         default:
             break;
@@ -144,11 +127,11 @@ void InputSystem::setRelativeMouseMode(bool value) {
     _inputState.Mouse._isRelative = value;
 }
 
-float InputSystem::Filter1D(int input) {
+float InputSystem::filter1D(int input) {
     // Could make this parameter user configurable
     // A value < dead zone is interpreted as 0%
-    const int deadZone = 250;
     // A value > max value is interpreted as 100%
+    const int deadZone = 250;
     const int maxValue = 30000;
 
     float retVal = 0.0f;
@@ -157,31 +140,25 @@ float InputSystem::Filter1D(int input) {
     int absValue = std::abs(input);
     // Ignore input within dead zone
     if (absValue > deadZone) {
-        // Compute fractional value between dead zone and max value
         retVal = static_cast<float>(absValue - deadZone) / (maxValue - deadZone);
-        // Make sure sign matches original value
-        retVal = input > 0 ? retVal : -1.0f * retVal;
-        // Clamp between -1.0f and 1.0f
-        retVal = std::clamp(retVal, -1.0f, 1.0f);
+        retVal = input > 0 ? retVal : -1.0f * retVal; // make sure sign
+        retVal = std::clamp(retVal, -1.0f, 1.0f); // clamp to [-1, 1]
     }
 
     return retVal;
 }
 
-Vector2 InputSystem::Filter2D(int inputX, int inputY) {
+glm::vec2 InputSystem::filter2D(int inputX, int inputY) {
     const float deadZone = 8000.0f;
     const float maxValue = 30000.0f;
 
     // Make into 2D vector
-    Vector2 dir{};
-    dir.x = static_cast<float>(inputX);
-    dir.y = static_cast<float>(inputY);
-
-    float length = dir.Length();
+    glm::vec2 dir{static_cast<float>(inputX), static_cast<float>(inputY)};
+    float length = glm::length(dir);
 
     // If length < deadZone, should be no input
     if (length < deadZone) {
-        dir = Vector2::Zero;
+        dir = {0, 0};
     } else {
         // Calculate fractional value between
         // dead zone and max value circles

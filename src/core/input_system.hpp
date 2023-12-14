@@ -59,28 +59,28 @@ public:
 	friend class InputSystem;
 
 	// For buttons
-	[[nodiscard]] bool GetButtonValue(SDL_GameControllerButton button) const;
-	[[nodiscard]] ButtonState GetButtonState(SDL_GameControllerButton button) const;
+	[[nodiscard]] bool getButtonValue(SDL_GamepadButton button) const;
+	[[nodiscard]] ButtonState getButtonState(SDL_GamepadButton button) const;
 
-    // Controller specific
-	[[nodiscard]] const Vector2& GetLeftStick() const { return mLeftStick; }
-	[[nodiscard]] const Vector2& GetRightStick() const { return mRightStick; }
-	[[nodiscard]] float GetLeftTrigger() const { return mLeftTrigger; }
-	[[nodiscard]] float GetRightTrigger() const { return mRightTrigger; }
-	[[nodiscard]] bool GetIsConnected() const { return mIsConnected; }
+    // getter
+	[[nodiscard]] const glm::vec2& getLeftStick() const { return _leftStick; }
+	[[nodiscard]] const glm::vec2& getRightStick() const { return _rightStick; }
+	[[nodiscard]] float getLeftTrigger() const { return _leftTrigger; }
+	[[nodiscard]] float getRightTrigger() const { return _rightTrigger; }
+	[[nodiscard]] bool getIsConnected() const { return _isConnected; }
 
 private:
 	// Current/previous buttons
-	Uint8 mCurrButtons[SDL_CONTROLLER_BUTTON_MAX];
-	Uint8 mPrevButtons[SDL_CONTROLLER_BUTTON_MAX];
+	Uint8 _curButtons[SDL_GAMEPAD_BUTTON_MAX];
+	Uint8 _prevButtons[SDL_GAMEPAD_BUTTON_MAX];
 	// Left/right sticks
-	Vector2 mLeftStick;
-	Vector2 mRightStick;
+	glm::vec2 _leftStick;
+	glm::vec2 _rightStick;
 	// Left/right trigger
-	float mLeftTrigger;
-	float mRightTrigger;
+	float _leftTrigger;
+	float _rightTrigger;
 	// Is this controller connected?
-	bool mIsConnected;
+	bool _isConnected;
 };
 
 // Wrapper that contains current state of input
@@ -90,27 +90,25 @@ struct InputState {
 	ControllerState Controller;
 };
 
-
 class InputSystem {
 public:
-    // Like Game
 	bool initialise();
 	void shutdown();
 
 	// Called right before SDL_PollEvents loop
-	void PrepareForUpdate();
+	void prepareForUpdate();
 	// Called after SDL_PollEvents loop
-	void Update();
+	void update();
 	// Called to process an SDL event in input system (like mouse wheel)
-	void ProcessEvent(union SDL_Event& event);
+	void processEvent(union SDL_Event& event);
 
     // GET SET
 	[[nodiscard]] const InputState& getState() const { return _inputState; }
 	void setRelativeMouseMode(bool value);
 
 private:
-	static float Filter1D(int input);
-	static glm::vec2 Filter2D(int inputX, int inputY);
+	static float filter1D(int input);
+	static glm::vec2 filter2D(int inputX, int inputY);
 
 	InputState _inputState{};
 	SDL_Gamepad* _controller = nullptr;
