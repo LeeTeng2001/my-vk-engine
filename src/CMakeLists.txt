@@ -10,6 +10,8 @@ add_executable(${EXE_NAME}
         core/engine.cpp
         core/custom_type.hpp
         core/creation_helper.hpp
+        core/input_system.hpp
+        core/input_system.cpp
         core/camera.hpp
         utils/lib_impl.cpp
         utils/common.hpp

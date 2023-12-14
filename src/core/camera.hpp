@@ -1,14 +1,10 @@
 #pragma once
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <SDL_keycode.h>
 #include <SDL_events.h>
+
+#include "utils/common.hpp"
 
 constexpr float movSpeed = 3;
 constexpr float rotateSpeedAngle = 10;

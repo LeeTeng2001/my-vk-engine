@@ -1,54 +1,49 @@
-//#include "actor.hpp"
+#include "actor.hpp"
 //#include "../Game.hpp"
 //#include "../components/Component.hpp"
 //#include "../core/InputSystem.hpp"
-//
-//Actor::Actor(Game *game) : mGame(game) {
-//    mGame->AddActor(this);
-//}
-//
-//Actor::~Actor() {
+
+Actor::~Actor() {
 //    mGame->RemoveActor(this);
-//
 //    // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
 //    while (!mComponents.empty()) {
 //        delete mComponents.back();
 //    }
-//}
-//
-//void Actor::Update(float deltaTime) {
-//    if (mState == EActive) {
-//        ComputeWorldTransform();
-//        UpdateComponents(deltaTime);
-//        UpdateActor(deltaTime);
-//        ComputeWorldTransform();
-//    }
-//}
-//
-//void Actor::UpdateComponents(float deltaTime) {
+}
+
+void Actor::update(float deltaTime) {
+    if (_state == EActive) {
+        computeWorldTransform();
+        updateComponents(deltaTime);
+        updateActor(deltaTime);
+        computeWorldTransform();
+    }
+}
+
+void Actor::updateComponents(float deltaTime) {
 //    for (auto comp: mComponents) {
-//        comp->Update(deltaTime);
+//        comp->update(deltaTime);
 //    }
-//}
-//
-//void Actor::UpdateActor(float deltaTime) {
-//    // Actor specific update
-//}
-//
-//void Actor::ProcessInput(const InputState &keyState) {
-//    // process input for components, then actor specific
-//    if (mState == EActive) {
+}
+
+void Actor::updateActor(float deltaTime) {
+    // Actor specific update
+}
+
+void Actor::processInput(const struct InputState &keyState) {
+    // process input for components, then actor specific
+    if (_state == EActive) {
 //        for (auto comp: mComponents) {
-//            comp->ProcessInput(keyState);
+//            comp->processInput(keyState);
 //        }
-//        ActorInput(keyState);
-//    }
-//}
-//
-//void Actor::ActorInput(const InputState &keyState) {
-//    // Actor specific input
-//}
-//
+        actorInput(keyState);
+    }
+}
+
+void Actor::actorInput(const struct InputState &keyState) {
+    // Actor specific input
+}
+
 //void Actor::AddComponent(Component *component) {
 //    // Find the insertion point in the sorted vector
 //    // (The first element with an order higher than me)
@@ -70,11 +65,11 @@
 //        mComponents.erase(iter);
 //    }
 //}
-//
-//void Actor::ComputeWorldTransform() {
-//    if (mRecomputeWorldTransform) {
-//        mRecomputeWorldTransform = false;
-//
+
+void Actor::computeWorldTransform() {
+    if (_recomputeWorldTransform) {
+        _recomputeWorldTransform = false;
+
 //        // Scale, then rotate, then translate
 //        mWorldTransform = Matrix4::CreateScale(mScale);
 //        mWorldTransform *= Matrix4::CreateFromQuaternion(mRotation);
@@ -84,9 +79,9 @@
 //        for (auto comp: mComponents) {
 //            comp->OnUpdateWorldTransform();
 //        }
-//    }
-//}
-//
+    }
+}
+
 //void Actor::RotateToNewForward(const Vector3 &forward) {
 //    // Figure out difference between original (unit x) and new
 //    float dot = Vector3::Dot(Vector3::UnitX, forward);
