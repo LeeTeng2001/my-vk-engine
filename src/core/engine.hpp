@@ -21,6 +21,10 @@ public:
     void initialize();
     void run();
 
+//    // Core Getter accessed by subsystem
+//    class Renderer* getRenderer() { return mRenderer; }
+//    class InputSystem* getInputSystem() { return mInputSystem; }
+
 private:
     // Initialization helper
     void setRequiredFeatures();

@@ -19,6 +19,13 @@ add_executable(${EXE_NAME}
         core/input_system.cpp
         core/camera.hpp
 
+        renderer/renderer.hpp
+        renderer/renderer.cpp
+        renderer/creation_helper.hpp
+        renderer/def.hpp
+        renderer/builder.hpp
+        renderer/builder.cpp
+
         utils/lib_impl.cpp
         utils/common.hpp
         utils/log.hpp
