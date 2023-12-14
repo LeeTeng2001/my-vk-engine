@@ -4,13 +4,17 @@ set(EXE_NAME vulkan_engine)
 # Add source to this project's executable.
 add_executable(${EXE_NAME}
         main.cpp
-        engine/utils.h
-        engine/lib_impl.cpp
-        engine/engine.hpp
-        engine/engine.cpp
-        engine/custom_type.hpp
-        engine/creation_helper.hpp
-        engine/camera.hpp
+        actors/actor.hpp
+        actors/actor.cpp
+        core/engine.hpp
+        core/engine.cpp
+        core/custom_type.hpp
+        core/creation_helper.hpp
+        core/camera.hpp
+        utils/lib_impl.cpp
+        utils/common.hpp
+        utils/log.hpp
+        utils/log.cpp
 )
 
 target_include_directories(${EXE_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -24,6 +28,7 @@ target_link_libraries(${EXE_NAME}
         imgui
         stb_image
         tinygltf
+        spdlog::spdlog
         )
 
 add_dependencies(${EXE_NAME} Shaders)

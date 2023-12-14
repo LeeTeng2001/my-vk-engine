@@ -1,0 +1,31 @@
+#pragma once
+
+#include <spdlog/spdlog.h>
+#include <source_location>
+
+class Log {
+private:
+    std::unique_ptr<spdlog::logger> logger;
+public:
+    Log();
+
+    void debug(const std::string& msg, std::source_location location = std::source_location::current());
+    void info(const std::string& msg, std::source_location location = std::source_location::current());
+    void warn(const std::string& msg, std::source_location location = std::source_location::current());
+    void error(const std::string& msg, std::source_location location = std::source_location::current());
+    void vk_res(VkResult res, std::source_location location = std::source_location::current());
+};
+
+// global logger handler
+// https://stackoverflow.com/questions/1008019/how-do-you-implement-the-singleton-design-pattern
+class SLog {
+public:
+    SLog() = delete;
+    SLog(const SLog &) = delete;
+    SLog &operator=(const SLog &) = delete;
+
+    static Log* get() {
+        static Log instance{};
+        return &instance;
+    }
+};

@@ -143,3 +143,4 @@ $RECYCLE.BIN/
 *.spv
 *.dll
 imgui.ini
+logs

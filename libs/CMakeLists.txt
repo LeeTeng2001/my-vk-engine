@@ -12,6 +12,7 @@ add_subdirectory(tinyobjloader)
 add_subdirectory(googletest)
 add_subdirectory(vkbootstrap)
 add_subdirectory(glm)
+add_subdirectory(spdlog)
 add_subdirectory(sdl EXCLUDE_FROM_ALL)
 
 # include path

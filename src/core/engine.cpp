@@ -1,6 +1,6 @@
 #include "engine.hpp"
 #include "creation_helper.hpp"
-#include "utils.h"
+#include "utils/common.hpp"
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <filesystem>
@@ -46,30 +46,32 @@ void Engine::setRequiredFeatures() {
 }
 
 void Engine::initAssets() {
+    auto l = SLog::get();
+
     // Right now a hardcoded path for file
     fs::path modelPath("assets/models/viking_room.obj");
     fs::path diffusePath("assets/textures/viking_room.png");
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading model: %s", modelPath.c_str());
+    l->info(fmt::format("Loading model: {:s}", modelPath.generic_string()));
     tinyobj::ObjReader objReader;
     tinyobj::ObjReaderConfig reader_config;
     if (!objReader.ParseFromFile(modelPath.generic_string(), reader_config)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Load model return error");
+        l->error("load model return error");
         if (!objReader.Error().empty()) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, objReader.Error().c_str());
+            l->error(fmt::format("load model error: {:s}", objReader.Error().c_str()));
         }
         return;
     }
     if (!objReader.Warning().empty()) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, objReader.Warning().c_str());
+        l->warn(fmt::format("load model warn: {:s}", objReader.Warning().c_str()));
     }
     //attrib will contain the vertex arrays of the file
     tinyobj::attrib_t attrib = objReader.GetAttrib();
     std::vector<tinyobj::shape_t> shapes = objReader.GetShapes();
     std::vector<tinyobj::material_t> materials = objReader.GetMaterials();
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model shapes: %zu", shapes.size());
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "model materials: %zu", materials.size());
+    l->info(fmt::format("model shapes: {:d}", shapes.size()));
+    l->info(fmt::format("model materials: {:d}", materials.size()));
 
     // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
     // Loop over shapes
@@ -154,7 +156,7 @@ void Engine::initAssets() {
     imgInfo.path = diffusePath.generic_string();
     imgInfo.stbRef = stbi_load(imgInfo.path.c_str(), &imgInfo.texWidth, &imgInfo.texHeight, &imgInfo.texChannels, 4);
     if (!imgInfo.stbRef) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to load diffuse texture");
+        l->error(fmt::format("failed to load diffuse texture at path: {:s}", diffusePath.generic_string()));
     }
     _mInitTextures.push_back(imgInfo);
 
@@ -202,6 +204,7 @@ void Engine::initDebugAssets() {
 }
 
 void Engine::initBase() {
+    auto l = SLog::get();
     // Create SDL window
     SDL_Init(SDL_INIT_VIDEO);
     uint32_t window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
@@ -219,14 +222,21 @@ void Engine::initBase() {
                 VkDebugUtilsMessageTypeFlagsEXT messageType,
                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                 void *pUserData) -> VkBool32 {
-                auto severity = vkb::to_string_message_severity(messageSeverity);
-                auto type = vkb::to_string_message_type(messageType);
+//                auto severity = vkb::to_string_message_severity(messageSeverity);
+//                auto type = vkb::to_string_message_type(messageType);
+                auto l2 = SLog::get();
                 switch (messageSeverity) {
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s\n", pCallbackData->pMessage);
+                    l2->info(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                    l2->warn(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                    l2->error(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
                     break;
                 default:
-                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "vk [%s: %s] %s\n", severity, type, pCallbackData->pMessage);
+                    l2->warn(fmt::format("vkCallback unrecognised level: {:s}\n", pCallbackData->pMessage));
                 }
                 return VK_FALSE;
             }
@@ -242,7 +252,7 @@ void Engine::initBase() {
             .build();
 
     if (!instBuildRes) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create Vulkan instance. Error: %s", instBuildRes.error().message().c_str());
+        l->error(fmt::format("Failed to create Vulkan instance. Error: {:s}", instBuildRes.error().message().c_str()));
     }
 
     // Store initialised instances
@@ -251,8 +261,9 @@ void Engine::initBase() {
     _debug_messenger = vkbInst.debug_messenger;
 
     // Surface (window handle for different os)
-    if (!SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface))
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "ERROR when trying to create SDL surface");
+    if (!SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface)) {
+        l->error("failed to create SDL surface");
+    }
 
     // Select physical device, same pattern  ---------------------------------------------
     vkb::PhysicalDeviceSelector physSelector(vkbInst);
@@ -262,7 +273,7 @@ void Engine::initBase() {
             .set_required_features(_requiredPhysicalDeviceFeatures)
             .select();
     if (!physSelectorBuildRes) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create Vulkan physical device. Error: %s", physSelectorBuildRes.error().message().c_str());
+        l->error(fmt::format("Failed to create Vulkan physical device. Error: {:s}", physSelectorBuildRes.error().message().c_str()));
     }
     auto physDevice = physSelectorBuildRes.value();
 
@@ -282,7 +293,7 @@ void Engine::initBase() {
     _presentsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::present).value();
 
     if (!_graphicsQueue || !_presentsQueue) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to get queue from logical device");
+        l->error("Failed to get queue from logical device");
     }
     printPhysDeviceProps();
 
@@ -295,7 +306,7 @@ void Engine::initBase() {
             .build();
 
     if (!vkbSwapchainRes){
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create swapchain. Error: %s", vkbSwapchainRes.error().message().c_str());
+        l->error(fmt::format("Failed to create swapchain. Error: {:s}", vkbSwapchainRes.error().message().c_str()));
     }
 
     // store swapchain and its related images
@@ -304,9 +315,9 @@ void Engine::initBase() {
     _swapchainImages = vkbSwapchain.get_images().value();
     _swapChainExtent = vkbSwapchain.extent;
     // TODO: Fix extent, should query SDL: https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Window extent: %d, %d", _windowExtent.width, _windowExtent.height);
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Swapchain extent: %d, %d", vkbSwapchain.extent.width, vkbSwapchain.extent.height);
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Swapchain image counts: %zu", vkbSwapchain.get_images()->size());
+    l->info(fmt::format("Window extent: {:d}, {:d}", _windowExtent.width, _windowExtent.height));
+    l->info(fmt::format("Swapchain extent: {:d}, {:d}", vkbSwapchain.extent.width, vkbSwapchain.extent.height));
+    l->info(fmt::format("Swapchain image counts: {:d}", vkbSwapchain.get_images()->size()));
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
     _swapchainImageFormat = vkbSwapchain.image_format;
 
@@ -379,15 +390,16 @@ void Engine::printPhysDeviceProps() {
     vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &queueFamilyCount, queueFamilies.data());
 
     // Print info
-    SDL_Log("Selected gpu: %s", _gpuProperties.deviceName);
-    SDL_Log("\tTotal MSAA color samples bits: %d", _gpuProperties.limits.framebufferColorSampleCounts);
-    SDL_Log("\tTotal MSAA depth samples bits: %d", _gpuProperties.limits.framebufferDepthSampleCounts);
-    SDL_Log("\tMax color attachment: %d", _gpuProperties.limits.maxColorAttachments);
-    SDL_Log("\tMax push constant size: %d", _gpuProperties.limits.maxPushConstantsSize);
+    auto l = SLog::get();
+    l->debug(fmt::format("Selected gpu: {:s}", _gpuProperties.deviceName));
+    l->debug(fmt::format("\tTotal MSAA color samples bits: {:d}", _gpuProperties.limits.framebufferColorSampleCounts));
+    l->debug(fmt::format("\tTotal MSAA depth samples bits: {:d}", _gpuProperties.limits.framebufferDepthSampleCounts));
+    l->debug(fmt::format("\tMax color attachment: {:d}", _gpuProperties.limits.maxColorAttachments));
+    l->debug(fmt::format("\tMax push constant size: {:d}", _gpuProperties.limits.maxPushConstantsSize));
     for (auto &q_family: queueFamilies)
-        SDL_Log("\t-> Queue Counts: %d, Flag: %s", q_family.queueCount, std::bitset<4>(q_family.queueFlags).to_string().c_str());
-    SDL_Log("\tSelected graphic queue family idx: %d", _graphicsQueueFamily);
-    SDL_Log("\tSelected present queue family idx: %d", _presentsQueueFamily);
+        l->debug(fmt::format("\t-> Queue Counts: {:d}, Flag: {:s}", q_family.queueCount, std::bitset<4>(q_family.queueFlags).to_string().c_str()));
+    l->debug(fmt::format("\tSelected graphic queue family idx: {:d}", _graphicsQueueFamily));
+    l->debug(fmt::format("\tSelected present queue family idx: {:d}", _presentsQueueFamily));
     // SDL_Log("\tMinimum buffer alignment of %lld", _gpuProperties.limits.minUniformBufferOffsetAlignment);
 }
 
@@ -543,6 +555,7 @@ void Engine::initRenderPass() {
 }
 
 void Engine::initRenderResources() {
+    auto l = SLog::get();
     // This resource should probably be recreated if screen size change?
     _depthFormat = VK_FORMAT_D32_SFLOAT;  // TODO: Should query! not hardcode
     VkImageCreateInfo depthImgInfo = CreationHelper::imageCreateInfo(_depthFormat,
@@ -562,21 +575,21 @@ void Engine::initRenderResources() {
     localAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     localAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     VkResult result = vmaCreateImage(_allocator, &depthImgInfo, &localAllocInfo, &_depthImage._image, &_depthImage._allocation, nullptr);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     result = vmaCreateImage(_allocator, &colorImgInfo, &localAllocInfo, &_colorImage._image, &_colorImage._allocation, nullptr);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     result = vmaCreateImage(_allocator, &normalImgInfo, &localAllocInfo, &_normalImage._image, &_normalImage._allocation, nullptr);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     VkImageViewCreateInfo ivInfo = CreationHelper::imageViewCreateInfo(_depthFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
     result = vkCreateImageView(_device, &ivInfo, nullptr, &_depthImageView);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     ivInfo = CreationHelper::imageViewCreateInfo(_swapchainImageFormat, _colorImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
     result = vkCreateImageView(_device, &ivInfo, nullptr, &_colorImageView);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     ivInfo = CreationHelper::imageViewCreateInfo(_swapchainImageFormat, _normalImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
     result = vkCreateImageView(_device, &ivInfo, nullptr, &_normalImageView);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     _globCleanup.emplace([this](){
         vkDestroyImageView(_device, _depthImageView, nullptr);
@@ -589,6 +602,7 @@ void Engine::initRenderResources() {
 }
 
 void Engine::initFramebuffer() {
+    auto l = SLog::get();
     // swapchain frame buffer
     _swapChainFramebuffers.resize(_swapchainImageViews.size());
 
@@ -610,7 +624,7 @@ void Engine::initFramebuffer() {
         framebufferInfo.attachmentCount = std::size(attachments);
         framebufferInfo.pAttachments = attachments;
 
-        VK_CHECK_RESULT(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
+        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
     }
 
     // mrt framebuffer
@@ -618,7 +632,7 @@ void Engine::initFramebuffer() {
     VkImageView attachments[] = {_colorImageView, _normalImageView, _depthImageView};
     framebufferInfo.attachmentCount = std::size(attachments);
     framebufferInfo.pAttachments = attachments;
-    VK_CHECK_RESULT(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_mrtFramebuffer));
+    l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_mrtFramebuffer));
 
     _globCleanup.emplace([this](){
         for (const auto &item: _swapChainFramebuffers)
@@ -647,6 +661,7 @@ void Engine::initSync() {
 }
 
 void Engine::initDescriptors() {
+    auto l = SLog::get();
     // Creat pool for binding resources
     std::vector<VkDescriptorPoolSize> sizes = {
             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
@@ -677,7 +692,7 @@ void Engine::initDescriptors() {
 
     // create the set layout
     VkResult result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_mrtSetLayout);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     // Create actual descriptor set
     VkDescriptorSetAllocateInfo allocInfo ={};
@@ -685,7 +700,7 @@ void Engine::initDescriptors() {
     allocInfo.descriptorPool = _globalDescPool;
     allocInfo.descriptorSetCount = 1; // should change
     allocInfo.pSetLayouts = &_mrtSetLayout;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(_device, &allocInfo, &_mrtDescSet));
+    l->vk_res(vkAllocateDescriptorSets(_device, &allocInfo, &_mrtDescSet));
 
     // TODO: Rn we hardcode the first color sampler resource only
     VkDescriptorImageInfo imageInfo{};
@@ -717,12 +732,12 @@ void Engine::initDescriptors() {
 
     // create the set layout
     result = vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_compSetLayout);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     // create descriptor set
     allocInfo.descriptorSetCount = 1; // should change
     allocInfo.pSetLayouts = &_compSetLayout;
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(_device, &allocInfo, &_compDescSet));
+    l->vk_res(vkAllocateDescriptorSets(_device, &allocInfo, &_compDescSet));
 
     // The actual resource
     for (int i = 0; i < compBindings.size(); ++i) {
@@ -880,6 +895,7 @@ void Engine::initPipeline() {
 }
 
 void Engine::initData() {
+    auto l = SLog::get();
     // VMA best usage info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
     // Buffer info
     VkBufferCreateInfo bufferInfo{};
@@ -888,7 +904,7 @@ void Engine::initData() {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    SDL_Log("copy total of vertex buffer to gpu (size: %lu, total: %zu)", sizeof(Vertex), _mVertex.size());
+    l->debug(fmt::format("copy total of vertex buffer to gpu (size: {:d}, total: {:d})", sizeof(Vertex), _mVertex.size()));
 
     // Memory info, must have VMA_ALLOCATION_CREATE_MAPPED_BIT to create persistent map area so we can avoid map / unmap memory
     VmaAllocationCreateInfo stagingAllocInfo{};
@@ -898,7 +914,7 @@ void Engine::initData() {
 
     VmaAllocation stagingAllocation;  // represent underlying memory
     VmaAllocationInfo stagingAllocationInfo; // for persistent mapping: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
-    VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_vertexBuffer, &stagingAllocation, &stagingAllocationInfo))
+    l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_vertexBuffer, &stagingAllocation, &stagingAllocationInfo));
     _globCleanup.emplace([this, stagingAllocation](){
         vmaDestroyBuffer(_allocator, _vertexBuffer, stagingAllocation);
     });
@@ -914,7 +930,7 @@ void Engine::initData() {
     bufferInfo.size = sizeof(_mIdx[0]) * _mIdx.size();
     bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-    VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_idxBuffer, &stagingAllocation, &stagingAllocationInfo))
+    l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &_idxBuffer, &stagingAllocation, &stagingAllocationInfo));
     _globCleanup.emplace([this, stagingAllocation](){
         vmaDestroyBuffer(_allocator, _idxBuffer, stagingAllocation);
     });
@@ -931,7 +947,7 @@ void Engine::initData() {
         texBufferInfo.size = cpuTex.texWidth * cpuTex.texHeight * cpuTex.texChannels;
         texBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-        VK_CHECK_RESULT(vmaCreateBuffer(_allocator, &texBufferInfo, &stagingAllocInfo, &texBuffer, &stagingAllocation, &stagingAllocationInfo))
+        l->vk_res(vmaCreateBuffer(_allocator, &texBufferInfo, &stagingAllocInfo, &texBuffer, &stagingAllocation, &stagingAllocationInfo));
         memcpy(stagingAllocationInfo.pMappedData, cpuTex.stbRef, texBufferInfo.size);
         vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferInfo.size); // TODO: Transfer to destination buffer
 
@@ -947,7 +963,7 @@ void Engine::initData() {
         texAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         AllocatedImage allocatedTexImage{};
         VkResult result = vmaCreateImage(_allocator, &textureImageInfo, &texAllocInfo, &allocatedTexImage._image, &allocatedTexImage._allocation, nullptr);
-        VK_CHECK_RESULT(result);
+        l->vk_res(result);
 
         // transition the layout image for layout destination
         transitionImgLayout(allocatedTexImage._image, VK_FORMAT_R8G8B8A8_SRGB,
@@ -974,13 +990,14 @@ void Engine::initData() {
 }
 
 void Engine::initSampler() {
+    auto l = SLog::get();
     for (const auto &texImg: _textureImages) {
         // Image view
         VkImageView imgView;
         VkImageViewCreateInfo ivInfo = CreationHelper::imageViewCreateInfo(
                 VK_FORMAT_R8G8B8A8_SRGB, texImg._image, VK_IMAGE_ASPECT_COLOR_BIT);
         VkResult result = vkCreateImageView(_device, &ivInfo, nullptr, &imgView);
-        VK_CHECK_RESULT(result);
+        l->vk_res(result);
 
         // sampler, note that it doesn't reference any image view!
         VkSampler sampler;
@@ -989,7 +1006,7 @@ void Engine::initSampler() {
                                                                          VK_FILTER_LINEAR,
                                                                          VK_SAMPLER_ADDRESS_MODE_REPEAT);
         result = vkCreateSampler(_device, &sampInfo, nullptr, &sampler);
-        VK_CHECK_RESULT(result);
+        l->vk_res(result);
 
         _textureImagesView.push_back(imgView);
         _textureImagesSampler.push_back(sampler);
@@ -1006,11 +1023,11 @@ void Engine::initSampler() {
                                                                      VK_FILTER_LINEAR,
                                                                      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
     VkResult result = vkCreateSampler(_device, &sampInfo, nullptr, &_colorImageSampler);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     result = vkCreateSampler(_device, &sampInfo, nullptr, &_depthImageSampler);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
     result = vkCreateSampler(_device, &sampInfo, nullptr, &_normalImageSampler);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     _globCleanup.emplace([this]() {
         vkDestroySampler(_device, _depthImageSampler, nullptr);
@@ -1081,6 +1098,7 @@ void Engine::initCamera() {
 }
 
 void Engine::draw() {
+    auto l = SLog::get();
     // Wait for previous frame to finish (takes array of fences)
     vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
 
@@ -1088,7 +1106,7 @@ void Engine::draw() {
     uint32_t imageIdx;
     VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX,
                                             _presentSemaphore, VK_NULL_HANDLE, &imageIdx);
-    VK_CHECK_RESULT(result);
+    l->vk_res(result);
 
     // reset to unsignaled only if we're sure we have work to do.
     vkResetFences(_device, 1, &_renderFence);
@@ -1121,7 +1139,7 @@ void Engine::draw() {
     submitInfo.signalSemaphoreCount = std::size(mrtSignalSem);
     submitInfo.pSignalSemaphores = mrtSignalSem;
 
-    VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
 
     // Submit Composition ---------------------------------------------------
     submitInfo.pCommandBuffers = &_compCmdBuffer;
@@ -1129,7 +1147,7 @@ void Engine::draw() {
     submitInfo.pWaitSemaphores = mrtSignalSem;
     submitInfo.signalSemaphoreCount = std::size(compSignalSem);
     submitInfo.pSignalSemaphores = compSignalSem;
-    VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _renderFence));
+    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _renderFence));
 
     // Submit result back to swap chain
     // What to signal when we're done
@@ -1261,10 +1279,11 @@ void Engine::recordCompCommandBuffer(VkCommandBuffer commandBuffer, uint32_t ima
 }
 
 void Engine::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function) {
+    auto l = SLog::get();
     // One time sync fence
     VkFenceCreateInfo fenceInfo = CreationHelper::createFenceInfo(false);
     VkFence oneTimeFence;
-    VK_CHECK_RESULT(vkCreateFence(_device, &fenceInfo, nullptr, &oneTimeFence));
+    l->vk_res(vkCreateFence(_device, &fenceInfo, nullptr, &oneTimeFence));
 
     // Create new command buffer
     VkCommandBufferAllocateInfo allocInfo{};
