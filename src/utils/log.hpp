@@ -10,11 +10,19 @@ private:
 public:
     Log();
 
+#ifdef __APPLE__  // source_location is not usable at current MacOS state
+    void debug(const std::string& msg, int lineNum = __builtin_LINE(), char const * funcName = __builtin_FUNCTION());
+    void info(const std::string& msg, int lineNum = __builtin_LINE(), char const * funcName = __builtin_FUNCTION());
+    void warn(const std::string& msg, int lineNum = __builtin_LINE(), char const * funcName = __builtin_FUNCTION());
+    void error(const std::string& msg, int lineNum = __builtin_LINE(), char const * funcName = __builtin_FUNCTION());
+    void vk_res(VkResult res, int lineNum = __builtin_LINE(), char const * funcName = __builtin_FUNCTION());
+#else
     void debug(const std::string& msg, std::source_location location = std::source_location::current());
     void info(const std::string& msg, std::source_location location = std::source_location::current());
     void warn(const std::string& msg, std::source_location location = std::source_location::current());
     void error(const std::string& msg, std::source_location location = std::source_location::current());
     void vk_res(VkResult res, std::source_location location = std::source_location::current());
+#endif
 };
 
 // global logger handler
