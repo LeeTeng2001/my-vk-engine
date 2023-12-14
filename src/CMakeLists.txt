@@ -4,8 +4,13 @@ set(EXE_NAME vulkan_engine)
 # Add source to this project's executable.
 add_executable(${EXE_NAME}
         main.cpp
+
         actors/actor.hpp
         actors/actor.cpp
+
+        components/component.cpp
+        components/component.hpp
+
         core/engine.hpp
         core/engine.cpp
         core/custom_type.hpp
@@ -13,6 +18,7 @@ add_executable(${EXE_NAME}
         core/input_system.hpp
         core/input_system.cpp
         core/camera.hpp
+
         utils/lib_impl.cpp
         utils/common.hpp
         utils/log.hpp

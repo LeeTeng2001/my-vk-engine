@@ -1,14 +1,14 @@
 #include "actor.hpp"
+#include "components/component.hpp"
+#include "core/input_system.hpp"
 //#include "../Game.hpp"
-//#include "../components/Component.hpp"
-//#include "../core/InputSystem.hpp"
 
 Actor::~Actor() {
 //    mGame->RemoveActor(this);
-//    // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
-//    while (!mComponents.empty()) {
-//        delete mComponents.back();
-//    }
+    // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
+    while (!_components.empty()) {
+        delete *_components.end();
+    }
 }
 
 void Actor::update(float deltaTime) {
@@ -21,50 +21,32 @@ void Actor::update(float deltaTime) {
 }
 
 void Actor::updateComponents(float deltaTime) {
-//    for (auto comp: mComponents) {
-//        comp->update(deltaTime);
-//    }
-}
-
-void Actor::updateActor(float deltaTime) {
-    // Actor specific update
+    for (auto comp: _components) {
+        comp->update(deltaTime);
+    }
 }
 
 void Actor::processInput(const struct InputState &keyState) {
     // process input for components, then actor specific
     if (_state == EActive) {
-//        for (auto comp: mComponents) {
-//            comp->processInput(keyState);
-//        }
+        for (auto comp: _components) {
+            comp->processInput(keyState);
+        }
         actorInput(keyState);
     }
 }
 
-void Actor::actorInput(const struct InputState &keyState) {
-    // Actor specific input
+void Actor::addComponent(struct Component *component) {
+    // lower order at front with multiset property
+    _components.insert(component);
 }
 
-//void Actor::AddComponent(Component *component) {
-//    // Find the insertion point in the sorted vector
-//    // (The first element with an order higher than me)
-//    int myOrder = component->GetUpdateOrder();
-//    auto iter = mComponents.begin();
-//    while (iter != mComponents.end()) {
-//        if (myOrder < (*iter)->GetUpdateOrder())
-//            break;
-//        ++iter;
-//    }
-//
-//    // Inserts element before position of iterator
-//    mComponents.insert(iter, component);
-//}
-//
-//void Actor::RemoveComponent(Component *component) {
-//    auto iter = std::find(mComponents.begin(), mComponents.end(), component);
-//    if (iter != mComponents.end()) {
-//        mComponents.erase(iter);
-//    }
-//}
+void Actor::removeComponent(Component *component) {
+    auto iter = std::find(_components.begin(), _components.end(), component);
+    if (iter != _components.end()) {
+        _components.erase(iter);
+    }
+}
 
 void Actor::computeWorldTransform() {
     if (_recomputeWorldTransform) {
