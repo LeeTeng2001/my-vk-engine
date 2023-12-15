@@ -85,6 +85,8 @@ void InputSystem::update() {
     // Mouse
     float x = 0, y = 0;
     _inputState.Mouse._curButtons = _inputState.Mouse._isRelative ? SDL_GetRelativeMouseState(&x, &y) : SDL_GetMouseState(&x, &y);
+    _inputState.Mouse._mouseOffsetPos.x = x - _inputState.Mouse._mousePos.x;
+    _inputState.Mouse._mouseOffsetPos.y = y - _inputState.Mouse._mousePos.y;
     _inputState.Mouse._mousePos.x = x;
     _inputState.Mouse._mousePos.y = y;
 

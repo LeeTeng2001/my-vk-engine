@@ -40,6 +40,7 @@ public:
 
 	// For mouse specific
 	[[nodiscard]] const glm::vec2& getPosition() const { return _mousePos; }
+	[[nodiscard]] const glm::vec2& getOffsetPosition() const { return _mouseOffsetPos; }
 	[[nodiscard]] const glm::vec2& getScrollWheel() const { return _scrollWheel; }
 	[[nodiscard]] bool isRelative() const { return _isRelative; }
 
@@ -48,6 +49,7 @@ private:
 	Uint32 _curButtons;
 	Uint32 _prevButtons;
 	glm::vec2 _mousePos;
+	glm::vec2 _mouseOffsetPos;
     glm::vec2 _scrollWheel;
 	// Are we in relative mouse mode
 	bool _isRelative;

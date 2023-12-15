@@ -7,8 +7,8 @@
 #include "renderer/renderer.hpp"
 
 constexpr float MOVEMENT_SPEED = 2.0;
-constexpr float HOR_ANGLE_SPEED = 45;
-constexpr float VERT_ANGLE_SPEED = 30;
+constexpr float HOR_ANGLE_SPEED = 30;
+constexpr float VERT_ANGLE_SPEED = 10;
 
 void CameraActor::delayInit() {
     _moveComp = make_shared<MoveComponent>(getSelf());
@@ -32,6 +32,7 @@ void CameraActor::updateActor(float deltaTime) {
 
 void CameraActor::actorInput(const struct InputState &state) {
     float forwardSpeed = 0.0f;
+    float strafSpeed = 0.0f;
     float angularSpeed = 0.0f;
     float pitchSpeed = 0.0f;
 
@@ -42,21 +43,19 @@ void CameraActor::actorInput(const struct InputState &state) {
     if (state.Keyboard.getKeyState(SDL_SCANCODE_S)) {
         forwardSpeed -= MOVEMENT_SPEED;
     }
-    // TODO: mouse movement
     if (state.Keyboard.getKeyState(SDL_SCANCODE_A)) {
-        angularSpeed -= HOR_ANGLE_SPEED;
+        strafSpeed -= MOVEMENT_SPEED;
     }
     if (state.Keyboard.getKeyState(SDL_SCANCODE_D)) {
-        angularSpeed += HOR_ANGLE_SPEED;
-    }
-    if (state.Keyboard.getKeyState(SDL_SCANCODE_E)) {
-        pitchSpeed -= VERT_ANGLE_SPEED;
-    }
-    if (state.Keyboard.getKeyState(SDL_SCANCODE_Q)) {
-        pitchSpeed += VERT_ANGLE_SPEED;
+        strafSpeed += MOVEMENT_SPEED;
     }
 
+    glm::vec2 mouseOffset = state.Mouse.getOffsetPosition();
+    angularSpeed = -mouseOffset.x * HOR_ANGLE_SPEED;
+    pitchSpeed = -mouseOffset.y * VERT_ANGLE_SPEED;
+
     _moveComp->setForwardSpeed(forwardSpeed);
+    _moveComp->setStrafeSpeed(strafSpeed);
     _moveComp->setHorAngularSpeed(angularSpeed);
     _moveComp->setVertAngularSpeed(pitchSpeed);
 }
