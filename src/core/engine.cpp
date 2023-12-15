@@ -2,8 +2,11 @@
 
 #include "engine.hpp"
 #include "actors/actor.hpp"
+#include "actors/player/camera.hpp"
+#include "actors/object/static.hpp"
 #include "renderer/renderer.hpp"
 #include "input_system.hpp"
+#include "actors/object/static.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {
     _self = self;
@@ -20,7 +23,10 @@ bool Engine::initialize(shared_ptr<Engine> &self) {
         return false;
     }
 
-    // TODO: upload modal
+    if (!prepareScene()) {
+        l->error("failed to prepare scene");
+        return false;
+    }
 
     return true;
 }
@@ -59,18 +65,45 @@ void Engine::processInput() {
     // propagate input to actors / ui
     if (_gameState == EGameplay) {
 //        mUpdatingActors = true;
-//        for (auto actor: mActors) {
-//            actor->ProcessInput(state);
-//        }
+        for (const auto& actor: _actorList) {
+            actor->processInput(state);
+        }
 //        mUpdatingActors = false;
     }
 }
 
 void Engine::updateGame() {
+    // Simple solution for frame limiting.
+    // Wait until 16ms has elapsed since last frame
+//    while (!SDL_TICKS_PASSED(SDL_GetTicks(), _tickCountMs + 16));
+
+    // Get delta in second
+    uint64_t curTicks = SDL_GetTicks();
+    float deltaTime = static_cast<float>(curTicks - _tickCountMs) / 1000.0f;
+    _tickCountMs = curTicks;
+
+    // Clamp maximum delta to prevent huge delta time (ex, when stepping through debugger)
+    deltaTime = std::min(deltaTime, 0.05f);
+
     // Renderer
     _renderer->newFrame();
     _renderer->beginRecordCmd();
 
+    // Only update in gameplay mode
+    if (_gameState == EGameplay) {
+        // Update all existing actors
+//        mUpdatingActors = true;
+        for (auto &actor: _actorList) {
+            actor->update(deltaTime);
+        }
+//        mUpdatingActors = false;
+
+//        // Check dead vector and remove
+//        for (auto &actor: _actorList) {
+//            if (actor->getState() == Actor::EDead) {
+//            }
+//        }
+    }
 }
 
 void Engine::drawOutput() {
@@ -79,7 +112,15 @@ void Engine::drawOutput() {
 }
 
 void Engine::addActor(const shared_ptr<Actor>& actor) {
-    actor->setParent(actor, _self.lock());
+    actor->delayInit(actor, _self.lock());
     _actorList.push_back(actor);
 }
 
+bool Engine::prepareScene() {
+    _camActor = make_shared<CameraActor>();
+    addActor(_camActor);
+    _staticActor = make_shared<StaticActor>("assets/models/teapot.obj", "assets/textures/dice.png");
+    addActor(_staticActor);
+
+    return true;
+}

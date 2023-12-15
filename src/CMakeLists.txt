@@ -7,17 +7,23 @@ add_executable(${EXE_NAME}
 
         actors/actor.hpp
         actors/actor.cpp
+        actors/player/camera.cpp
+        actors/player/camera.hpp
+        actors/object/static.cpp
+        actors/object/static.hpp
 
-        components/component.cpp
         components/component.hpp
+        components/component.cpp
+        components/control/move.hpp
+        components/control/move.cpp
+        components/graphic/mesh.cpp
+        components/graphic/mesh.hpp
 
+        core/camera.hpp
         core/engine.hpp
         core/engine.cpp
-        core/custom_type.hpp
-        core/creation_helper.hpp
         core/input_system.hpp
         core/input_system.cpp
-        core/camera.hpp
 
         renderer/renderer.hpp
         renderer/renderer.cpp
@@ -49,7 +55,7 @@ target_link_libraries(${EXE_NAME}
 add_dependencies(${EXE_NAME} Shaders)
 
 # Unit tests ----------------------------------------------------------------------
-add_executable(CameraUnitTest tests/cameraTest.cpp)
+add_executable(CameraUnitTest tests/cameraTest.cpp utils/common.hpp)
 target_include_directories(CameraUnitTest PUBLIC engine)
-target_link_libraries(CameraUnitTest gtest gtest_main glm SDL3::SDL3)
+target_link_libraries(CameraUnitTest gtest gtest_main glm SDL3::SDL3 spdlog::spdlog)
 

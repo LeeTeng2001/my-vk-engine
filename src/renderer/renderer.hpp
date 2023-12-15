@@ -34,13 +34,15 @@ public:
 
     // used during screen resize
     bool initialise(RenderConfig renderConfig = {});
-    void rebuild();
+    // void rebuild();
 
     // render related, should invoke in order
     void newFrame();
     void beginRecordCmd();
     void setUniform(const MrtPushConstantData &mrtData);
+    void bindTexture();
     void drawModel(ModelData& modelData);
+    void writeDebugUi(const string &msg);
     void endRecordCmd();
     void draw();
 
@@ -116,5 +118,6 @@ private:
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
     VkDescriptorPool _globalDescPool;
+    vector<VkClearValue> _mrtClearColor;
     vector<FlightResource*> _flightResources;
 };

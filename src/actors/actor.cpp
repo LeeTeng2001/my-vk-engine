@@ -19,7 +19,7 @@ void Actor::update(float deltaTime) {
 }
 
 void Actor::updateComponents(float deltaTime) {
-    for (auto comp: _components) {
+    for (const auto& comp: _components) {
         comp->update(deltaTime);
     }
 }
@@ -27,7 +27,7 @@ void Actor::updateComponents(float deltaTime) {
 void Actor::processInput(const struct InputState &keyState) {
     // process input for components, then actor specific
     if (_state == EActive) {
-        for (auto comp: _components) {
+        for (const auto& comp: _components) {
             comp->processInput(keyState);
         }
         actorInput(keyState);
@@ -50,17 +50,19 @@ void Actor::computeWorldTransform() {
     if (_recomputeWorldTransform) {
         _recomputeWorldTransform = false;
 
-//        // Scale, then rotate, then translate
-//        mWorldTransform = Matrix4::CreateScale(mScale);
-//        mWorldTransform *= Matrix4::CreateFromQuaternion(mRotation);
-//        mWorldTransform *= Matrix4::CreateTranslation(mPosition);
-//
-//        // Inform components world transform updated
-//        for (auto comp: mComponents) {
-//            comp->OnUpdateWorldTransform();
-//        }
+        // Scale, then rotate, then translate
+        _worldTransform = glm::translate(glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale, _position);
+
+        // Inform components world transform updated
+        for (const auto &comp: _components) {
+            comp->onUpdateWorldTransform();
+        }
     }
 }
+
+//glm::vec3 Actor::getForward() const {
+//    glm::rotate()
+//}
 
 //void Actor::RotateToNewForward(const Vector3 &forward) {
 //    // Figure out difference between original (unit x) and new

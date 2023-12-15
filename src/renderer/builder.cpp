@@ -65,6 +65,27 @@ DescriptorBuilder& DescriptorBuilder::setTotalSet(int total) {
     return *this;
 }
 
+DescriptorBuilder& DescriptorBuilder::pushDefaultUniformVertex(int targetSet) {
+    auto l = SLog::get();
+    if (targetSet < 0) {
+        l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
+    } else if (targetSet >= _setInfoList.size()) {
+        l->error(fmt::format("target set out of range {:d}", targetSet));
+    } else {
+        // binding desc
+        VkDescriptorSetLayoutBinding newBinding{};
+        newBinding.binding = _setInfoList[targetSet].setBinding.size();
+        newBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        newBinding.descriptorCount = 1;
+        newBinding.pImmutableSamplers = nullptr;
+        newBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        _setInfoList[targetSet].setBinding.push_back(newBinding);
+    }
+
+    return *this;
+}
+
 DescriptorBuilder&
 DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
     auto l = SLog::get();

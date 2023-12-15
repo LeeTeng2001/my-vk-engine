@@ -5,6 +5,8 @@
 class Actor;
 class Renderer;
 class InputSystem;
+class CameraActor;
+class StaticActor;
 
 class Engine {
 public:
@@ -14,6 +16,7 @@ public:
     bool initialize(shared_ptr<Engine> &self);
     void run();
 
+    bool prepareScene();
     void processInput();
     void updateGame();
     void drawOutput();
@@ -32,9 +35,6 @@ public:
     shared_ptr<Renderer> getRenderer() { return _renderer; }
     shared_ptr<InputSystem> getInputSystem() { return _inputSystem; }
 
-    // utils
-    shared_ptr<Engine> getSelf();
-
 private:
     weak_ptr<Engine> _self;
     shared_ptr<Renderer> _renderer = nullptr;
@@ -43,5 +43,8 @@ private:
     uint64_t _tickCountMs = 0;
 
     // game specific member
+    // TODO: refactor to game/scene class
     vector<shared_ptr<Actor>> _actorList;
+    shared_ptr<CameraActor> _camActor = nullptr;
+    shared_ptr<StaticActor> _staticActor = nullptr;
 };

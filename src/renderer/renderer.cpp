@@ -434,18 +434,22 @@ bool Renderer::initRenderResources() {
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     // MRT: depth, albedo, normal
     std::array<ImgResource, 3> imgInfoList = {};
+    _mrtClearColor.resize(3);
     imgInfoList[0].format = _depthFormat;
     imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[0].extent = _swapChainExtent;
     imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    _mrtClearColor[0].depthStencil.depth = 1.0f;
     imgInfoList[1].format = _swapchainImageFormat;
     imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[1].extent = _swapChainExtent;
     imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _mrtClearColor[1].color =  {{0.2f, 0.2f, 0.5f, 1.0f}};
     imgInfoList[2].format = _swapchainImageFormat;
     imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[2].extent = _swapChainExtent;
     imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _mrtClearColor[2].color =  {{0, 0, 0, 1.0f}};
 
     // allocate from GPU LOCAL memory
     VmaAllocationCreateInfo localAllocInfo {};
@@ -621,7 +625,7 @@ bool Renderer::initDescriptors() {
         for (const auto &imgResouce: _flightResources[i]->imgResourceList) {
             compSetBuilder.pushSetWriteImgSampler(0, imgResouce->imageView, imgResouce->sampler);
         }
-        _flightResources[i]->mrtDescSet = compSetBuilder.buildSet(0);
+        _flightResources[i]->compDescSet = compSetBuilder.buildSet(0);
     }
 
     _globCleanup.emplace([this]() {
@@ -809,24 +813,24 @@ bool Renderer::uploadAndPopulateModal(ModelData& modelData) {
     vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
 
     // Use staging buffer to transfer texture data to local memory
-    if (modelData.albedoTexture.stbRef != nullptr) {
+    if (modelData.albedoTexture != nullptr) {
         l->debug(fmt::format("upload albedo texture dim: ({:d}, {:d}, {:d})",
-                             modelData.albedoTexture.texWidth, modelData.albedoTexture.texHeight,
-                             modelData.albedoTexture.texChannels));
+                             modelData.albedoTexture->texWidth, modelData.albedoTexture->texHeight,
+                             modelData.albedoTexture->texChannels));
 
         // Create buffer for transfer source image
         VkBuffer texBuffer;
         VkBufferCreateInfo texBufferInfo = bufferInfo;
-        texBufferInfo.size = modelData.albedoTexture.texWidth * modelData.albedoTexture.texHeight * modelData.albedoTexture.texChannels;
+        texBufferInfo.size = modelData.albedoTexture->texWidth * modelData.albedoTexture->texHeight * modelData.albedoTexture->texChannels;
         texBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
         l->vk_res(vmaCreateBuffer(_allocator, &texBufferInfo, &stagingAllocInfo, &texBuffer, &stagingAllocation, &stagingAllocationInfo));
-        memcpy(stagingAllocationInfo.pMappedData, modelData.albedoTexture.stbRef, texBufferInfo.size);
+        memcpy(stagingAllocationInfo.pMappedData, modelData.albedoTexture->stbRef, texBufferInfo.size);
         vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferInfo.size); // TODO: Transfer to destination buffer
 
         // Create GPU local sampled image
         // TODO: Query format?
-        VkExtent2D ext{static_cast<uint32_t>(modelData.albedoTexture.texWidth), static_cast<uint32_t>(modelData.albedoTexture.texHeight)};
+        VkExtent2D ext{static_cast<uint32_t>(modelData.albedoTexture->texWidth), static_cast<uint32_t>(modelData.albedoTexture->texHeight)};
         VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(VK_FORMAT_R8G8B8A8_SRGB,
                                                                              VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                                                              ext);
@@ -853,7 +857,6 @@ bool Renderer::uploadAndPopulateModal(ModelData& modelData) {
         vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);
 
         // image view and sampler
-        VkImageView imgView;
         VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(VK_FORMAT_R8G8B8A8_SRGB,
                                                                                       modelData.gpuAlbedoTex.image,
                                                                                       VK_IMAGE_ASPECT_COLOR_BIT);
@@ -863,6 +866,30 @@ bool Renderer::uploadAndPopulateModal(ModelData& modelData) {
                                                                                VK_FILTER_LINEAR,
                                                                                VK_SAMPLER_ADDRESS_MODE_REPEAT);
         l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &modelData.gpuAlbedoTex.sampler));
+
+        // Create descriptor set resource
+        VkDescriptorSetAllocateInfo allocInfo ={};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = _globalDescPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &_mrtSetLayout;
+        l->vk_res(vkAllocateDescriptorSets(_device, &allocInfo, &modelData.albedoTexture->texDescSet));
+
+        // img view
+        VkDescriptorImageInfo imgInfo;
+        imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imgInfo.imageView = modelData.gpuAlbedoTex.imageView;
+        imgInfo.sampler = modelData.gpuAlbedoTex.sampler;
+
+        // update set resource info
+        VkWriteDescriptorSet setWrite = {};
+        setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        setWrite.dstBinding = 0;
+         setWrite.dstSet = modelData.albedoTexture->texDescSet;
+        setWrite.descriptorCount = 1;
+        setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        setWrite.pImageInfo = &imgInfo;
+        vkUpdateDescriptorSets(_device, 1, &setWrite, 0, nullptr);
 
         _globCleanup.emplace([this, &modelData]() {
             vkDestroySampler(_device, modelData.gpuAlbedoTex.sampler, nullptr);
@@ -976,12 +1003,8 @@ void Renderer::beginRecordCmd() {
 
     // Clear value for attachment load op clear
     // Should have the same order as attachments binding index
-    VkClearValue mrtClearColor[3] = {};
-    mrtClearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
-    mrtClearColor[1].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // bg for color frame attach
-    mrtClearColor[2].depthStencil.depth = 1.0f; // depth attachment
-    mrtRenderPassInfo.clearValueCount = std::size(mrtClearColor);
-    mrtRenderPassInfo.pClearValues = mrtClearColor;
+    mrtRenderPassInfo.clearValueCount = _mrtClearColor.size();
+    mrtRenderPassInfo.pClearValues = _mrtClearColor.data();
 
     vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
@@ -989,8 +1012,11 @@ void Renderer::beginRecordCmd() {
     vkCmdBindPipeline(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
 
     // global set for both pipeline
-    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
-                            0, 1, &_flightResources[_curFrameInFlight]->mrtDescSet, 0, nullptr);
+    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
+                            0, 1, &_flightResources[_curFrameInFlight]->compDescSet, 0, nullptr);
+
+    // Draw imgui
+    ImGui::Text("World coord: up +y, right +x, forward +z");
 }
 
 void Renderer::setUniform(const MrtPushConstantData &mrtData) {
@@ -1000,8 +1026,8 @@ void Renderer::setUniform(const MrtPushConstantData &mrtData) {
 
 void Renderer::drawModel(ModelData& modelData) {
     // TODO: Bind texture set
-//    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
-//                            0, 1, &_flightResources[_curFrameInFlight]->compDescSet, 0, nullptr);
+    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
+                            0, 1, &modelData.albedoTexture->texDescSet, 0, nullptr);
     VkBuffer vertexBuffers[] = {modelData.vBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0,
@@ -1010,12 +1036,11 @@ void Renderer::drawModel(ModelData& modelData) {
     vkCmdDrawIndexed(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modelData.indices.size(), 1, 0, 0, 0);
 }
 
-void Renderer::endRecordCmd() {
-    // Draw imgui
-//    ImGui::ShowDemoWindow();
-    ImGui::Text("World coord: up +y, right +x, forward +z");
-//    ImGui::Text("Cam Pos    : %s", glm::to_string(cam->GetCamPos()).c_str());
+void Renderer::writeDebugUi(const string &msg) {
+    ImGui::Text(msg.c_str());
+}
 
+void Renderer::endRecordCmd() {
     // Push constant
     CompPushConstantData pushConstantData{};
     pushConstantData.sobelWidth = 1;

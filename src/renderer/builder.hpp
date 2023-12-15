@@ -23,6 +23,7 @@ public:
     VkDescriptorSet buildSet(int targetSet);
 
     DescriptorBuilder& setTotalSet(int total);
+    DescriptorBuilder& pushDefaultUniformVertex(int targetSet);
     DescriptorBuilder& pushDefaultFragmentSamplerBinding(int targetSet);
     DescriptorBuilder& clearSetWrite(int targetSet);
     DescriptorBuilder& pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler);

@@ -12,6 +12,10 @@ struct RenderConfig {
     VkDebugUtilsMessageSeverityFlagBitsEXT callbackSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 };
 
+struct MrtModalUniformData {
+    glm::mat4 modal;
+};
+
 struct MrtPushConstantData {
     glm::mat4 viewTransform;
     glm::vec3 sunPos;
@@ -63,12 +67,15 @@ struct Vertex {
     }
 };
 
-struct CpuImgResource {
+struct TextureData {
+    // populated by application
     std::string path;
     stbi_uc* stbRef;
     int texWidth;
     int texHeight;
     int texChannels;
+    // populated by renderer
+    VkDescriptorSet texDescSet{};
 };
 
 struct ImgResource {
@@ -89,7 +96,7 @@ struct ModelData {
     // populated by application
     vector<Vertex> vertex = {};
     vector<uint32_t> indices = {};
-    CpuImgResource albedoTexture;
+    shared_ptr<TextureData> albedoTexture;
     // populated by renderer
     VkBuffer vBuffer{};
     VkBuffer iBuffer{};
