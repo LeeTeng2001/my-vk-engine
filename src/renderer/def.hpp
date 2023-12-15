@@ -1,12 +1,15 @@
 #pragma once
 
+#include <stb_image.h>
+#include <vk_mem_alloc.h>
+
 #include "utils/common.hpp"
 
 struct RenderConfig {
     int maxFrameInFlight = 2;
     int windowWidth = 1700;
     int windowHeight = 900;
-    VkDebugUtilsMessageSeverityFlagBitsEXT callbackSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+    VkDebugUtilsMessageSeverityFlagBitsEXT callbackSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 };
 
 struct MrtPushConstantData {
@@ -91,4 +94,9 @@ struct ModelData {
     VkBuffer vBuffer{};
     VkBuffer iBuffer{};
     ImgResource gpuAlbedoTex;
+};
+
+struct BindingCache {
+    MrtPushConstantData mrtPushConstant{};
+    CompPushConstantData compPushConstant{};
 };

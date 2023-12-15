@@ -6,9 +6,7 @@
 Actor::~Actor() {
 //    mGame->RemoveActor(this);
     // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
-    while (!_components.empty()) {
-        delete *_components.end();
-    }
+    _components.clear();
 }
 
 void Actor::update(float deltaTime) {
@@ -36,12 +34,12 @@ void Actor::processInput(const struct InputState &keyState) {
     }
 }
 
-void Actor::addComponent(struct Component *component) {
+void Actor::addComponent(const shared_ptr<Component>& component) {
     // lower order at front with multiset property
     _components.insert(component);
 }
 
-void Actor::removeComponent(Component *component) {
+void Actor::removeComponent(const shared_ptr<Component>& component) {
     auto iter = std::find(_components.begin(), _components.end(), component);
     if (iter != _components.end()) {
         _components.erase(iter);

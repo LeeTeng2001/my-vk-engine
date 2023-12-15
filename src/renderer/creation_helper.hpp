@@ -87,6 +87,18 @@ public:
         return samplerInfo;
     }
 
+
+    static VkRenderPassBeginInfo createRenderPassBeginInfo(VkRenderPass renderPass, VkFramebuffer framebuffer, VkExtent2D extent) {
+        VkRenderPassBeginInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        createInfo.renderPass = renderPass;
+        createInfo.framebuffer = framebuffer;
+        createInfo.renderArea.offset = {0, 0};
+        createInfo.renderArea.extent = extent;
+
+        return createInfo;
+    }
+
     static VkFenceCreateInfo createFenceInfo(bool initSignalOn = false) {
         VkFenceCreateInfo fenceCreateInfo = {};
         fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

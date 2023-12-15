@@ -22,6 +22,9 @@ struct FlightResource {
     VkDescriptorSet compDescSet{};
     VkSemaphore compSemaphore{};
     VkCommandBuffer compCmdBuffer{};
+
+    VkSemaphore imageAvailableSem{};
+    VkFence renderFence{};
 };
 
 class Renderer {
@@ -33,8 +36,12 @@ public:
     bool initialise(RenderConfig renderConfig = {});
     void rebuild();
 
-    // render related
+    // render related, should invoke in order
     void newFrame();
+    void beginRecordCmd();
+    void setUniform(const MrtPushConstantData &mrtData);
+    void drawModel(ModelData& modelData);
+    void endRecordCmd();
     void draw();
 
     // data related
@@ -50,7 +57,9 @@ private:
     bool initRenderResources();
     bool initDescriptors();
     bool initRenderPass();
-
+    bool initFramebuffer();
+    bool initSync();
+    bool initPipeline();
     bool initImGUI();
 
     // Command Helper
@@ -64,6 +73,7 @@ private:
     stack<function<void ()>> _interCleanup{};
     stack<function<void ()>> _globCleanup;
     int _curFrameInFlight = 0;
+    uint32_t _curPresentImgIdx = 0;
 
     // core
     class SDL_Window* _window{};
@@ -81,8 +91,6 @@ private:
     // Queues
     VkQueue _graphicsQueue{};
     uint32_t _graphicsQueueFamily{};
-    VkQueue _transferQueue{};
-    uint32_t _transferQueueFamily{};
     VkQueue _presentsQueue{};
     uint32_t _presentsQueueFamily{};
 
@@ -96,14 +104,17 @@ private:
 
     // Descriptions & layout
     VkRenderPass _mrtRenderPass{}; // render to multiple attachment output
-    VkDescriptorSetLayout _mrtSetLayout;
+    VkDescriptorSetLayout _mrtSetLayout{};
+    VkPipelineLayout _mrtPipelineLayout{};
+    VkPipeline _mrtPipeline{};
     VkRenderPass _compositionRenderPass{};  // use multiple attachment as sampler, do some composition and present
-    VkDescriptorSetLayout _compSetLayout;
+    VkDescriptorSetLayout _compSetLayout{};
+    VkPipelineLayout _compPipelineLayout{};
+    VkPipeline _compPipeline{};
 
     // Resources
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
     VkDescriptorPool _globalDescPool;
     vector<FlightResource*> _flightResources;
-    VkFence _renderFence{};
 };

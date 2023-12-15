@@ -9,7 +9,7 @@ DescriptorBuilder::~DescriptorBuilder() {
 
 VkDescriptorSetLayout DescriptorBuilder::buildSetLayout(int targetSet) {
     auto l = SLog::get();
-    if (targetSet <= 0) {
+    if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
@@ -28,7 +28,7 @@ VkDescriptorSetLayout DescriptorBuilder::buildSetLayout(int targetSet) {
 
 VkDescriptorSet DescriptorBuilder::buildSet(int targetSet) {
     auto l = SLog::get();
-    if (targetSet <= 0) {
+    if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
@@ -68,7 +68,7 @@ DescriptorBuilder& DescriptorBuilder::setTotalSet(int total) {
 DescriptorBuilder&
 DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
     auto l = SLog::get();
-    if (targetSet <= 0) {
+    if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
@@ -90,7 +90,7 @@ DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
 
 DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
     auto l = SLog::get();
-    if (targetSet <= 0) {
+    if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
@@ -102,7 +102,7 @@ DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
 DescriptorBuilder&
 DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler) {
     auto l = SLog::get();
-    if (targetSet <= 0) {
+    if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
@@ -116,7 +116,7 @@ DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, Vk
         // resource
         VkWriteDescriptorSet setWrite = {};
         setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        setWrite.dstBinding = _setInfoList[targetSet].setBinding.size();
+        setWrite.dstBinding = _setInfoList[targetSet].setWrite.size();
         // setWrite.dstSet = _mrtDescSet; // no set before building
         setWrite.descriptorCount = 1;
         setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

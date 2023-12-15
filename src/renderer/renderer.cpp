@@ -8,6 +8,7 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
+#include <glm/gtx/string_cast.hpp>
 
 #include "renderer.hpp"
 #include "utils/common.hpp"
@@ -26,11 +27,10 @@ bool Renderer::initialise(RenderConfig renderConfig) {
     if (!initRenderResources()) { l->error("failed to create render resources"); return false; };
     if (!initDescriptors()) { l->error("failed to create descriptors"); return false; };
     if (!initRenderPass()) { l->error("failed to create renderpass"); return false; };
-    initFramebuffer();
-    initSync();
-    initPipeline();
+    if (!initFramebuffer()) { l->error("failed to create framebuffer"); return false; };
+    if (!initSync()) { l->error("failed to create sync structure"); return false; };
+    if (!initPipeline()) { l->error("failed to create pipeline"); return false; };
     if (!initImGUI()) { l->error("failed to create imgui"); return false; };
-    initCamera();
 
     return true;
 }
@@ -46,12 +46,25 @@ void Renderer::setRequiredFeatures() {
 }
 
 bool Renderer::validateConfig() {
-    // TODO: implement me
+    auto l = SLog::get();
+    l->debug("validating render config");
+
+    if (_renderConf.maxFrameInFlight < 1) {
+        l->error("max frame in flight cannot be less than 1");
+        return false;
+    }
+    if (_renderConf.maxFrameInFlight > 3) {
+        l->error("max frame in flight cannot be > 3");
+        return false;
+    }
+
     return true;
 }
 
 bool Renderer::initBase() {
     auto l = SLog::get();
+    l->debug("initialising base");
+
     // Create SDL window
     SDL_Init(SDL_INIT_VIDEO);
     uint32_t window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
@@ -133,12 +146,10 @@ bool Renderer::initBase() {
     // Get queues (bootstrap will enable one queue for each family cuz in practice one is enough)
     _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
     _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    _transferQueue = vkbDevice.get_queue(vkb::QueueType::transfer).value();
-    _transferQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::transfer).value();
     _presentsQueue = vkbDevice.get_queue(vkb::QueueType::present).value();
     _presentsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::present).value();
 
-    if (!_graphicsQueue || !_presentsQueue || !_transferQueue) {
+    if (!_graphicsQueue || !_presentsQueue) {
         l->error("Failed to get queue from logical device");
         return false;
     }
@@ -199,16 +210,12 @@ bool Renderer::initBase() {
     return true;
 }
 
-void Renderer::newFrame() {
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
-}
-
 Renderer::~Renderer() {
     // make sure the gpu has stopped doing its things
     // for (auto &item : _frames)
-    vkWaitForFences(_device, 1, &_renderFence, true, 1000000000);
+    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+        vkWaitForFences(_device, 1, &_flightResources[i]->renderFence, true, 1000000000);
+    }
     vkDeviceWaitIdle(_device);
     while (!_interCleanup.empty()) {
         auto nextCleanup = _interCleanup.top();
@@ -250,6 +257,7 @@ void Renderer::printPhysDeviceProps() {
 
 bool Renderer::initCommand() {
     auto l = SLog::get();
+    l->debug("initialising command buffer");
 
     // Create one time pool and long time pool
     VkCommandPoolCreateInfo poolInfo{};
@@ -297,6 +305,9 @@ bool Renderer::initCommand() {
 }
 
 bool Renderer::initRenderPass() {
+    auto l = SLog::get();
+    l->debug("initialising renderpass");
+
     // Create MRT render pass ------------------------------------------------------------------d
     // Attachment in render pass
     VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
@@ -307,21 +318,21 @@ bool Renderer::initRenderPass() {
             _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     vector<VkAttachmentDescription> allAttachments{
-        colorAttachment, normalAttachment, depthAttachment
+            depthAttachment, colorAttachment, normalAttachment
     };
 
     // Subpass attachments
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 0;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.attachment = 1;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference normalAttachmentRef{};
-    normalAttachmentRef.attachment = 1;
+    normalAttachmentRef.attachment = 2;
     normalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 2;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     // Subpass & dependencies
     VkSubpassDescription subpass{};
@@ -373,7 +384,8 @@ bool Renderer::initRenderPass() {
     renderPassInfo.pDependencies = allDependencies.data();
 
     if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_mrtRenderPass) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create render pass");
+        l->error("failed to create mrt render pass");
+        return false;
     }
 
     _globCleanup.emplace([this](){
@@ -402,16 +414,20 @@ bool Renderer::initRenderPass() {
     renderPassInfo.pDependencies = nullptr;
 
     if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_compositionRenderPass) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create composition render pass");
+        l->error("failed to create composition render pass");
+        return false;
     }
 
     _globCleanup.emplace([this](){
         vkDestroyRenderPass(_device,  _compositionRenderPass, nullptr);
     });
+
+    return true;
 }
 
 bool Renderer::initRenderResources() {
     auto l = SLog::get();
+    l->debug("initialising render resources");
 
     _depthFormat = VK_FORMAT_D32_SFLOAT;  // TODO: Should query! not hardcode
     // TODO: optiomise G buffer structure, for example RGB the A component is unused in normal map
@@ -475,8 +491,10 @@ bool Renderer::initRenderResources() {
     return true;
 }
 
-void Renderer::initFramebuffer() {
+bool Renderer::initFramebuffer() {
     auto l = SLog::get();
+    l->debug("initialising framebuffer");
+
     // swapchain frame buffer
     _swapChainFramebuffers.resize(_swapchainImageViews.size());
 
@@ -501,40 +519,67 @@ void Renderer::initFramebuffer() {
         l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
     }
 
-    // mrt framebuffer
+    // mrt framebuffer for in flight
     framebufferInfo.renderPass = _mrtRenderPass;
-    VkImageView attachments[] = {_colorImageView, _normalImageView, _depthImageView};
-    framebufferInfo.attachmentCount = std::size(attachments);
-    framebufferInfo.pAttachments = attachments;
-    l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_mrtFramebuffer));
-
-    _globCleanup.emplace([this](){
-        for (const auto &item: _swapChainFramebuffers)
-            vkDestroyFramebuffer(_device,  item, nullptr);
-        vkDestroyFramebuffer(_device, _mrtFramebuffer, nullptr);
-    });
-}
-
-void Renderer::initSync() {
-    // first fence non-blocking
-    VkSemaphoreCreateInfo semInfo = CreationHelper::createSemaphoreInfo();
-    VkFenceCreateInfo fenceInfo = CreationHelper::createFenceInfo(true);
-
-    if ((vkCreateSemaphore(_device, &semInfo, nullptr, &_renderMrtSemaphore) != VK_SUCCESS) ||
-        (vkCreateSemaphore(_device, &semInfo, nullptr, &_presentSemaphore) != VK_SUCCESS) ||
-        (vkCreateSemaphore(_device, &semInfo, nullptr, &_compSemaphore) != VK_SUCCESS) ||
-        (vkCreateFence(_device, &fenceInfo, nullptr, &_renderFence) != VK_SUCCESS)) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create semaphore or fence");
+    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+        vector<VkImageView> imgViewList;
+        for (const auto &imgRes: _flightResources[i]->imgResourceList) {
+            imgViewList.push_back(imgRes->imageView);
+        }
+        framebufferInfo.attachmentCount = imgViewList.size();
+        framebufferInfo.pAttachments = imgViewList.data();
+        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_flightResources[i]->mrtFramebuffer));
     }
 
     _globCleanup.emplace([this](){
-        vkDestroySemaphore(_device, _renderMrtSemaphore, nullptr);
-        vkDestroySemaphore(_device, _presentSemaphore, nullptr);
-        vkDestroyFence(_device, _renderFence, nullptr);
+        for (const auto &item: _swapChainFramebuffers) {
+            vkDestroyFramebuffer(_device, item, nullptr);
+        }
+        for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+            vkDestroyFramebuffer(_device, _flightResources[i]->mrtFramebuffer, nullptr);
+        }
     });
+
+    return true;
+}
+
+bool Renderer::initSync() {
+    auto l = SLog::get();
+    l->debug("initialising sync structures");
+
+    // first fence non-blocking
+    VkFenceCreateInfo fenceInfo = CreationHelper::createFenceInfo(true);
+    VkSemaphoreCreateInfo semInfo = CreationHelper::createSemaphoreInfo();
+
+    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+        if (vkCreateFence(_device, &fenceInfo, nullptr, &_flightResources[i]->renderFence) != VK_SUCCESS) {
+            l->error("failed to create fence");
+            return false;
+        }
+        if ((vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->compSemaphore) != VK_SUCCESS) ||
+                (vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->mrtSemaphore) != VK_SUCCESS) ||
+                (vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->imageAvailableSem) != VK_SUCCESS)) {
+            l->error("failed to create semaphore");
+            return false;
+        }
+    }
+
+    _globCleanup.emplace([this](){
+        for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+            vkDestroyFence(_device, _flightResources[i]->renderFence, nullptr);
+            vkDestroySemaphore(_device, _flightResources[i]->mrtSemaphore, nullptr);
+            vkDestroySemaphore(_device, _flightResources[i]->compSemaphore, nullptr);
+            vkDestroySemaphore(_device, _flightResources[i]->imageAvailableSem, nullptr);
+        }
+    });
+
+    return true;
 }
 
 bool Renderer::initDescriptors() {
+    auto l = SLog::get();
+    l->debug("initialising descriptors");
+
     // Creat pool for binding resources
     std::vector<VkDescriptorPoolSize> sizes = {
             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 20 },
@@ -564,7 +609,7 @@ bool Renderer::initDescriptors() {
     // Composition description layout and set ------------------------------------------------------------------------
     DescriptorBuilder compSetBuilder(_device, _globalDescPool);
     compSetBuilder.setTotalSet(1);
-    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+    for (int i = 0; i < _flightResources[0]->imgResourceList.size(); ++i) {
         compSetBuilder.pushDefaultFragmentSamplerBinding(0);
     }
     _compSetLayout = compSetBuilder.buildSetLayout(0);
@@ -584,11 +629,17 @@ bool Renderer::initDescriptors() {
         vkDestroyDescriptorSetLayout(_device, _mrtSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(_device, _compSetLayout, nullptr);
     });
+
+    return true;
 }
 
-void Renderer::initPipeline() {
+bool Renderer::initPipeline() {
+    auto l = SLog::get();
+    l->debug("initialising pipeline");
+
     if (!fs::is_directory("assets/shaders")) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot find shader folder! Please check your working directory");
+        l->error("Cannot find shader folder! Please check your working directory");
+        return false;
     }
 
     // MRT Pipeline ------------------------------------------------------------
@@ -642,7 +693,8 @@ void Renderer::initPipeline() {
     pipelineLayoutInfo.pSetLayouts = &_mrtSetLayout;
 
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_mrtPipelineLayout) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Pipeline layout fail to create!");
+        l->error("failed to create mrt pipeline layout");
+        return false;
     }
 
     // Fill in incomplete stages and create pipeline
@@ -652,7 +704,8 @@ void Renderer::initPipeline() {
     pipelineCreateInfo.layout = _mrtPipelineLayout;
     pipelineCreateInfo.renderPass = _mrtRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
-    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent, 2);
+    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent,
+                                           _flightResources[0]->imgResourceList.size() - 1); // total of color attachments
 
     // Free up immediate resources and delegate cleanup
     vkDestroyShaderModule(_device, mrtVertShaderModule, nullptr);
@@ -683,7 +736,8 @@ void Renderer::initPipeline() {
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_compPipelineLayout) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Pipeline layout fail to create!");
+        l->error("failed to create composition pipeline layout");
+        return false;
     }
 
     // empty vertex info
@@ -705,6 +759,8 @@ void Renderer::initPipeline() {
         vkDestroyPipelineLayout(_device, _compPipelineLayout, nullptr);
         vkDestroyPipeline(_device, _compPipeline, nullptr);
     });
+
+    return true;
 }
 
 bool Renderer::uploadAndPopulateModal(ModelData& modelData) {
@@ -815,10 +871,12 @@ bool Renderer::uploadAndPopulateModal(ModelData& modelData) {
         });
     }
 
+    return true;
 }
 
 bool Renderer::initImGUI() {
     auto l = SLog::get();
+    l->debug("initialising GUI");
 
     // 1: Create Descriptor pool for ImGUI
     // the size of the pool is very oversize, but it's copied from imgui demo itself.
@@ -879,48 +937,126 @@ bool Renderer::initImGUI() {
     return true;
 }
 
-void Renderer::initCamera() {
-    cam = new Camera(1980, 1080, 1, 100, 60);
+void Renderer::newFrame() {
+    auto l = SLog::get();
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    // command buffer
+    vkResetCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer, 0);
+    vkResetCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0);
+
+    VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX,
+                                            _flightResources[_curFrameInFlight]->imageAvailableSem, VK_NULL_HANDLE, &_curPresentImgIdx);
+    l->vk_res(result);
 }
 
-void Renderer::draw() {
+void Renderer::beginRecordCmd() {
+    auto l = SLog::get();
+    // render start for MRT ---------------------------------------------
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;  // one time / secondary / simultaneous submit
+    beginInfo.pInheritanceInfo = nullptr;
+    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &beginInfo) != VK_SUCCESS) {
+        l->error("failed to begin recording command buffer!");
+    }
+    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer, &beginInfo) != VK_SUCCESS) {
+        l->error("failed to begin recording command buffer!");
+    }
+
+    // start render pass
+    VkRenderPassBeginInfo mrtRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
+            _mrtRenderPass, _flightResources[_curFrameInFlight]->mrtFramebuffer, _swapChainExtent
+            );
+    VkRenderPassBeginInfo compRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
+            _compositionRenderPass, _swapChainFramebuffers[_curPresentImgIdx], _swapChainExtent
+            );
+
+    // Clear value for attachment load op clear
+    // Should have the same order as attachments binding index
+    VkClearValue mrtClearColor[3] = {};
+    mrtClearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
+    mrtClearColor[1].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // bg for color frame attach
+    mrtClearColor[2].depthStencil.depth = 1.0f; // depth attachment
+    mrtRenderPassInfo.clearValueCount = std::size(mrtClearColor);
+    mrtRenderPassInfo.pClearValues = mrtClearColor;
+
+    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
+    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
+
+    // global set for both pipeline
+    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
+                            0, 1, &_flightResources[_curFrameInFlight]->mrtDescSet, 0, nullptr);
+}
+
+void Renderer::setUniform(const MrtPushConstantData &mrtData) {
+    vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                       0, sizeof(MrtPushConstantData), &mrtData);
+}
+
+void Renderer::drawModel(ModelData& modelData) {
+    // TODO: Bind texture set
+//    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
+//                            0, 1, &_flightResources[_curFrameInFlight]->compDescSet, 0, nullptr);
+    VkBuffer vertexBuffers[] = {modelData.vBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0,
+                           std::size(vertexBuffers), vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modelData.iBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modelData.indices.size(), 1, 0, 0, 0);
+}
+
+void Renderer::endRecordCmd() {
     // Draw imgui
 //    ImGui::ShowDemoWindow();
     ImGui::Text("World coord: up +y, right +x, forward +z");
-    ImGui::Text("Cam Pos    : %s", glm::to_string(cam->GetCamPos()).c_str());
+//    ImGui::Text("Cam Pos    : %s", glm::to_string(cam->GetCamPos()).c_str());
+
+    // Push constant
+    CompPushConstantData pushConstantData{};
+    pushConstantData.sobelWidth = 1;
+    pushConstantData.sobelHeight = 1;
+    vkCmdPushConstants(_flightResources[_curFrameInFlight]->compCmdBuffer, _compPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                       0, sizeof(CompPushConstantData), &pushConstantData);
+    // Issue draw a single triangle that covers full screen
+    vkCmdDraw(_flightResources[_curFrameInFlight]->compCmdBuffer, 3, 1, 0, 0);
+
+    // IMGUI draw last call
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), _flightResources[_curFrameInFlight]->compCmdBuffer);
 
     auto l = SLog::get();
+    vkCmdEndRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer);
+    if (vkEndCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer) != VK_SUCCESS) {
+        l->error("failed to end record command buffer!");
+    }
+    vkCmdEndRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer);
+    if (vkEndCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer) != VK_SUCCESS) {
+        l->error("failed to end record command buffer!");
+    }
+}
+
+void Renderer::draw() {
+    auto l = SLog::get();
     // Wait for previous frame to finish (takes array of fences)
-    vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, UINT64_MAX);
-
-    // Get next available image
-    uint32_t imageIdx;
-    VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX,
-                                            _presentSemaphore, VK_NULL_HANDLE, &imageIdx);
-    l->vk_res(result);
-
+    vkWaitForFences(_device, 1, &_flightResources[_curFrameInFlight]->renderFence, VK_TRUE, UINT64_MAX);
     // reset to unsignaled only if we're sure we have work to do.
-    vkResetFences(_device, 1, &_renderFence);
-
-    // Record command buffer
-    vkResetCommandBuffer(_mrtCmdBuffer, 0);
-    recordMrtCommandBuffer(_mrtCmdBuffer);
-    vkResetCommandBuffer(_compCmdBuffer, 0);
-    recordCompCommandBuffer(_compCmdBuffer, imageIdx);
-
-    // // Update uniform buffer
-    // updateUniformBuffer(currentFrame);
+    vkResetFences(_device, 1, &_flightResources[_curFrameInFlight]->renderFence);
 
     // sync primitive
-    VkSemaphore mrtWaitSem[] = {_presentSemaphore};
-    VkSemaphore mrtSignalSem[] = {_renderMrtSemaphore};
-    VkSemaphore compSignalSem[] = {_compSemaphore};
+    VkSemaphore mrtWaitSem[] = {_flightResources[_curFrameInFlight]->imageAvailableSem};
+    VkSemaphore mrtSignalSem[] = {_flightResources[_curFrameInFlight]->mrtSemaphore};
+    VkSemaphore compSignalSem[] = {_flightResources[_curFrameInFlight]->compSemaphore};
 
     // Submit MRT ---------------------------------------------------
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_mrtCmdBuffer;
+    submitInfo.pCommandBuffers = &_flightResources[_curFrameInFlight]->mrtCmdBuffer;
 
     // wait at the writing color before the image is available
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -933,12 +1069,12 @@ void Renderer::draw() {
     l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
 
     // Submit Composition ---------------------------------------------------
-    submitInfo.pCommandBuffers = &_compCmdBuffer;
+    submitInfo.pCommandBuffers = &_flightResources[_curFrameInFlight]->compCmdBuffer;
     submitInfo.waitSemaphoreCount = std::size(mrtSignalSem);
     submitInfo.pWaitSemaphores = mrtSignalSem;
     submitInfo.signalSemaphoreCount = std::size(compSignalSem);
     submitInfo.pSignalSemaphores = compSignalSem;
-    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _renderFence));
+    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _flightResources[_curFrameInFlight]->renderFence));
 
     // Submit result back to swap chain
     // What to signal when we're done
@@ -950,123 +1086,12 @@ void Renderer::draw() {
     VkSwapchainKHR swapchains[] = {_swapchain};
     presentInfo.swapchainCount = std::size(swapchains);
     presentInfo.pSwapchains = swapchains;
-    presentInfo.pImageIndices = &imageIdx;
+    presentInfo.pImageIndices = &_curPresentImgIdx;
 
     vkQueuePresentKHR(_presentsQueue, &presentInfo);
 
     // Update next frame resources indexes to use
-    // currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHTS;
-}
-
-void Renderer::recordMrtCommandBuffer(VkCommandBuffer commandBuffer) {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;  // one time / secondary / simultaneous submit
-    beginInfo.pInheritanceInfo = nullptr;
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to begin recording command buffer!");
-    }
-
-    // drawing commands
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = _mrtRenderPass;
-    renderPassInfo.framebuffer = _mrtFramebuffer;
-
-    // Size of render area
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = _swapChainExtent;
-
-    // Clear value for attachment load op clear
-    // Should have the same order as attachments binding index
-    VkClearValue clearColor[3] = {};
-    clearColor[0].color = {{0.2f, 0.2f, 0.5f, 1.0f}}; // bg for color frame attach
-    clearColor[1].color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // bg for color frame attach
-    clearColor[2].depthStencil.depth = 1.0f; // depth attachment
-    renderPassInfo.clearValueCount = std::size(clearColor);
-    renderPassInfo.pClearValues = clearColor;
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    // RENDER START ----------------------------------------------------
-    // Bind components
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
-                            0, 1, &_mrtDescSet, 0, nullptr);
-    VkBuffer vertexBuffers[] = {_vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, std::size(vertexBuffers), vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, _idxBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-    // Push constant
-    MrtPushConstantData pushConstantData{};
-    pushConstantData.time = SDL_GetTicks();
-//    pushConstantData.viewTransform = cam->GetOrthographicTransformMatrix();
-    pushConstantData.viewTransform = cam->GetPerspectiveTransformMatrix();
-    pushConstantData.sunPos = cam->GetCamPos();
-    vkCmdPushConstants(commandBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0, sizeof(MrtPushConstantData), &pushConstantData);
-
-    // Issue draw index
-    vkCmdDrawIndexed(commandBuffer, _mIdx.size(), 1, 0, 0, 0);
-
-    // RENDER END --------------------------------------------------------
-    vkCmdEndRenderPass(commandBuffer);
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to end record command buffer!");
-    }
-}
-
-void Renderer::recordCompCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIdx) {
-    // record command into command buffer and index of current swapchina image to write into
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;  // one time / secondary / simultaneous submit
-    beginInfo.pInheritanceInfo = nullptr;
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to begin recording command buffer!");
-    }
-
-    // drawing commands
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = _compositionRenderPass;
-    renderPassInfo.framebuffer = _swapChainFramebuffers[imageIdx];
-
-    // Size of render area
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = _swapChainExtent;
-
-    // don't clear attachment cuz we're accessing them
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    // RENDER START ----------------------------------------------------
-    // Bind components
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
-                            0, 1, &_compDescSet, 0, nullptr);
-
-
-    // Push constant
-    CompPushConstantData pushConstantData{};
-    pushConstantData.sobelWidth = 1;
-    pushConstantData.sobelHeight = 1;
-    vkCmdPushConstants(commandBuffer, _compPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0, sizeof(CompPushConstantData), &pushConstantData);
-
-    // Issue draw a single triangle that covers full screen
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-    // ImGUI Draw as last call
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-
-    // RENDER END --------------------------------------------------------
-    vkCmdEndRenderPass(commandBuffer);
-
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "failed to end record command buffer!");
-    }
+     _curFrameInFlight = (_curFrameInFlight + 1) % _renderConf.maxFrameInFlight;
 }
 
 void Renderer::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function) {

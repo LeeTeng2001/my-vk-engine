@@ -3,6 +3,9 @@
 #include "utils/common.hpp"
 #include <set>
 
+class Component;
+class Engine;
+
 class Actor {
 public:
     // Only update in Active state, Will remove in EDead.
@@ -28,6 +31,7 @@ public:
     void setScale(float scale) { _scale = scale; _recomputeWorldTransform = true; }
     void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeWorldTransform = true; }
     void setState(State state) { _state = state; }
+    void setParent(const shared_ptr<Actor>& self, const shared_ptr<Engine> &engine) { _selfPtr = self; _engine = engine; }
 
     // Getter
     [[nodiscard]] const glm::vec3& getPosition() const { return _position; }
@@ -35,20 +39,21 @@ public:
     [[nodiscard]] const glm::quat& getRotation() const { return _rotation; }
     [[nodiscard]] State getState() const { return _state; }
     [[nodiscard]] const glm::mat4& getWorldTransform() const { return _worldTransform; }
-//    class Game* getGame() { return mGame; }
+    shared_ptr<Engine> getEngine() { return _engine; }
 
     // Helper function
     void computeWorldTransform();
 //    void RotateToNewForward(const Vector3& forward);
-    void addComponent(class Component *component);
-    void removeComponent(class Component* component);
+    void addComponent(const shared_ptr<Component>& component);
+    void removeComponent(const shared_ptr<Component>& component);
 
 private:
     // Actor state & components
     State _state = EActive;
     bool _recomputeWorldTransform = true;  // when our transform change we need to recalculate
-    std::multiset<class Component*> _components;
-//    class Game *mGame;
+    std::multiset<shared_ptr<Component>> _components;
+    shared_ptr<Engine> _engine;
+    weak_ptr<Actor> _selfPtr;
 
     // Transform related
     glm::mat4 _worldTransform{};

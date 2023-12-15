@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <functional>
 #include <stack>
 #include <vector>
@@ -20,5 +21,10 @@ using std::stack;
 using std::array;
 using std::vector;
 using std::string;
+using std::make_unique;
+using std::make_shared;
+using std::unique_ptr;
+using std::shared_ptr;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;

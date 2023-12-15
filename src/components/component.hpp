@@ -1,12 +1,17 @@
 #pragma once
 
+#include "utils/common.hpp"
+
 // components is unaware of owner actor
 // actor should be responsible for linking / unreferencing components
+
+class Actor;
+class Engine;
 
 class Component {
 public:
     // (the lower the update order, the earlier the component updates)
-    explicit Component(class Actor* owner, int updateOrder = 100);
+    explicit Component(weak_ptr<Actor> owner, int updateOrder = 100);
     virtual ~Component();
 
     // update related
@@ -17,12 +22,12 @@ public:
     virtual void onUpdateWorldTransform() {};
 
     // Getter
-    [[nodiscard]] class Actor* getOwner() { return _owner; }
+    [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner; }
     [[nodiscard]] int getUpdateOrder() const { return _updateOrder; }
 
     bool operator<(const Component &rhs) const;
 
 protected:
-    class Actor* _owner;
+    shared_ptr<Actor> _owner;
     int _updateOrder;
 };
