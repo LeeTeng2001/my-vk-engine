@@ -3,6 +3,7 @@
 #include <stb_image.h>
 #include <vk_mem_alloc.h>
 
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include "utils/common.hpp"
 
 struct RenderConfig {
