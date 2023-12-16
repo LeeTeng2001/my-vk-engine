@@ -2,13 +2,11 @@
 #include <SDL_vulkan.h>
 #include <bitset>
 #include <imgui.h>
-#include <stb_image.h>
 #include <tiny_obj_loader.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
-#include <glm/gtx/string_cast.hpp>
 
 #include "renderer.hpp"
 #include "utils/common.hpp"

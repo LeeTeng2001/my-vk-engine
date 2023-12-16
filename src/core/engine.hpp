@@ -4,6 +4,7 @@
 
 class Actor;
 class Renderer;
+class RenderConfig;
 class InputSystem;
 class CameraActor;
 class StaticActor;
@@ -37,10 +38,12 @@ public:
 
 private:
     weak_ptr<Engine> _self;
-    shared_ptr<Renderer> _renderer = nullptr;
-    shared_ptr<InputSystem> _inputSystem = nullptr;
     GameState _gameState = EGameplay;
     uint64_t _tickCountMs = 0;
+
+    // System
+    shared_ptr<Renderer> _renderer = nullptr;
+    shared_ptr<InputSystem> _inputSystem = nullptr;
 
     // game specific member
     // TODO: refactor to game/scene class

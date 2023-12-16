@@ -7,6 +7,7 @@ MoveComponent::MoveComponent(weak_ptr<Actor> owner, int updateOrder) : Component
 }
 
 void MoveComponent::update(float deltaTime) {
+    // TODO: Fix rotation
     if (glm::abs(_horizontalAngularSpeed) > 0.01 || glm::abs(_vertAngularSpeed) > 0.01) {
         // calculate the offset at base position first, then add back to original rotation
         glm::quat offset = glm::angleAxis(0.0f, glm::vec3(1.f, 0.f, 0.f));

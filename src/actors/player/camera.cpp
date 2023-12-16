@@ -98,12 +98,9 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     // 1. Transform to camera space and rotation
     glm::mat4 view = getCamViewTransform();
 
-    // TODO: refactor
-    constexpr float nearDepth = 1;
-    constexpr float viewDepth = 100;
-    constexpr float viewWidth = 2000;
-    constexpr float viewHeight = 900;
-    constexpr float fovYInAngle = 60;
+    // TODO: refactor, should probably cache the value
+    const int viewWidth = getEngine()->getRenderer()->getRenderConfig().windowWidth;
+    const int viewHeight = getEngine()->getRenderer()->getRenderConfig().windowHeight;
 
     // 2. use similar triangle to transform to near plane
     // Map z through a non-linear transformation but preserving depth ordering
@@ -111,10 +108,10 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     // y' = y * near / z, to represent division we use homogeneous component
     // note that glm multiplies using column matrices!
     glm::mat4 projection{0};
-    projection[0][0] = float(nearDepth);
-    projection[1][1] = float(nearDepth);
-    projection[2][2] = float(nearDepth) + float(viewDepth);
-    projection[3][2] = -(float(nearDepth) * float(viewDepth));
+    projection[0][0] = _nearDepth;
+    projection[1][1] = _nearDepth;
+    projection[2][2] = _nearDepth + _farDepth;
+    projection[3][2] = -(_nearDepth * _farDepth);
     projection[2][3] = 1;
     projection[3][3] = 0;
 
@@ -122,12 +119,12 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     // tan(delta / 2) = newH/2 / near
 //    getEngine()->getRenderer()->
     float aspectRatio = float(viewWidth) / float(viewHeight);
-    float nearHeight = glm::tan(glm::radians(fovYInAngle / 2)) * float(nearDepth) * 2;
+    float nearHeight = glm::tan(glm::radians(_fovYInAngle / 2)) * _nearDepth * 2;
     float nearWidth = nearHeight * aspectRatio;
     glm::mat4 sca(1);
     sca[0][0] = 2.0f / float(nearWidth);
     sca[1][1] = -2.0f / float(nearHeight);  // inverse to clip space y
-    sca[2][2] = 1.0f / float(viewDepth);
+    sca[2][2] = 1.0f / float(_farDepth);
     projection = sca * projection;
 
     return projection * view;

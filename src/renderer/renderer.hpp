@@ -49,6 +49,9 @@ public:
     // data related
     bool uploadAndPopulateModal(ModelData& modelData);
 
+    // getter
+    [[nodiscard]] const RenderConfig& getRenderConfig() { return _renderConf; }
+
 private:
     // internal creations
     void setRequiredFeatures();

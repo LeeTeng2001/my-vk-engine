@@ -13,7 +13,7 @@ bool Engine::initialize(shared_ptr<Engine> &self) {
     auto l = SLog::get();
 
     _renderer = make_shared<Renderer>();
-    if (!_renderer->initialise()) { // custom config
+    if (!_renderer->initialise()) { // TODO: custom config
         l->error("failed to initialise renderer");
         return false;
     }
@@ -119,7 +119,7 @@ void Engine::addActor(const shared_ptr<Actor>& actor) {
 bool Engine::prepareScene() {
     _camActor = make_shared<CameraActor>();
     addActor(_camActor);
-    _staticActor = make_shared<StaticActor>("assets/models/teapot.obj", "assets/textures/dice.png");
+    _staticActor = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
     addActor(_staticActor);
 
     return true;
