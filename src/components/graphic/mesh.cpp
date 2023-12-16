@@ -18,6 +18,7 @@ MeshComponent::~MeshComponent() {
 void MeshComponent::onUpdateWorldTransform() {
     if (_modelState != nullptr) {
          _modelState->worldTransform = getOwner()->getWorldTransform();
+         _modelState->rotationTransform = glm::mat4_cast(getOwner()->getRotation());
     }
 }
 

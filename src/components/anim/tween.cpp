@@ -8,7 +8,7 @@ TweenComponent::TweenComponent(weak_ptr<Actor> owner, int updateOrder) : Compone
 }
 
 void TweenComponent::update(float deltaTime) {
-    if (!_enable || _animSeqList.size() == 0) {
+    if (!getEnabled() || _animSeqList.empty()) {
         return;
     }
 
@@ -28,7 +28,7 @@ void TweenComponent::update(float deltaTime) {
     if (shouldAdvance) {
         // special ending condition
         if (_loopType == EOneShot && _curSeqBlock + 1 == _animSeqList.size()) {
-            _enable = false;
+            setEnable(false);
             _curSeqBlock = 0;
             _accumTimestampS = 0;
             return;
@@ -38,10 +38,9 @@ void TweenComponent::update(float deltaTime) {
     }
 }
 
-void TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet, EaseType easeType) {
+TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet, EaseType easeType) {
     // TODO: validation duration
     unique_ptr<SeqBlock> seqPtr = make_unique<SeqBlock>();
-    seqPtr->movementType = ETranslate;
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, offSet, easeType](float globalPerc, float stepDelta) {
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
@@ -50,6 +49,23 @@ void TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet, EaseType e
         getOwner()->setPosition(pos);
     };
     _animSeqList.emplace_back(std::move(seqPtr));
+
+    return *this;
+}
+
+TweenComponent& TweenComponent::addYRotationOffset(float durS, float totalAngle, EaseType easeType) {
+    // TODO: validation duration
+    unique_ptr<SeqBlock> seqPtr = make_unique<SeqBlock>();
+    seqPtr->durationS = durS;
+    seqPtr->invokeF = [this, totalAngle, easeType](float globalPerc, float stepDelta) {
+        float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
+        glm::vec3 pos = getOwner()->getPosition();
+//        pos += offSet * actualPerc;
+        getOwner()->setPosition(pos);
+    };
+    _animSeqList.emplace_back(std::move(seqPtr));
+
+    return *this;
 }
 
 float TweenComponent::getEaseVal(TweenComponent::EaseType type, float perc) {

@@ -1,13 +1,12 @@
 #include <SDL.h>
+#include <backends/imgui_impl_sdl3.h>
 
-#include "engine.hpp"
+#include "core/engine.hpp"
+#include "core/input_system.hpp"
+#include "renderer/renderer.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
 #include "actors/object/static.hpp"
-#include "renderer/renderer.hpp"
-#include "input_system.hpp"
-#include "actors/object/static.hpp"
-#include "backends/imgui_impl_sdl3.h"
 #include "components/anim/tween.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {

@@ -1043,7 +1043,7 @@ void Renderer::drawAllModel() {
 
         // compute final transform
         mrtData.viewModalTransform = _camViewTransform * modalState->worldTransform;
-//        mrtData.viewModalTransform = _camViewTransform;
+        mrtData.rotationTransform = modalState->rotationTransform;
 
         vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(MrtPushConstantData), &mrtData);

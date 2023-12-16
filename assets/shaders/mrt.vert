@@ -12,6 +12,7 @@ layout(location = 2) out vec3 outNormal;
 
 layout (push_constant) uniform PushConstantData {
     mat4 viewModalTransform;
+    mat4 rotationTransform;
 } pushC;
 
 void main() {
@@ -20,6 +21,6 @@ void main() {
     gl_Position = pushC.viewModalTransform * vec4(inPosition, 1.0);
 //    outFragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
     outFragColor = vec3(1, 1, 1);
-    outNormal = inNormal;
+    outNormal = (pushC.rotationTransform * vec4(inNormal, 1.0)).xyz;
     outTexCoord = inTexCoord;
 }

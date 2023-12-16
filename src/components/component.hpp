@@ -24,10 +24,15 @@ public:
     // Getter
     [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner; }
     [[nodiscard]] int getUpdateOrder() const { return _updateOrder; }
+    [[nodiscard]] bool getEnabled() const { return _enable; }
+
+    // Setter
+    void setEnable(bool enable) { _enable = enable; }
 
     bool operator<(const Component &rhs) const;
 
-protected:
+private:
+    bool _enable = true;
     shared_ptr<Actor> _owner;
     int _updateOrder;
 };

@@ -57,7 +57,7 @@ target_link_libraries(${EXE_NAME}
 add_dependencies(${EXE_NAME} Shaders)
 
 # Unit tests ----------------------------------------------------------------------
-add_executable(CameraUnitTest tests/cameraTest.cpp utils/common.hpp)
-target_include_directories(CameraUnitTest PUBLIC engine)
-target_link_libraries(CameraUnitTest gtest gtest_main glm SDL3::SDL3 spdlog::spdlog)
+add_executable(MathUnitTest tests/math_test.cpp utils/common.hpp)
+target_include_directories(MathUnitTest PUBLIC engine)
+target_link_libraries(MathUnitTest gtest gtest_main glm SDL3::SDL3 spdlog::spdlog)
 

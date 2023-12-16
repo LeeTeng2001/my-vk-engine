@@ -19,6 +19,7 @@ struct MrtModalUniformData {
 
 struct MrtPushConstantData {
     glm::mat4 viewModalTransform;
+    glm::mat4 rotationTransform;
 };
 
 struct CompPushConstantData {
@@ -99,6 +100,7 @@ struct ModelData {
 struct ModalState {
     // update by application
     glm::mat4 worldTransform;
+    glm::mat4 rotationTransform;
     // populated by renderer
     VmaAllocation allocation;
     VkBuffer vBuffer{};

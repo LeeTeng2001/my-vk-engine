@@ -8,7 +8,7 @@
 
 constexpr float MOVEMENT_SPEED = 2.0;
 constexpr float HOR_ANGLE_SPEED = 30;
-constexpr float VERT_ANGLE_SPEED = 10;
+constexpr float VERT_ANGLE_SPEED = 30;
 
 void CameraActor::delayInit() {
     _moveComp = make_shared<MoveComponent>(getSelf());
@@ -33,6 +33,11 @@ void CameraActor::actorInput(const struct InputState &state) {
     float pitchSpeed = 0.0f;
 
     // wasd movement
+    if (state.Keyboard.getKeyState(SDL_SCANCODE_P) == EPressed) {
+        auto l = SLog::get();
+        l->info("toggling cam movement enabled");
+        _moveComp->setEnable(!_moveComp->getEnabled());
+    }
     if (state.Keyboard.getKeyState(SDL_SCANCODE_W)) {
         forwardSpeed += MOVEMENT_SPEED;
     }
@@ -47,8 +52,10 @@ void CameraActor::actorInput(const struct InputState &state) {
     }
 
     glm::vec2 mouseOffset = state.Mouse.getOffsetPosition();
-    angularSpeed = -mouseOffset.x * HOR_ANGLE_SPEED;
-    pitchSpeed = -mouseOffset.y * VERT_ANGLE_SPEED;
+    if (mouseOffset.x < 20 && mouseOffset.y < 20) {
+        angularSpeed = mouseOffset.x * HOR_ANGLE_SPEED;
+        pitchSpeed = mouseOffset.y * VERT_ANGLE_SPEED;
+    }
 
     _moveComp->setForwardSpeed(forwardSpeed);
     _moveComp->setStrafeSpeed(strafSpeed);

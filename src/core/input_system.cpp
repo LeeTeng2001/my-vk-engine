@@ -1,7 +1,8 @@
-#include "input_system.hpp"
 #include <SDL.h>
 #include <algorithm>
 #include <cstring>
+
+#include "input_system.hpp"
 
 bool KeyboardState::getKeyValue(SDL_Scancode keyCode) const {
 	return _curState[keyCode] == 1;
