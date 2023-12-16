@@ -7,6 +7,8 @@
 #include "renderer/renderer.hpp"
 #include "input_system.hpp"
 #include "actors/object/static.hpp"
+#include "backends/imgui_impl_sdl3.h"
+#include "components/anim/tween.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {
     _self = self;
@@ -49,6 +51,7 @@ void Engine::processInput() {
     // POLL for keyboard event
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
         switch (event.type) {
             case SDL_EVENT_QUIT:
                 _gameState = EQuit;
@@ -62,13 +65,12 @@ void Engine::processInput() {
     _inputSystem->update();
     const InputState& state = _inputSystem->getState();
 
-    // propagate input to actors / ui
+    // propagate input to global / actors / ui
     if (_gameState == EGameplay) {
-//        mUpdatingActors = true;
+        handleGlobalInput(state);
         for (const auto& actor: _actorList) {
             actor->processInput(state);
         }
-//        mUpdatingActors = false;
     }
 }
 
@@ -84,10 +86,6 @@ void Engine::updateGame() {
 
     // Clamp maximum delta to prevent huge delta time (ex, when stepping through debugger)
     deltaTime = std::min(deltaTime, 0.05f);
-
-    // Renderer
-    _renderer->newFrame();
-    _renderer->beginRecordCmd();
 
     // Only update in gameplay mode
     if (_gameState == EGameplay) {
@@ -107,6 +105,10 @@ void Engine::updateGame() {
 }
 
 void Engine::drawOutput() {
+    // Renderer
+    _renderer->newFrame();
+    _renderer->beginRecordCmd();
+    _renderer->drawAllModel();
     _renderer->endRecordCmd();
     _renderer->draw();
 }
@@ -119,8 +121,22 @@ void Engine::addActor(const shared_ptr<Actor>& actor) {
 bool Engine::prepareScene() {
     _camActor = make_shared<CameraActor>();
     addActor(_camActor);
-    _staticActor = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
-    addActor(_staticActor);
+    auto s = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
+    addActor(s);
+    s = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
+    addActor(s);
+    auto tweenComp = make_shared<TweenComponent>(s);
+    tweenComp->addTranslateOffset(3, glm::vec3{0,0,5});
+    tweenComp->addTranslateOffset(3, glm::vec3{0,0,-5});
+    s->addComponent(tweenComp);
 
     return true;
+}
+
+void Engine::handleGlobalInput(const InputState& key) {
+    if (key.Keyboard.getKeyState(SDL_SCANCODE_ESCAPE) == EPressed) {
+        auto l = SLog::get();
+        l->info("detected exit key, exiting");
+        _gameState = EQuit;
+    }
 }

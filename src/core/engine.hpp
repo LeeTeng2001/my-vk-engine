@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/input_system.hpp"
 #include "utils/common.hpp"
 
 class Actor;
@@ -21,6 +22,7 @@ public:
     void processInput();
     void updateGame();
     void drawOutput();
+    void handleGlobalInput(const InputState& key);
 
     enum GameState {
         EGameplay,
@@ -49,5 +51,4 @@ private:
     // TODO: refactor to game/scene class
     vector<shared_ptr<Actor>> _actorList;
     shared_ptr<CameraActor> _camActor = nullptr;
-    shared_ptr<StaticActor> _staticActor = nullptr;
 };

@@ -17,11 +17,7 @@ void CameraActor::delayInit() {
 
 void CameraActor::updateActor(float deltaTime) {
     // Compute new camera from this actor
-    getEngine()->getRenderer()->setUniform(MrtPushConstantData{
-        getPerspectiveTransformMatrix(),
-        glm::vec3{0, 3, 0},
-        0,
-    });
+    getEngine()->getRenderer()->setViewMatrix(getPerspectiveTransformMatrix());
 
     // update ui
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Pos     : {:s}", glm::to_string(getPosition())));

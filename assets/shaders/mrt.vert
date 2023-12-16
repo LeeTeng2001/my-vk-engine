@@ -11,16 +11,15 @@ layout(location = 1) out vec2 outTexCoord;
 layout(location = 2) out vec3 outNormal;
 
 layout (push_constant) uniform PushConstantData {
-    mat4 viewTransform;
-    vec3 sunPos;
-    uint64_t time;
+    mat4 viewModalTransform;
 } pushC;
 
 void main() {
     // TODO: transform normal
     // Very simple shader, assuming the position of the sun is coming from camera
-    gl_Position = pushC.viewTransform * vec4(inPosition, 1.0);
-    outFragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
+    gl_Position = pushC.viewModalTransform * vec4(inPosition, 1.0);
+//    outFragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
+    outFragColor = vec3(1, 1, 1);
     outNormal = inNormal;
     outTexCoord = inTexCoord;
 }

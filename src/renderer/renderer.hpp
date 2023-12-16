@@ -39,15 +39,17 @@ public:
     // render related, should invoke in order
     void newFrame();
     void beginRecordCmd();
-    void setUniform(const MrtPushConstantData &mrtData);
-    void bindTexture();
-    void drawModel(ModelData& modelData);
+    void drawAllModel();
     void writeDebugUi(const string &msg);
     void endRecordCmd();
     void draw();
 
     // data related
-    bool uploadAndPopulateModal(ModelData& modelData);
+    shared_ptr<ModalState> uploadAndPopulateModal(ModelData& modelData);
+    void removeModal(const shared_ptr<ModalState>& modelData);
+
+    // setter
+    void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
 
     // getter
     [[nodiscard]] const RenderConfig& getRenderConfig() { return _renderConf; }
@@ -73,12 +75,17 @@ private:
     void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
     void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
+    // Current draw state
+    int _curFrameInFlight = 0;
+    uint32_t _curPresentImgIdx = 0;
+    glm::mat4 _camViewTransform{};
+    vector<string> _debugUiText;
+    vector<shared_ptr<ModalState>> _modalStateList;
+
     // members
     RenderConfig _renderConf;
     stack<function<void ()>> _interCleanup{};
     stack<function<void ()>> _globCleanup;
-    int _curFrameInFlight = 0;
-    uint32_t _curPresentImgIdx = 0;
 
     // core
     class SDL_Window* _window{};

@@ -18,9 +18,7 @@ struct MrtModalUniformData {
 };
 
 struct MrtPushConstantData {
-    glm::mat4 viewTransform;
-    glm::vec3 sunPos;
-    unsigned long long time;
+    glm::mat4 viewModalTransform;
 };
 
 struct CompPushConstantData {
@@ -75,8 +73,6 @@ struct TextureData {
     int texWidth;
     int texHeight;
     int texChannels;
-    // populated by renderer
-    VkDescriptorSet texDescSet{};
 };
 
 struct ImgResource {
@@ -97,14 +93,18 @@ struct ModelData {
     // populated by application
     vector<Vertex> vertex = {};
     vector<uint32_t> indices = {};
-    shared_ptr<TextureData> albedoTexture;
-    // populated by renderer
-    VkBuffer vBuffer{};
-    VkBuffer iBuffer{};
-    ImgResource gpuAlbedoTex;
+    TextureData albedoTexture;
 };
 
-struct BindingCache {
-    MrtPushConstantData mrtPushConstant{};
-    CompPushConstantData compPushConstant{};
+struct ModalState {
+    // update by application
+    glm::mat4 worldTransform;
+    // populated by renderer
+    VmaAllocation allocation;
+    VkBuffer vBuffer{};
+    VkBuffer iBuffer{};
+    uint32_t indicesSize{};
+    ImgResource albedoTex;
+    VkDescriptorSet textureDescSet{};
 };
+

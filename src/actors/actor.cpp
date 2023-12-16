@@ -1,10 +1,8 @@
 #include "actor.hpp"
 #include "components/component.hpp"
 #include "core/input_system.hpp"
-//#include "../Game.hpp"
 
 Actor::~Actor() {
-//    mGame->RemoveActor(this);
     // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
     _components.clear();
 }
@@ -59,10 +57,6 @@ void Actor::computeWorldTransform() {
         }
     }
 }
-
-//glm::vec3 Actor::getForward() const {
-//    glm::rotate()
-//}
 
 //void Actor::RotateToNewForward(const Vector3 &forward) {
 //    // Figure out difference between original (unit x) and new

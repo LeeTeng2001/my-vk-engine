@@ -9,9 +9,16 @@
 MeshComponent::MeshComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
 }
 
-// TODO: put draw call under draw not update
-void MeshComponent::update(float deltaTime) {
-    getOwner()->getEngine()->getRenderer()->drawModel(_modelData);
+MeshComponent::~MeshComponent() {
+    if (_modelState != nullptr) {
+        getOwner()->getEngine()->getRenderer()->removeModal(_modelState);
+    }
+}
+
+void MeshComponent::onUpdateWorldTransform() {
+    if (_modelState != nullptr) {
+         _modelState->worldTransform = getOwner()->getWorldTransform();
+    }
 }
 
 void MeshComponent::loadModal(const string &path) {
@@ -118,11 +125,9 @@ void MeshComponent::loadDiffuseTexture(const string &path) {
     auto l = SLog::get();
     l->info(fmt::format("loading texture {:s}", path));
 
-    _modelData.albedoTexture = make_shared<TextureData>();
-
-    _modelData.albedoTexture->path = path;
-    _modelData.albedoTexture->stbRef = stbi_load(path.c_str(), &_modelData.albedoTexture->texWidth, &_modelData.albedoTexture->texHeight, &_modelData.albedoTexture->texChannels, 4);
-    if (!_modelData.albedoTexture->stbRef) {
+    _modelData.albedoTexture.path = path;
+    _modelData.albedoTexture.stbRef = stbi_load(path.c_str(), &_modelData.albedoTexture.texWidth, &_modelData.albedoTexture.texHeight, &_modelData.albedoTexture.texChannels, 4);
+    if (!_modelData.albedoTexture.stbRef) {
         l->error(fmt::format("failed to load diffuse texture at path: {:s}", path));
     }
 }
@@ -131,7 +136,9 @@ void MeshComponent::uploadToGpu() {
     auto l = SLog::get();
 
     // Upload to GPU
-    if (!getOwner()->getEngine()->getRenderer()->uploadAndPopulateModal(_modelData)) {
+    _modelState = getOwner()->getEngine()->getRenderer()->uploadAndPopulateModal(_modelData);
+    if (_modelState == nullptr) {
         l->error("failed to upload modal data to gpu");
     }
 }
+

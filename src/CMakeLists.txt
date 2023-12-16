@@ -14,6 +14,8 @@ add_executable(${EXE_NAME}
 
         components/component.hpp
         components/component.cpp
+        components/anim/tween.hpp
+        components/anim/tween.cpp
         components/control/move.hpp
         components/control/move.cpp
         components/graphic/mesh.cpp
