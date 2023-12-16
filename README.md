@@ -12,3 +12,7 @@ You might want to put SDL3.dll in the root directory
 - local vars in camelCase
 - functions in camelCase
 - private class member prefix with _
+
+## Resources
+- Quaternion: https://www.youtube.com/watch?v=xoTqBqQtrY4
+

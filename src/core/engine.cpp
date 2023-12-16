@@ -125,8 +125,7 @@ bool Engine::prepareScene() {
     s = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
     addActor(s);
     auto tweenComp = make_shared<TweenComponent>(s);
-    tweenComp->addTranslateOffset(3, glm::vec3{0,0,5});
-    tweenComp->addTranslateOffset(3, glm::vec3{0,0,-5});
+    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
     s->addComponent(tweenComp);
 
     return true;

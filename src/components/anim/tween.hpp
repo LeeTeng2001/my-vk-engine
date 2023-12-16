@@ -22,7 +22,7 @@ public:
     void update(float deltaTime) override;
 
     TweenComponent& addTranslateOffset(float durS, glm::vec3 offSet, EaseType easeType = EEaseInOutQuad);
-    TweenComponent& addYRotationOffset(float durS, float totalAngle, EaseType easeType = EEaseLinear);
+    TweenComponent& addRotationOffset(float durS, float totalAngle, const glm::vec3 &axis, EaseType easeType = EEaseLinear);
     TweenComponent& setLoopType(LoopType loopType) { _loopType = loopType; return *this; }
 
     // TODO: More animations

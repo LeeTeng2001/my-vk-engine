@@ -2,6 +2,7 @@
 
 #include "tween.hpp"
 #include "actors/actor.hpp"
+#include "glm/gtx/string_cast.hpp"
 
 TweenComponent::TweenComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
 
@@ -53,15 +54,15 @@ TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
     return *this;
 }
 
-TweenComponent& TweenComponent::addYRotationOffset(float durS, float totalAngle, EaseType easeType) {
+TweenComponent& TweenComponent::addRotationOffset(float durS, float totalAngle, const glm::vec3 &axis, EaseType easeType) {
     // TODO: validation duration
     unique_ptr<SeqBlock> seqPtr = make_unique<SeqBlock>();
     seqPtr->durationS = durS;
-    seqPtr->invokeF = [this, totalAngle, easeType](float globalPerc, float stepDelta) {
+    seqPtr->invokeF = [this, axis, totalAngle, easeType](float globalPerc, float stepDelta) {
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
-        glm::vec3 pos = getOwner()->getPosition();
-//        pos += offSet * actualPerc;
-        getOwner()->setPosition(pos);
+        glm::quat rot = getOwner()->getRotation();
+        rot *= glm::angleAxis(glm::radians(totalAngle) * actualPerc, axis);
+        getOwner()->setRotation(rot);
     };
     _animSeqList.emplace_back(std::move(seqPtr));
 
