@@ -15,7 +15,10 @@ struct Light {
     vec4 colorAndRadius; // fourth component is light radius
 };
 
-#define lightCount 6
+#define LIGHT_COUNT 6
+#define SPEC_SHININESS 32  // higher is more subtle
+#define SPEC_STRENGTH 0.3  // higher contribute more
+
 layout(set = 1, binding = 0) uniform UBO {
     Light lights[6];
     vec4 camPos;
@@ -63,7 +66,7 @@ void main() {
 //        outColor = texture(colorSampler, inUV);
 //    }
 
-    // Simple shader with phong shader
+    // Simple shader with blinn-phong shader
 
     // retrieve data from G-buffer
     vec3 fragPos = texture(positionSampler, inUV).rgb;
@@ -73,11 +76,16 @@ void main() {
     // then calculate lighting as usual
     vec3 lighting = albedo * 0.02; // hard-coded ambient component
     vec3 viewDir = normalize(ubo.camPos.xyz - fragPos);
-    for (int i = 0; i < lightCount; ++i) {
+    for (int i = 0; i < LIGHT_COUNT; ++i) {
         // diffuse
         vec3 lightDir = normalize(ubo.lights[i].position.xyz - fragPos);
         vec3 diffuse = max(dot(normal, lightDir), 0.0) * albedo * ubo.lights[i].colorAndRadius.xyz;
         lighting += diffuse;
+        // specular
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+        float spec = pow(max(dot(normal, halfwayDir), 0.0), SPEC_SHININESS);
+        vec3 specular = SPEC_STRENGTH * spec * ubo.lights[i].colorAndRadius.xyz;
+        lighting += specular;
     }
 
     // https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color

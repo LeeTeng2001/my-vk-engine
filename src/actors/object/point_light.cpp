@@ -2,6 +2,7 @@
 #include "core/engine.hpp"
 #include "renderer/renderer.hpp"
 #include "components/anim/tween.hpp"
+#include "components/graphic/mesh.hpp"
 
 void PointLightActor::delayInit() {
 }

@@ -13,6 +13,11 @@ You might want to put SDL3.dll in the root directory
 - functions in camelCase
 - private class member prefix with _
 
+## Ideas
+- node inheritance actors, world transform & local transform
+- animation system
+- lookup key actor, components, not vector
+
 ## Resources
 - Quaternion: https://www.youtube.com/watch?v=xoTqBqQtrY4
 

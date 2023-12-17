@@ -126,8 +126,11 @@ bool Engine::prepareScene() {
     tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
     s->addComponent(tweenComp);
 
-    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 0, 0});
+    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
     lightAct->setPosition(glm::vec3{0, 5, 0});
+    tweenComp = make_shared<TweenComponent>(lightAct);
+    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(3, glm::vec3{-5, 0, 0});
+    lightAct->addComponent(tweenComp);
 
     addActor(lightAct);
 
