@@ -23,15 +23,18 @@ public:
     VkDescriptorSet buildSet(int targetSet);
 
     DescriptorBuilder& setTotalSet(int total);
-    DescriptorBuilder& pushDefaultUniformVertex(int targetSet);
+    DescriptorBuilder& pushDefaultUniform(int targetSet, VkShaderStageFlags stageFlag = VK_SHADER_STAGE_VERTEX_BIT);
     DescriptorBuilder& pushDefaultFragmentSamplerBinding(int targetSet);
     DescriptorBuilder& clearSetWrite(int targetSet);
     DescriptorBuilder& pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler);
+    DescriptorBuilder& pushSetWriteUniform(int targetSet, VkBuffer buffer, int bufferSize);
 
 private:
     VkDescriptorPool _descPool;
     VkDevice _device;
     // setL -> bindingsL
     vector<SetInfo> _setInfoList;
+    // TODO: refactor to shared pointer
     vector<VkDescriptorImageInfo*> _dynamicImageInfo;
+    vector<VkDescriptorBufferInfo*> _dynamicBufferInfo;
 };

@@ -45,7 +45,7 @@ TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, offSet, easeType](float globalPerc, float stepDelta) {
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
-        glm::vec3 pos = getOwner()->getPosition();
+        glm::vec3 pos = getOwner()->getLocalPosition();
         pos += offSet * actualPerc;
         getOwner()->setPosition(pos);
     };

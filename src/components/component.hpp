@@ -22,7 +22,7 @@ public:
     virtual void onUpdateWorldTransform() {};
 
     // Getter
-    [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner; }
+    [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner.lock(); }
     [[nodiscard]] int getUpdateOrder() const { return _updateOrder; }
     [[nodiscard]] bool getEnabled() const { return _enable; }
 
@@ -33,6 +33,6 @@ public:
 
 private:
     bool _enable = true;
-    shared_ptr<Actor> _owner;
+    weak_ptr<Actor> _owner;
     int _updateOrder;
 };

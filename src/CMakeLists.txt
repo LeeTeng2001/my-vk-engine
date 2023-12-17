@@ -11,6 +11,8 @@ add_executable(${EXE_NAME}
         actors/player/camera.hpp
         actors/object/static.cpp
         actors/object/static.hpp
+        actors/object/point_light.cpp
+        actors/object/point_light.hpp
 
         components/component.hpp
         components/component.cpp

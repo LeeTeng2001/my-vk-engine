@@ -20,11 +20,11 @@ void MoveComponent::update(float deltaTime) {
         // quaternion rotation order is L to R, unlike matrixes transformation order
         offset *= glm::angleAxis(glm::radians(vertAngle), glm::vec3(1.f, 0.f, 0.f));
         offset *= glm::angleAxis(glm::radians(horAngle), glm::vec3(0.f, 1.f, 0.f));
-        offset *= getOwner()->getRotation();
+        offset = getOwner()->getRotation() * offset;
         getOwner()->setRotation(offset);
     }
     if (glm::abs(_forwardSpeed) > 0.01 || glm::abs(_strafeSpeed) > 0.01) {
-        glm::vec3 pos = getOwner()->getPosition();
+        glm::vec3 pos = getOwner()->getLocalPosition();
         pos += getOwner()->getForward() * _forwardSpeed * deltaTime;
         pos += getOwner()->getRight() * _strafeSpeed * deltaTime;
         getOwner()->setPosition(pos);

@@ -13,6 +13,7 @@
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
+constexpr int MRT_SIZE = 4;
 
 bool Renderer::initialise(RenderConfig renderConfig) {
     auto l = SLog::get();
@@ -22,6 +23,7 @@ bool Renderer::initialise(RenderConfig renderConfig) {
     if (!validateConfig()) { l->error("failed to validate config"); return false; };
     if (!initBase()) { l->error("failed to initialise base"); return false; };
     if (!initCommand()) { l->error("failed to initialise command"); return false; };
+    if (!initBuffer()) { l->error("failed to initialise buffer"); return false; };
     if (!initRenderResources()) { l->error("failed to create render resources"); return false; };
     if (!initDescriptors()) { l->error("failed to create descriptors"); return false; };
     if (!initRenderPass()) { l->error("failed to create renderpass"); return false; };
@@ -302,42 +304,70 @@ bool Renderer::initCommand() {
     return true;
 }
 
+bool Renderer::initBuffer() {
+    auto l = SLog::get();
+    l->debug("initialising uniform buffer");
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(CompUboData);
+    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo createAllocInfo{};
+    createAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    createAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    createAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
+
+    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
+        VkBuffer buf;
+        VmaAllocation alloc;
+        l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &createAllocInfo, &buf, &alloc,
+                                  &_flightResources[i]->compUniformAllocInfo));
+        _flightResources[i]->compUniformBuffer = buf;
+
+        _globCleanup.emplace([this, buf, alloc](){
+            vmaDestroyBuffer(_allocator, buf, alloc);
+        });
+    }
+
+    return true;
+}
+
 bool Renderer::initRenderPass() {
     auto l = SLog::get();
     l->debug("initialising renderpass");
 
     // Create MRT render pass ------------------------------------------------------------------d
     // Attachment in render pass
-    VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
-            _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    VkAttachmentDescription normalAttachment = CreationHelper::createVkAttDesc(
-            _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
             _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-    vector<VkAttachmentDescription> allAttachments{
-            depthAttachment, colorAttachment, normalAttachment
-    };
+    VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
+            _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // Subpass attachments
     VkAttachmentReference depthAttachmentRef{};
     depthAttachmentRef.attachment = 0;
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 1;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkAttachmentReference normalAttachmentRef{};
-    normalAttachmentRef.attachment = 2;
-    normalAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    vector<VkAttachmentDescription> allAttachments{depthAttachment};
+    vector<VkAttachmentReference> colorAttachmentRefList{};
+
+    for (int i = 1; i < MRT_SIZE; ++i) {
+        allAttachments.push_back(colorAttachment);
+        colorAttachmentRef.attachment = i;
+        colorAttachmentRefList.push_back(colorAttachmentRef);
+    }
 
     // Subpass & dependencies
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    VkAttachmentReference attachmentsRef[] = {colorAttachmentRef, normalAttachmentRef};
-    subpass.colorAttachmentCount = std::size(attachmentsRef);
-    subpass.pColorAttachments = attachmentsRef;
+    subpass.colorAttachmentCount = colorAttachmentRefList.size();
+    subpass.pColorAttachments = colorAttachmentRefList.data();
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
     VkSubpassDependency inDependency{};
@@ -430,24 +460,31 @@ bool Renderer::initRenderResources() {
     _depthFormat = VK_FORMAT_D32_SFLOAT;  // TODO: Should query! not hardcode
     // TODO: optiomise G buffer structure, for example RGB the A component is unused in normal map
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
-    // MRT: depth, albedo, normal
-    std::array<ImgResource, 3> imgInfoList = {};
-    _mrtClearColor.resize(3);
+    // one of the unused A channel can be used to store specular/bump highlight
+    // MRT: depth, albedo, normal, position
+    std::array<ImgResource, MRT_SIZE> imgInfoList = {};
+    _mrtClearColor.resize(MRT_SIZE);
     imgInfoList[0].format = _depthFormat;
     imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[0].extent = _swapChainExtent;
     imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    _mrtClearColor[0].color = {};
     _mrtClearColor[0].depthStencil.depth = 1.0f;
-    imgInfoList[1].format = _swapchainImageFormat;
+    imgInfoList[1].format = VK_FORMAT_R8G8B8A8_UNORM;
     imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[1].extent = _swapChainExtent;
     imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     _mrtClearColor[1].color =  {{0.2f, 0.2f, 0.5f, 1.0f}};
-    imgInfoList[2].format = _swapchainImageFormat;
+    imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
     imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[2].extent = _swapChainExtent;
     imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     _mrtClearColor[2].color =  {{0, 0, 0, 1.0f}};
+    imgInfoList[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
+    imgInfoList[3].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imgInfoList[3].extent = _swapChainExtent;
+    imgInfoList[3].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _mrtClearColor[3].color =  {{0, 0, 0, 1.0f}};
 
     // allocate from GPU LOCAL memory
     VmaAllocationCreateInfo localAllocInfo {};
@@ -600,36 +637,38 @@ bool Renderer::initDescriptors() {
     DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
     mrtSetBuilder.setTotalSet(1).pushDefaultFragmentSamplerBinding(0);
     _mrtSetLayout = mrtSetBuilder.buildSetLayout(0);
-
-    // TODO: Rn we skip MRT resource
-//    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-//        mrtSetBuilder.clearSetWrite(0);
-//
-//        _flightResources[i].
-//    }
+    // Mrt descriptor set is handled by application
 
     // Composition description layout and set ------------------------------------------------------------------------
     DescriptorBuilder compSetBuilder(_device, _globalDescPool);
-    compSetBuilder.setTotalSet(1);
-    for (int i = 0; i < _flightResources[0]->imgResourceList.size(); ++i) {
+    compSetBuilder.setTotalSet(2);
+    for (int i = 0; i < MRT_SIZE; ++i) {
         compSetBuilder.pushDefaultFragmentSamplerBinding(0);
     }
-    _compSetLayout = compSetBuilder.buildSetLayout(0);
+    compSetBuilder.pushDefaultUniform(1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    _compSetLayoutList.push_back(compSetBuilder.buildSetLayout(0));
+    _compSetLayoutList.push_back(compSetBuilder.buildSetLayout(1));
 
     // create descriptor set
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
         compSetBuilder.clearSetWrite(0);
 
+        // bind set 0 MRT sampler
         for (const auto &imgResouce: _flightResources[i]->imgResourceList) {
             compSetBuilder.pushSetWriteImgSampler(0, imgResouce->imageView, imgResouce->sampler);
         }
-        _flightResources[i]->compDescSet = compSetBuilder.buildSet(0);
+        // bind set 1 uniform
+        compSetBuilder.pushSetWriteUniform(1, _flightResources[i]->compUniformBuffer, sizeof(CompUboData));
+        _flightResources[i]->compDescSetList.push_back(compSetBuilder.buildSet(0));
+        _flightResources[i]->compDescSetList.push_back(compSetBuilder.buildSet(1));
     }
 
     _globCleanup.emplace([this]() {
         vkDestroyDescriptorPool(_device, _globalDescPool, nullptr);
         vkDestroyDescriptorSetLayout(_device, _mrtSetLayout, nullptr);
-        vkDestroyDescriptorSetLayout(_device, _compSetLayout, nullptr);
+        for (const auto &item: _compSetLayoutList) {
+            vkDestroyDescriptorSetLayout(_device, item, nullptr);
+        }
     });
 
     return true;
@@ -707,7 +746,7 @@ bool Renderer::initPipeline() {
     pipelineCreateInfo.renderPass = _mrtRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
     CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent,
-                                           _flightResources[0]->imgResourceList.size() - 1); // total of color attachments
+                                           MRT_SIZE - 1); // total of color attachments
 
     // Free up immediate resources and delegate cleanup
     vkDestroyShaderModule(_device, mrtVertShaderModule, nullptr);
@@ -728,8 +767,8 @@ bool Renderer::initPipeline() {
     // pipeline layout info
     pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &_compSetLayout;
+    pipelineLayoutInfo.setLayoutCount = _compSetLayoutList.size();
+    pipelineLayoutInfo.pSetLayouts = _compSetLayoutList.data();
 
     // Push constant
     pushConstantRange.size = sizeof(CompPushConstantData);
@@ -912,6 +951,17 @@ void Renderer::removeModal(const shared_ptr<ModalState> &modalState) {
     }
 }
 
+void Renderer::setLightInfo(const glm::vec3 &pos, const glm::vec3 &color, float radius) {
+    if (_nextLightPos == std::size(_nextCompUboData.lights)) {
+        auto l = SLog::get();
+        l->error("add light info exceed maximum capacity, skipping");
+        return;
+    }
+    _nextCompUboData.lights[_nextLightPos].position = glm::vec4{pos, 1};
+    _nextCompUboData.lights[_nextLightPos].colorAndRadius = glm::vec4{color, radius};
+    _nextLightPos++;
+}
+
 bool Renderer::initImGUI() {
     auto l = SLog::get();
     l->debug("initialising GUI");
@@ -1024,7 +1074,8 @@ void Renderer::beginRecordCmd() {
 
     // global set for both pipeline
     vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
-                            0, 1, &_flightResources[_curFrameInFlight]->compDescSet, 0, nullptr);
+                            0, _flightResources[_curFrameInFlight]->compDescSetList.size(),
+                            _flightResources[_curFrameInFlight]->compDescSetList.data(), 0, nullptr);
 
     // Draw imgui
     ImGui::Text("World coord: up +y, right +x, forward +z");
@@ -1066,6 +1117,11 @@ void Renderer::endRecordCmd() {
         ImGui::Text(t.c_str());
     }
     _debugUiText.clear();
+
+    // uniform data
+    memcpy(_flightResources[_curFrameInFlight]->compUniformAllocInfo.pMappedData,
+           &_nextCompUboData, sizeof(CompUboData));
+    _nextLightPos = 0;
 
     // Push constant for composition
     CompPushConstantData pushConstantData{};

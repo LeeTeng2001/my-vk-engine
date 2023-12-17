@@ -32,7 +32,6 @@ public:
 
     // Create or delete actors
     void addActor(const shared_ptr<Actor>& actor);
-//    void removeActor(shared_ptr<Actor> actor);
 
     // Core Getter accessed by subsystem
     shared_ptr<Renderer> getRenderer() { return _renderer; }

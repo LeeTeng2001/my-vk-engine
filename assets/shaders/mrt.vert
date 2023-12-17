@@ -6,7 +6,7 @@ layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inColor;
 layout(location = 3) in vec2 inTexCoord;
 
-layout(location = 0) out vec3 outFragColor;
+layout(location = 0) out vec3 outVertPos;
 layout(location = 1) out vec2 outTexCoord;
 layout(location = 2) out vec3 outNormal;
 
@@ -19,8 +19,8 @@ void main() {
     // TODO: transform normal
     // Very simple shader, assuming the position of the sun is coming from camera
     gl_Position = pushC.viewModalTransform * vec4(inPosition, 1.0);
-//    outFragColor = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
-    outFragColor = vec3(1, 1, 1);
-    outNormal = (pushC.rotationTransform * vec4(inNormal, 1.0)).xyz;
+//    outVertPos = vec3(1, 1, 1) * dot(normalize(pushC.sunPos), inNormal);
+    outVertPos = inPosition;
     outTexCoord = inTexCoord;
+    outNormal = (pushC.rotationTransform * vec4(inNormal, 1.0)).xyz;
 }

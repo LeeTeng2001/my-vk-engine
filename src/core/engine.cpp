@@ -1,13 +1,14 @@
 #include <SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 
-#include "core/engine.hpp"
-#include "core/input_system.hpp"
-#include "renderer/renderer.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
 #include "actors/object/static.hpp"
+#include "actors/object/point_light.hpp"
 #include "components/anim/tween.hpp"
+#include "core/engine.hpp"
+#include "core/input_system.hpp"
+#include "renderer/renderer.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {
     _self = self;
@@ -40,9 +41,7 @@ void Engine::run() {
     }
 }
 
-Engine::~Engine() {
-
-}
+Engine::~Engine() = default;
 
 void Engine::processInput() {
     _inputSystem->prepareForUpdate();
@@ -89,17 +88,16 @@ void Engine::updateGame() {
     // Only update in gameplay mode
     if (_gameState == EGameplay) {
         // Update all existing actors
-//        mUpdatingActors = true;
         for (auto &actor: _actorList) {
             actor->update(deltaTime);
         }
-//        mUpdatingActors = false;
 
-//        // Check dead vector and remove
-//        for (auto &actor: _actorList) {
-//            if (actor->getState() == Actor::EDead) {
-//            }
-//        }
+        // Check dead vector and remove
+        for (auto actorIter = _actorList.begin(); actorIter != _actorList.end();) {
+            if (actorIter->get()->getState() == Actor::EDead) {
+                actorIter = _actorList.erase(actorIter);
+            } else { ++actorIter; }
+        }
     }
 }
 
@@ -127,6 +125,11 @@ bool Engine::prepareScene() {
     auto tweenComp = make_shared<TweenComponent>(s);
     tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
     s->addComponent(tweenComp);
+
+    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 0, 0});
+    lightAct->setPosition(glm::vec3{0, 5, 0});
+
+    addActor(lightAct);
 
     return true;
 }

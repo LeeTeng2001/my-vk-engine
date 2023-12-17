@@ -5,6 +5,9 @@ DescriptorBuilder::~DescriptorBuilder() {
     for (const auto &item: _dynamicImageInfo) {
         delete item;
     }
+    for (const auto &item: _dynamicBufferInfo) {
+        delete item;
+    }
 }
 
 VkDescriptorSetLayout DescriptorBuilder::buildSetLayout(int targetSet) {
@@ -65,7 +68,7 @@ DescriptorBuilder& DescriptorBuilder::setTotalSet(int total) {
     return *this;
 }
 
-DescriptorBuilder& DescriptorBuilder::pushDefaultUniformVertex(int targetSet) {
+DescriptorBuilder& DescriptorBuilder::pushDefaultUniform(int targetSet, VkShaderStageFlags stageFlag) {
     auto l = SLog::get();
     if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
@@ -78,7 +81,7 @@ DescriptorBuilder& DescriptorBuilder::pushDefaultUniformVertex(int targetSet) {
         newBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         newBinding.descriptorCount = 1;
         newBinding.pImmutableSamplers = nullptr;
-        newBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        newBinding.stageFlags = stageFlag;
 
         _setInfoList[targetSet].setBinding.push_back(newBinding);
     }
@@ -120,6 +123,7 @@ DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
     }
     return *this;
 }
+
 DescriptorBuilder&
 DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler) {
     auto l = SLog::get();
@@ -142,6 +146,33 @@ DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, Vk
         setWrite.descriptorCount = 1;
         setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         setWrite.pImageInfo = imageInfo;
+
+        _setInfoList[targetSet].setWrite.push_back(setWrite);
+    }
+    return *this;
+}
+
+DescriptorBuilder &DescriptorBuilder::pushSetWriteUniform(int targetSet, VkBuffer buffer, int bufferSize) {
+    auto l = SLog::get();
+    if (targetSet < 0) {
+        l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
+    } else if (targetSet >= _setInfoList.size()) {
+        l->error(fmt::format("target set out of range {:d}", targetSet));
+    } else {
+        auto bufferInfo = new VkDescriptorBufferInfo();
+        _dynamicBufferInfo.push_back(bufferInfo);
+        bufferInfo->buffer = buffer;
+        bufferInfo->offset = 0;
+        bufferInfo->range = bufferSize;
+
+        // resource
+        VkWriteDescriptorSet setWrite = {};
+        setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        setWrite.dstBinding = _setInfoList[targetSet].setWrite.size();
+        // setWrite.dstSet = _mrtDescSet; // no set before building
+        setWrite.descriptorCount = 1;
+        setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        setWrite.pBufferInfo = bufferInfo;
 
         _setInfoList[targetSet].setWrite.push_back(setWrite);
     }

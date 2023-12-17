@@ -13,13 +13,19 @@ struct RenderConfig {
     VkDebugUtilsMessageSeverityFlagBitsEXT callbackSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 };
 
-struct MrtModalUniformData {
-    glm::mat4 modal;
-};
-
 struct MrtPushConstantData {
     glm::mat4 viewModalTransform;
     glm::mat4 rotationTransform;
+};
+
+struct Light {
+    glm::vec4 position;
+    glm::vec4 colorAndRadius;
+};
+
+struct CompUboData {
+    Light lights[6];
+    glm::vec4 camPos;
 };
 
 struct CompPushConstantData {

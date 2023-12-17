@@ -18,9 +18,10 @@ void CameraActor::delayInit() {
 void CameraActor::updateActor(float deltaTime) {
     // Compute new camera from this actor
     getEngine()->getRenderer()->setViewMatrix(getPerspectiveTransformMatrix());
+    getEngine()->getRenderer()->setCamPos(getLocalPosition());
 
     // update ui
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Pos     : {:s}", glm::to_string(getPosition())));
+    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Pos     : {:s}", glm::to_string(getLocalPosition())));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Rot     : {:s}", glm::to_string(getRotation())));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Forward : {:s}", glm::to_string(getForward())));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Right   : {:s}", glm::to_string(getRight())));
@@ -89,7 +90,7 @@ glm::mat4 CameraActor::getCamViewTransform() {
             glm::vec4{right.x, camUp.x, lookAtDir.x, 0},
             glm::vec4{right.y, camUp.y, lookAtDir.y, 0},
             glm::vec4{right.z, camUp.z, lookAtDir.z, 0},
-            glm::vec4{-glm::dot(getPosition(), right), -glm::dot(getPosition(), camUp), -glm::dot(getPosition(), lookAtDir), 1},
+            glm::vec4{-glm::dot(getLocalPosition(), right), -glm::dot(getLocalPosition(), camUp), -glm::dot(getLocalPosition(), lookAtDir), 1},
     };  // construct new axis, where 4th arg is the translation
     // REMEMBER translation is the projection of the lenght onto the NEW axis, so
     // you can't just straight up use position.x!! Must be projected into the new axis
