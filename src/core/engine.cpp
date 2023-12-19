@@ -4,8 +4,10 @@
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
 #include "actors/object/static.hpp"
+#include "actors/object/empty.hpp"
 #include "actors/object/point_light.hpp"
 #include "components/anim/tween.hpp"
+#include "components/graphic/mesh.hpp"
 #include "core/engine.hpp"
 #include "core/input_system.hpp"
 #include "renderer/renderer.hpp"
@@ -118,13 +120,31 @@ void Engine::addActor(const shared_ptr<Actor>& actor) {
 bool Engine::prepareScene() {
     _camActor = make_shared<CameraActor>();
     addActor(_camActor);
-    auto s = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
+
+    shared_ptr<Actor> s;
+    shared_ptr<TweenComponent> tweenComp;
+
+    // viking room
+    s = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
     addActor(s);
+
+    // moving cube
     s = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
     addActor(s);
-    auto tweenComp = make_shared<TweenComponent>(s);
+    tweenComp = make_shared<TweenComponent>(s);
     tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
     s->addComponent(tweenComp);
+
+    // procedural floor plane
+    auto customAct = make_shared<EmptyActor>();
+    addActor(customAct);
+    auto procMeshComp = make_shared<MeshComponent>(customAct);
+    procMeshComp->generatedSquarePlane(2);
+    procMeshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
+    procMeshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
+    procMeshComp->uploadToGpu();
+    customAct->addComponent(procMeshComp);
+    customAct->setPosition(glm::vec3{0, -0.5, 0});
 
     auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
     lightAct->setPosition(glm::vec3{0, 5, 0});

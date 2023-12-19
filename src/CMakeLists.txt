@@ -40,6 +40,8 @@ add_executable(${EXE_NAME}
         utils/common.hpp
         utils/log.hpp
         utils/log.cpp
+        actors/object/empty.cpp
+        actors/object/empty.hpp
 )
 
 target_include_directories(${EXE_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

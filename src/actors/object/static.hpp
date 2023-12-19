@@ -7,8 +7,8 @@ class Engine;
 
 class StaticActor : public Actor {
 public:
-    explicit StaticActor(const std::string &modelPath, std::string diffusePath = "") :
-                    Actor(), _modelPath(modelPath), _diffuseTexPath(diffusePath) {};
+    explicit StaticActor(std::string modelPath = "", std::string diffusePath = "") :
+                    Actor(), _modelPath(std::move(modelPath)), _diffuseTexPath(std::move(diffusePath)) {};
 
     void delayInit() override;
 

@@ -3,6 +3,7 @@
 #include <memory>
 #include <chrono>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vk_enum_string_helper.h>
 #include "log.hpp"
 
 Log::Log() {
@@ -67,7 +68,7 @@ void Log::error(const std::string &msg, const std::source_location location) {
 
 void Log::vk_res(VkResult res, std::source_location location) {
     if (res != VK_SUCCESS) {
-        error("VkResult is not success", location);
+        error(fmt::format("VkResult is not success, result: {:s}", string_VkResult(res)), location);
         assert(res == VK_SUCCESS);
     }
 }

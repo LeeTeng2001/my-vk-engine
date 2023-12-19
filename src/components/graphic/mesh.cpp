@@ -122,13 +122,43 @@ void MeshComponent::loadModal(const string &path) {
     }
 }
 
+void MeshComponent::generatedSquarePlane(float sideLength) {
+    // generate square plane facing upward
+    float hs = sideLength / 2;
+    // pos, normal, color, tex
+    // clockwise, will be flipped by cam projection
+    _modelData.vertex = {
+            {{-hs, 0, hs}, {0, 1, 0}, {0, 0, 0}, {0, 0}},
+            {{hs, 0, hs}, {0, 1, 0},  {1, 0, 0}, {1, 0}},
+            {{-hs, 0, -hs}, {0, 1, 0},{0, 1, 0}, {0, 1}},
+            {{hs, 0, -hs}, {0, 1, 0}, {1, 1, 0}, {1, 1}},
+    };
+    _modelData.indices = {
+            0, 2, 1,
+            2, 3, 1,
+    };
+}
+
 void MeshComponent::loadDiffuseTexture(const string &path) {
     auto l = SLog::get();
     l->info(fmt::format("loading texture {:s}", path));
 
     _modelData.albedoTexture.path = path;
     _modelData.albedoTexture.stbRef = stbi_load(path.c_str(), &_modelData.albedoTexture.texWidth, &_modelData.albedoTexture.texHeight, &_modelData.albedoTexture.texChannels, 4);
+    _modelData.albedoTexture.texChannels = 4; // this is 4 because we force it
     if (!_modelData.albedoTexture.stbRef) {
+        l->error(fmt::format("failed to load diffuse texture at path: {:s}", path));
+    }
+}
+
+void MeshComponent::loadNormalTexture(const string &path) {
+    auto l = SLog::get();
+    l->info(fmt::format("loading texture {:s}", path));
+
+    _modelData.normalTexture.path = path;
+    _modelData.normalTexture.stbRef = stbi_load(path.c_str(), &_modelData.normalTexture.texWidth, &_modelData.normalTexture.texHeight, &_modelData.normalTexture.texChannels, 4);
+    _modelData.normalTexture.texChannels = 4; // this is 4 because we force it
+    if (!_modelData.normalTexture.stbRef) {
         l->error(fmt::format("failed to load diffuse texture at path: {:s}", path));
     }
 }
@@ -141,5 +171,9 @@ void MeshComponent::uploadToGpu() {
     if (_modelState == nullptr) {
         l->error("failed to upload modal data to gpu");
     }
+
+    // free local resource
+    stbi_image_free(_modelData.albedoTexture.stbRef);
+    stbi_image_free(_modelData.normalTexture.stbRef);
 }
 

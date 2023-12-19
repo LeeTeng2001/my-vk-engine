@@ -13,6 +13,13 @@ struct RenderConfig {
     VkDebugUtilsMessageSeverityFlagBitsEXT callbackSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 };
 
+struct MrtUboData {
+    int textureToggle {};
+
+    void useColor() { textureToggle |= 0b1;}
+    void useNormal() { textureToggle |= 0b10;}
+};
+
 struct MrtPushConstantData {
     glm::mat4 viewModalTransform;
     glm::mat4 rotationTransform;
@@ -96,23 +103,34 @@ struct ImgResource {
     VmaAllocation allocation;
 };
 
+// cpu submit
 struct ModelData {
-    // populated by application
     vector<Vertex> vertex = {};
     vector<uint32_t> indices = {};
-    TextureData albedoTexture;
+    TextureData albedoTexture = {};
+    TextureData normalTexture = {};
 };
 
+// shared state between model handler and renderer
 struct ModalState {
     // update by application
-    glm::mat4 worldTransform;
-    glm::mat4 rotationTransform;
+    glm::mat4 worldTransform{};
+    glm::mat4 rotationTransform{};
     // populated by renderer
-    VmaAllocation allocation;
+    VmaAllocation allocation{};
     VkBuffer vBuffer{};
     VkBuffer iBuffer{};
     uint32_t indicesSize{};
-    ImgResource albedoTex;
-    VkDescriptorSet textureDescSet{};
+
+    // uniform
+    MrtUboData uboData;
+    VkBuffer uniformBuffer;
+    VmaAllocation uniformAlloc{};
+    VmaAllocationInfo uniformAllocInfo{};
+
+    ImgResource albedoTex{};
+    ImgResource normalTex{};
+
+    VkDescriptorSet descriptorSet{};
 };
 

@@ -101,5 +101,8 @@ void main() {
 //    } else {
 //        outColor = vec4(1,0.2,0.2, 1.0);
 //    }
+
+    // NOTE: gamma correction is already being handled by SRGB frambuffer,
+    // https://learnopengl.com/Advanced-Lighting/Gamma-Correction
 }
 

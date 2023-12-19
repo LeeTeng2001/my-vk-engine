@@ -11,12 +11,11 @@
 struct FlightResource {
     // MRT
     VkFramebuffer mrtFramebuffer{};
-    VkDescriptorSet mrtDescSet{};
     VkSemaphore mrtSemaphore{};
     VkCommandBuffer mrtCmdBuffer{};
 
-    // Resources
-    vector<ImgResource*> imgResourceList;
+    // Img Resources
+    vector<ImgResource*> compImgResourceList;
 
     // Composition
     vector<VkDescriptorSet> compDescSetList{};
@@ -64,7 +63,7 @@ private:
     // internal creations
     void setRequiredFeatures();
     void printPhysDeviceProps();
-    bool validateConfig();
+    bool validate();
     bool initBase();
     bool initCommand();
     bool initBuffer();
@@ -81,6 +80,7 @@ private:
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
     void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo, VkFormat sampleFormat);
 
     // Current draw state
     int _curFrameInFlight = 0;

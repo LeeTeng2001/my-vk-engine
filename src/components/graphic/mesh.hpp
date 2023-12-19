@@ -10,9 +10,13 @@ public:
 
     void onUpdateWorldTransform() override;
 
-    // TODO: right now like this
+    // TODO: right now be like  this
+    // can either load modal or procedurally generate one
     void loadModal(const std::string &path);
+    void generatedSquarePlane(float sideLength);
+
     void loadDiffuseTexture(const std::string &path);
+    void loadNormalTexture(const std::string &path);
     void uploadToGpu();
 
 private:

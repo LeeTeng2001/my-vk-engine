@@ -7,7 +7,7 @@ class Engine;
 
 class CameraActor : public Actor {
 public:
-    explicit CameraActor(float nearDepth = 1, float farDepth = 100, float fovYinAngle = 60) : Actor(),
+    explicit CameraActor(float nearDepth = 0.1, float farDepth = 100, float fovYinAngle = 60) : Actor(),
                     _nearDepth(nearDepth), _farDepth(farDepth), _fovYInAngle(fovYinAngle) {};
 
     void delayInit() override;

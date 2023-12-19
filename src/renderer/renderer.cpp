@@ -13,14 +13,15 @@
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
-constexpr int MRT_SIZE = 4;
+constexpr int MRT_SAMPLE_SIZE = 2;
+constexpr int MRT_OUT_SIZE = 4;
 
 bool Renderer::initialise(RenderConfig renderConfig) {
     auto l = SLog::get();
     _renderConf = renderConfig;
     setRequiredFeatures();
 
-    if (!validateConfig()) { l->error("failed to validate config"); return false; };
+    if (!validate()) { l->error("failed to validate"); return false; };
     if (!initBase()) { l->error("failed to initialise base"); return false; };
     if (!initCommand()) { l->error("failed to initialise command"); return false; };
     if (!initBuffer()) { l->error("failed to initialise buffer"); return false; };
@@ -45,7 +46,7 @@ void Renderer::setRequiredFeatures() {
     _requiredPhysicalDeviceFeatures.shaderInt64 = VK_TRUE;
 }
 
-bool Renderer::validateConfig() {
+bool Renderer::validate() {
     auto l = SLog::get();
     l->debug("validating render config");
 
@@ -153,6 +154,10 @@ bool Renderer::initBase() {
         l->error("Failed to get queue from logical device");
         return false;
     }
+
+    // Check
+    l->info(fmt::format("required pushc size ({:d}, {:d}), hardware limit ({:d})", sizeof(MrtPushConstantData),sizeof(CompPushConstantData), _gpuProperties.limits.maxPushConstantsSize));
+    l->info(fmt::format("mrt ubo size ({:d}), composition ubo size ({:d})", sizeof(MrtUboData), sizeof(CompUboData)));
 
     // Swapchains, remember you'll need to rebuild swapchain if your window is resized ---------------------------------------------
     vkb::SwapchainBuilder swapchainBuilder{_gpu, _device, _surface };
@@ -308,25 +313,13 @@ bool Renderer::initBuffer() {
     auto l = SLog::get();
     l->debug("initialising uniform buffer");
 
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(CompUboData);
-    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VmaAllocationCreateInfo createAllocInfo{};
-    createAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    createAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-            VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    createAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
-
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
         VkBuffer buf;
         VmaAllocation alloc;
-        l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &createAllocInfo, &buf, &alloc,
-                                  &_flightResources[i]->compUniformAllocInfo));
+        // comp
+        l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(CompUboData), buf, alloc,
+                                                      _flightResources[i]->compUniformAllocInfo));
         _flightResources[i]->compUniformBuffer = buf;
-
         _globCleanup.emplace([this, buf, alloc](){
             vmaDestroyBuffer(_allocator, buf, alloc);
         });
@@ -357,7 +350,7 @@ bool Renderer::initRenderPass() {
     vector<VkAttachmentDescription> allAttachments{depthAttachment};
     vector<VkAttachmentReference> colorAttachmentRefList{};
 
-    for (int i = 1; i < MRT_SIZE; ++i) {
+    for (int i = 1; i < MRT_OUT_SIZE; ++i) {
         allAttachments.push_back(colorAttachment);
         colorAttachmentRef.attachment = i;
         colorAttachmentRefList.push_back(colorAttachmentRef);
@@ -462,8 +455,8 @@ bool Renderer::initRenderResources() {
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     // one of the unused A channel can be used to store specular/bump highlight
     // MRT: depth, albedo, normal, position
-    std::array<ImgResource, MRT_SIZE> imgInfoList = {};
-    _mrtClearColor.resize(MRT_SIZE);
+    std::array<ImgResource, MRT_OUT_SIZE> imgInfoList = {};
+    _mrtClearColor.resize(MRT_OUT_SIZE);
     imgInfoList[0].format = _depthFormat;
     imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     imgInfoList[0].extent = _swapChainExtent;
@@ -513,13 +506,13 @@ bool Renderer::initRenderResources() {
                                                                                    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
             l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &newImgResource->sampler));
 
-            _flightResources[i]->imgResourceList.push_back(newImgResource);
+            _flightResources[i]->compImgResourceList.push_back(newImgResource);
         }
     }
 
     _globCleanup.emplace([this](){
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-            for (const auto &imgInfo: _flightResources[i]->imgResourceList) {
+            for (const auto &imgInfo: _flightResources[i]->compImgResourceList) {
                 vkDestroySampler(_device, imgInfo->sampler, nullptr);
                 vkDestroyImageView(_device, imgInfo->imageView, nullptr);
                 vmaDestroyImage(_allocator, imgInfo->image, imgInfo->allocation);
@@ -562,7 +555,7 @@ bool Renderer::initFramebuffer() {
     framebufferInfo.renderPass = _mrtRenderPass;
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
         vector<VkImageView> imgViewList;
-        for (const auto &imgRes: _flightResources[i]->imgResourceList) {
+        for (const auto &imgRes: _flightResources[i]->compImgResourceList) {
             imgViewList.push_back(imgRes->imageView);
         }
         framebufferInfo.attachmentCount = imgViewList.size();
@@ -635,14 +628,18 @@ bool Renderer::initDescriptors() {
     // MRT description layout and set ------------------------------------------------------------------------
     // describe binding in single set
     DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
-    mrtSetBuilder.setTotalSet(1).pushDefaultFragmentSamplerBinding(0);
+    mrtSetBuilder.setTotalSet(1);
+    mrtSetBuilder.pushDefaultUniform(0, VK_SHADER_STAGE_FRAGMENT_BIT);
+    for (int i = 0; i < MRT_SAMPLE_SIZE; ++i) {
+        mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+    }
     _mrtSetLayout = mrtSetBuilder.buildSetLayout(0);
-    // Mrt descriptor set is handled by application
+    // resources are handled by application
 
     // Composition description layout and set ------------------------------------------------------------------------
     DescriptorBuilder compSetBuilder(_device, _globalDescPool);
     compSetBuilder.setTotalSet(2);
-    for (int i = 0; i < MRT_SIZE; ++i) {
+    for (int i = 0; i < MRT_OUT_SIZE; ++i) {
         compSetBuilder.pushDefaultFragmentSamplerBinding(0);
     }
     compSetBuilder.pushDefaultUniform(1, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -654,7 +651,7 @@ bool Renderer::initDescriptors() {
         compSetBuilder.clearSetWrite(0);
 
         // bind set 0 MRT sampler
-        for (const auto &imgResouce: _flightResources[i]->imgResourceList) {
+        for (const auto &imgResouce: _flightResources[i]->compImgResourceList) {
             compSetBuilder.pushSetWriteImgSampler(0, imgResouce->imageView, imgResouce->sampler);
         }
         // bind set 1 uniform
@@ -746,7 +743,7 @@ bool Renderer::initPipeline() {
     pipelineCreateInfo.renderPass = _mrtRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
     CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent,
-                                           MRT_SIZE - 1); // total of color attachments
+                                           MRT_OUT_SIZE - 1); // total of color attachments
 
     // Free up immediate resources and delegate cleanup
     vkDestroyShaderModule(_device, mrtVertShaderModule, nullptr);
@@ -848,85 +845,39 @@ shared_ptr<ModalState> Renderer::uploadAndPopulateModal(ModelData& modelData) {
 
     newModalState->indicesSize = modelData.indices.size();
 
-    // Use staging buffer to transfer texture data to local memory
+    // uniform
+    l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(MrtUboData),
+                                                  newModalState->uniformBuffer, newModalState->uniformAlloc,
+                                                  newModalState->uniformAllocInfo));
+
+    // Create descriptor set resource
+    DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
+    mrtSetBuilder.setTotalSet(1).setSetLayout(0, _mrtSetLayout);
+    mrtSetBuilder.pushDefaultUniform(0, VK_SHADER_STAGE_FRAGMENT_BIT);
+    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+
+    mrtSetBuilder.pushSetWriteUniform(0, newModalState->uniformBuffer, sizeof(MrtUboData));
+
+    // upload textures
     if (modelData.albedoTexture.stbRef != nullptr) {
-        l->debug(fmt::format("upload albedo texture dim: ({:d}, {:d}, {:d})",
-                             modelData.albedoTexture.texWidth, modelData.albedoTexture.texHeight,
-                             modelData.albedoTexture.texChannels));
-
-        // Create buffer for transfer source image
-        VkBuffer texBuffer;
-        VkBufferCreateInfo texBufferInfo = bufferInfo;
-        texBufferInfo.size = modelData.albedoTexture.texWidth * modelData.albedoTexture.texHeight * modelData.albedoTexture.texChannels;
-        texBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-        l->vk_res(vmaCreateBuffer(_allocator, &texBufferInfo, &stagingAllocInfo, &texBuffer, &stagingAllocation, &stagingAllocationInfo));
-        memcpy(stagingAllocationInfo.pMappedData, modelData.albedoTexture.stbRef, texBufferInfo.size);
-        vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferInfo.size); // TODO: Transfer to destination buffer
-
-        // Create GPU local sampled image
-        // TODO: Query format?
-        VkExtent2D ext{static_cast<uint32_t>(modelData.albedoTexture.texWidth), static_cast<uint32_t>(modelData.albedoTexture.texHeight)};
-        VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(VK_FORMAT_R8G8B8A8_SRGB,
-                                                                             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                                             ext);
-        // allocate from GPU LOCAL memory
-        VmaAllocationCreateInfo texAllocInfo {};
-        texAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        texAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        VkResult result = vmaCreateImage(_allocator, &textureImageInfo, &texAllocInfo,
-                                         &newModalState->albedoTex.image, &newModalState->albedoTex.allocation, nullptr);
-        l->vk_res(result);
-
-        // transition the layout image for layout destination
-        transitionImgLayout(newModalState->albedoTex.image, VK_FORMAT_R8G8B8A8_SRGB,
-                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-        // perform copy operation
-        copyBufferToImg(texBuffer, newModalState->albedoTex.image, ext);
-
-        // make it optimal for sampling
-        transitionImgLayout(newModalState->albedoTex.image, VK_FORMAT_R8G8B8A8_SRGB,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        // staging buffer can be destroyed as src textures are no longer used
-        vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);
-
-        // image view and sampler
-        VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(VK_FORMAT_R8G8B8A8_SRGB,
-                                                                                      newModalState->albedoTex.image,
-                                                                                      VK_IMAGE_ASPECT_COLOR_BIT);
-        l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr, &newModalState->albedoTex.imageView));
-        VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(_gpu,
-                                                                               VK_FILTER_LINEAR,
-                                                                               VK_FILTER_LINEAR,
-                                                                               VK_SAMPLER_ADDRESS_MODE_REPEAT);
-        l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &newModalState->albedoTex.sampler));
-
-        // Create descriptor set resource
-        VkDescriptorSetAllocateInfo allocInfo ={};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = _globalDescPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &_mrtSetLayout;
-        l->vk_res(vkAllocateDescriptorSets(_device, &allocInfo, &newModalState->textureDescSet));
-
-        // img view
-        VkDescriptorImageInfo imgInfo;
-        imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imgInfo.imageView = newModalState->albedoTex.imageView;
-        imgInfo.sampler = newModalState->albedoTex.sampler;
-
-        // update set resource info
-        VkWriteDescriptorSet setWrite = {};
-        setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        setWrite.dstBinding = 0;
-        setWrite.dstSet = newModalState->textureDescSet;
-        setWrite.descriptorCount = 1;
-        setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        setWrite.pImageInfo = &imgInfo;
-        vkUpdateDescriptorSets(_device, 1, &setWrite, 0, nullptr);
+        uploadImageForSampling(modelData.albedoTexture, newModalState->albedoTex,
+                               VK_FORMAT_R8G8B8A8_SRGB);
+        // update set info
+        mrtSetBuilder.pushSetWriteImgSampler(0, newModalState->albedoTex.imageView,
+                                             newModalState->albedoTex.sampler, 1);
+        newModalState->uboData.useColor();
     }
+    if (modelData.normalTexture.stbRef != nullptr) {
+        uploadImageForSampling(modelData.normalTexture, newModalState->normalTex,
+                               VK_FORMAT_R8G8B8A8_UNORM);
+        // update set info
+        mrtSetBuilder.pushSetWriteImgSampler(0, newModalState->normalTex.imageView,
+                                             newModalState->normalTex.sampler, 2);
+        newModalState->uboData.useNormal();
+    }
+
+    newModalState->descriptorSet = mrtSetBuilder.buildSet(0);
 
     _modalStateList.push_back(newModalState);
 
@@ -936,13 +887,14 @@ shared_ptr<ModalState> Renderer::uploadAndPopulateModal(ModelData& modelData) {
 void Renderer::removeModal(const shared_ptr<ModalState> &modalState) {
     auto l = SLog::get();
     // TODO: should check
+    // TODO: release ubo buffer
     auto iter = std::find(_modalStateList.begin(), _modalStateList.end(), modalState);
     if (iter != _modalStateList.end()) {
         l->debug("removing modal");
         _modalStateList.erase(iter);
         vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->allocation);
         vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->allocation);
-        if (modalState->textureDescSet != nullptr) {
+        if (modalState->descriptorSet != nullptr) {
             l->debug("removing albedo texture");
             vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
             vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
@@ -1083,14 +1035,11 @@ void Renderer::beginRecordCmd() {
 
 void Renderer::drawAllModel() {
     MrtPushConstantData mrtData{};
-    VkDescriptorSet lastDescSet = nullptr;
 
     for (const auto &modalState: _modalStateList) {
         // bind resources
-        if (modalState->textureDescSet != lastDescSet) {
-            vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
-                                    0, 1, &modalState->textureDescSet, 0, nullptr);
-        }
+        vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
+                                0, 1, &modalState->descriptorSet, 0, nullptr);
 
         // compute final transform
         mrtData.viewModalTransform = _camViewTransform * modalState->worldTransform;
@@ -1098,6 +1047,9 @@ void Renderer::drawAllModel() {
 
         vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(MrtPushConstantData), &mrtData);
+
+        // uniform data
+        memcpy(modalState->uniformAllocInfo.pMappedData, &modalState->uboData, sizeof(MrtUboData));
 
         // draw
         VkDeviceSize offsets[] = {0};
@@ -1325,6 +1277,68 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
         vkCmdPipelineBarrier(cmdBuf, sourceStage, destStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     };
     execOneTimeCmd(func);
+}
+
+void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo,
+                                      VkFormat sampleFormat) {
+    auto l = SLog::get();
+    l->debug(fmt::format("upload texture dim: ({:d}, {:d}, {:d})",
+                         cpuTexData.texWidth, cpuTexData.texHeight,
+                         cpuTexData.texChannels));
+
+    // Create buffer for transfer source image
+    VkBuffer texBuffer;
+    VmaAllocationCreateInfo stagingAllocInfo = CreationHelper::createStagingAllocInfo();
+    VmaAllocation stagingAllocation;
+    VmaAllocationInfo stagingAllocationInfo;
+
+    VkBufferCreateInfo texBufferCreateInfo{};
+    texBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    texBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    texBufferCreateInfo.size = cpuTexData.texWidth * cpuTexData.texHeight * cpuTexData.texChannels;
+    texBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    l->vk_res(vmaCreateBuffer(_allocator, &texBufferCreateInfo, &stagingAllocInfo, &texBuffer,
+                              &stagingAllocation, &stagingAllocationInfo));
+    memcpy(stagingAllocationInfo.pMappedData, cpuTexData.stbRef, texBufferCreateInfo.size);
+    vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferCreateInfo.size); // TODO: Transfer to destination buffer
+
+    // Create GPU local sampled image
+    VkExtent2D ext{static_cast<uint32_t>(cpuTexData.texWidth), static_cast<uint32_t>(cpuTexData.texHeight)};
+    VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(sampleFormat,
+                                                                         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                                         ext);
+    // allocate from GPU LOCAL memory
+    VmaAllocationCreateInfo texAllocInfo {};
+    texAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    texAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkResult result = vmaCreateImage(_allocator, &textureImageInfo, &texAllocInfo,
+                                     &outResourceInfo.image, &outResourceInfo.allocation, nullptr);
+    l->vk_res(result);
+
+    // transition the layout image for layout destination
+    transitionImgLayout(outResourceInfo.image, sampleFormat,
+                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    // perform copy operation
+    copyBufferToImg(texBuffer, outResourceInfo.image, ext);
+
+    // make it optimal for sampling
+    transitionImgLayout(outResourceInfo.image, sampleFormat,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // staging buffer can be destroyed as src textures are no longer used
+    vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);
+
+    // image view and sampler
+    VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(sampleFormat,
+                                                                                  outResourceInfo.image,
+                                                                                  VK_IMAGE_ASPECT_COLOR_BIT);
+    l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr, &outResourceInfo.imageView));
+    VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(_gpu,
+                                                                           VK_FILTER_LINEAR,
+                                                                           VK_FILTER_LINEAR,
+                                                                           VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &outResourceInfo.sampler));
 }
 
 

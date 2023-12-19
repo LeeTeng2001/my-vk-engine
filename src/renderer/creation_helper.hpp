@@ -116,6 +116,31 @@ public:
         return semaphoreCreateInfo;
     }
 
+    static VmaAllocationCreateInfo createStagingAllocInfo() {
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;  // vma way texBufferInfo doing stuff, read doc!
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        stagingAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
+        return stagingAllocInfo;
+    }
+
+    static VkResult createUniformBuffer(VmaAllocator allocator, VkDeviceSize bufSize,
+                                              VkBuffer &outBuf, VmaAllocation &outAlloc, VmaAllocationInfo &outAllocInfo) {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = bufSize;
+        bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VmaAllocationCreateInfo createAllocInfo{};
+        createAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        createAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                                VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        createAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
+
+        return vmaCreateBuffer(allocator, &bufferInfo, &createAllocInfo, &outBuf, &outAlloc, &outAllocInfo);
+    }
+
     static vector<char> readFile(const string &filename) {
         std::ifstream f(filename, std::ios::ate | std::ios::binary);
 
@@ -145,6 +170,7 @@ public:
 
         return shaderModule;
     }
+
 
     static void fillAndCreateGPipeline(VkGraphicsPipelineCreateInfo &pipelineCreateInfo, VkPipeline &graphicPipeline,
                                        VkDevice device, VkExtent2D viewportExtend, int colorAttachmentCount) {

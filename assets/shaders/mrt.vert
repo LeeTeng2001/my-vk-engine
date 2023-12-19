@@ -9,6 +9,7 @@ layout(location = 3) in vec2 inTexCoord;
 layout(location = 0) out vec3 outVertPos;
 layout(location = 1) out vec2 outTexCoord;
 layout(location = 2) out vec3 outNormal;
+layout(location = 3) out vec3 outColor;
 
 layout (push_constant) uniform PushConstantData {
     mat4 viewModalTransform;
