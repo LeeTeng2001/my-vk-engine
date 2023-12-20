@@ -1,6 +1,6 @@
 #include "point_light.hpp"
 #include "core/engine.hpp"
-#include "renderer/renderer.hpp"
+#include "core/renderer/renderer.hpp"
 #include "components/anim/tween.hpp"
 #include "components/graphic/mesh.hpp"
 

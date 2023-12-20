@@ -1,7 +1,7 @@
 #pragma once
 
 #include "components/component.hpp"
-#include "renderer/def.hpp"
+#include "core/renderer/def.hpp"
 
 class MeshComponent: public Component {
 public:

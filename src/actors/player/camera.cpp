@@ -4,7 +4,7 @@
 #include "components/control/move.hpp"
 #include "core/input/input_system.hpp"
 #include "core/engine.hpp"
-#include "renderer/renderer.hpp"
+#include "core/renderer/renderer.hpp"
 
 constexpr float MOVEMENT_SPEED = 2.0;
 constexpr float HOR_ANGLE_SPEED = 30;

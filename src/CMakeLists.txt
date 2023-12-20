@@ -31,13 +31,12 @@ add_executable(${EXE_NAME}
         core/input/input_system.cpp
         core/physic/physic.cpp
         core/physic/physic.hpp
-
-        renderer/renderer.hpp
-        renderer/renderer.cpp
-        renderer/creation_helper.hpp
-        renderer/def.hpp
-        renderer/builder.hpp
-        renderer/builder.cpp
+        core/renderer/renderer.hpp
+        core/renderer/renderer.cpp
+        core/renderer/creation_helper.hpp
+        core/renderer/def.hpp
+        core/renderer/builder.hpp
+        core/renderer/builder.cpp
 
         utils/lib_impl.cpp
         utils/common.hpp

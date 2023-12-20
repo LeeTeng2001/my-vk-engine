@@ -3,7 +3,7 @@
 
 #include "core/engine.hpp"
 #include "actors/actor.hpp"
-#include "renderer/renderer.hpp"
+#include "core/renderer/renderer.hpp"
 #include "mesh.hpp"
 
 MeshComponent::MeshComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
