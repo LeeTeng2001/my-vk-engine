@@ -53,6 +53,7 @@ public:
 
     // setter
     void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
+    void setProjectionMatrix(const glm::mat4 &projectionTransform) { _camProjectionTransform = projectionTransform; };
     void setCamPos(const glm::vec3 &pos) { _nextCompUboData.camPos = glm::vec4{pos, 1}; };
     void setLightInfo(const glm::vec3 &pos, const glm::vec3 &color, float radius);
 
@@ -86,6 +87,7 @@ private:
     int _curFrameInFlight = 0;
     uint32_t _curPresentImgIdx = 0;
     glm::mat4 _camViewTransform{};
+    glm::mat4 _camProjectionTransform{};
     CompUboData _nextCompUboData{};
     int _nextLightPos{};
     vector<string> _debugUiText;

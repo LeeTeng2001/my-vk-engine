@@ -13,15 +13,23 @@ void MoveComponent::update(float deltaTime) {
 
     // TODO: Fix rotation
     if (glm::abs(_horizontalAngularSpeed) > 0.01 || glm::abs(_vertAngularSpeed) > 0.01) {
-        // calculate the offset at base position first, then add back to original rotation
-        glm::quat offset(1.0, 0.0, 0.0, 0.0);
+//        // calculate the offset at base position first, then add back to original rotation
+//        glm::quat offset(1.0, 0.0, 0.0, 0.0);
+//        float horAngle = _horizontalAngularSpeed * deltaTime;
+//        float vertAngle = _vertAngularSpeed * deltaTime;
+//        // TODO: FUCK fix this
+//        // quaternion rotation order is L to R, unlike matrixes transformation order
+//        offset *= glm::angleAxis(glm::radians(vertAngle), getOwner()->getRight());
+//        offset *= glm::angleAxis(glm::radians(horAngle), glm::vec3(0.f, 1.f, 0.f));
+//        offset = getOwner()->getRotation() * offset;
+//        getOwner()->setRotation(offset);
+        // rotate in euler space
         float horAngle = _horizontalAngularSpeed * deltaTime;
         float vertAngle = _vertAngularSpeed * deltaTime;
-        // quaternion rotation order is L to R, unlike matrixes transformation order
-        offset *= glm::angleAxis(glm::radians(vertAngle), glm::vec3(1.f, 0.f, 0.f));
-        offset *= glm::angleAxis(glm::radians(horAngle), glm::vec3(0.f, 1.f, 0.f));
-        offset = getOwner()->getRotation() * offset;
-        getOwner()->setRotation(offset);
+        glm::quat res = getOwner()->getRotation();
+        res = glm::rotate(res, -glm::radians(horAngle), getOwner()->getUp());
+        res = glm::rotate(res, glm::radians(vertAngle), getOwner()->getRight());
+        getOwner()->setRotation(res);
     }
     if (glm::abs(_forwardSpeed) > 0.01 || glm::abs(_strafeSpeed) > 0.01) {
         glm::vec3 pos = getOwner()->getLocalPosition();

@@ -3,8 +3,10 @@ project(my_vk_engine)
 set(CMAKE_CXX_STANDARD 20)
 
 # If you're on windows: please use MSVC instead of MingW to avoid a lot of pain
-
 find_package(Vulkan REQUIRED)
+
+# Necessary config for Jolt
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_subdirectory(libs)
 add_subdirectory(src)

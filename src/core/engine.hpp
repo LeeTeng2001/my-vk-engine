@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/input_system.hpp"
+#include "core/input/input_system.hpp"
 #include "utils/common.hpp"
 
 class Actor;

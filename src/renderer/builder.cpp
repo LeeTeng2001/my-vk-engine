@@ -115,8 +115,12 @@ DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
 
 DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
     auto l = SLog::get();
-    if (targetSet < 0) {
-        l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
+    if (targetSet < -1) {
+        l->error(fmt::format("target set cannot be < -1 {:d}", targetSet));
+    } else if (targetSet == -1) {
+        for (auto &item: _setInfoList) {
+            item.setWrite.clear();
+        }
     } else if (targetSet >= _setInfoList.size()) {
         l->error(fmt::format("target set out of range {:d}", targetSet));
     } else {
@@ -141,7 +145,7 @@ DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, Vk
     VkWriteDescriptorSet setWrite = {};
     setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     setWrite.dstBinding = targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
-    // setWrite.dstSet = _mrtDescSet; // no set before building
+    setWrite.dstSet = _setInfoList[targetSet].set; // might not have set before building
     setWrite.descriptorCount = 1;
     setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     setWrite.pImageInfo = imageInfo;
@@ -166,7 +170,7 @@ DescriptorBuilder &DescriptorBuilder::pushSetWriteUniform(int targetSet, VkBuffe
     VkWriteDescriptorSet setWrite = {};
     setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     setWrite.dstBinding = targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
-    // setWrite.dstSet = _mrtDescSet; // no set before building
+    setWrite.dstSet = _setInfoList[targetSet].set; // might not have set before building
     setWrite.descriptorCount = 1;
     setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     setWrite.pBufferInfo = bufferInfo;

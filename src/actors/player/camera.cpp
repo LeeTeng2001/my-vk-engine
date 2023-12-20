@@ -2,13 +2,13 @@
 
 #include "camera.hpp"
 #include "components/control/move.hpp"
-#include "core/input_system.hpp"
+#include "core/input/input_system.hpp"
 #include "core/engine.hpp"
 #include "renderer/renderer.hpp"
 
 constexpr float MOVEMENT_SPEED = 2.0;
 constexpr float HOR_ANGLE_SPEED = 30;
-constexpr float VERT_ANGLE_SPEED = 30;
+constexpr float VERT_ANGLE_SPEED = 10;
 
 void CameraActor::delayInit() {
     _moveComp = make_shared<MoveComponent>(getSelf());
@@ -17,12 +17,14 @@ void CameraActor::delayInit() {
 
 void CameraActor::updateActor(float deltaTime) {
     // Compute new camera from this actor
-    getEngine()->getRenderer()->setViewMatrix(getPerspectiveTransformMatrix());
+    getEngine()->getRenderer()->setViewMatrix(getCamViewTransform());
+    getEngine()->getRenderer()->setProjectionMatrix(getPerspectiveTransformMatrix());
     getEngine()->getRenderer()->setCamPos(getLocalPosition());
 
     // update ui
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Pos     : {:s}", glm::to_string(getLocalPosition())));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Rot     : {:s}", glm::to_string(getRotation())));
+    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Rot(eul): {:s}", glm::to_string(eulerAngles(getRotation()))));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Forward : {:s}", glm::to_string(getForward())));
     getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Right   : {:s}", glm::to_string(getRight())));
 }
@@ -99,8 +101,8 @@ glm::mat4 CameraActor::getCamViewTransform() {
 }
 
 glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
-    // 1. Transform to camera space and rotation
-    glm::mat4 view = getCamViewTransform();
+//    // 1. Transform to camera space and rotation
+//    glm::mat4 view = getCamViewTransform();
 
     // TODO: refactor, should probably cache the value
     const int viewWidth = getEngine()->getRenderer()->getRenderConfig().windowWidth;
@@ -131,5 +133,5 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     sca[2][2] = 1.0f / float(_farDepth);
     projection = sca * projection;
 
-    return projection * view;
+    return projection;
 }

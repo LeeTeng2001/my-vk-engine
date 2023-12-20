@@ -15,6 +15,7 @@ add_subdirectory(vkbootstrap)
 add_subdirectory(glm)
 add_subdirectory(spdlog)
 add_subdirectory(sdl EXCLUDE_FROM_ALL)
+add_subdirectory(joltphysics/Build)
 
 # include path
 target_include_directories(vma INTERFACE vma/include)

@@ -28,7 +28,7 @@ public:
     DescriptorBuilder& setTotalSet(int total);
     DescriptorBuilder& pushDefaultUniform(int targetSet, VkShaderStageFlags stageFlag = VK_SHADER_STAGE_VERTEX_BIT);
     DescriptorBuilder& pushDefaultFragmentSamplerBinding(int targetSet);
-    DescriptorBuilder& clearSetWrite(int targetSet);
+    DescriptorBuilder& clearSetWrite(int targetSet = -1);
     DescriptorBuilder& pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler, int targetBinding = -1);
     DescriptorBuilder& pushSetWriteUniform(int targetSet, VkBuffer buffer, int bufferSize, int targetBinding = -1);
 

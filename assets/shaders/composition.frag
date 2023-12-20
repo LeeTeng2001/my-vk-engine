@@ -1,5 +1,9 @@
 #version 450
+
 #define SOBEL_THRESHOLD 0.4
+#define LIGHT_COUNT 6
+#define SPEC_SHININESS 64  // higher is more subtle
+#define SPEC_STRENGTH 0.5  // higher contribute more
 
 layout (location = 0) in vec2 inUV;
 
@@ -15,12 +19,8 @@ struct Light {
     vec4 colorAndRadius; // fourth component is light radius
 };
 
-#define LIGHT_COUNT 6
-#define SPEC_SHININESS 32  // higher is more subtle
-#define SPEC_STRENGTH 0.3  // higher contribute more
-
 layout(set = 1, binding = 0) uniform UBO {
-    Light lights[6];
+    Light lights[LIGHT_COUNT];
     vec4 camPos;
 } ubo;
 
@@ -83,7 +83,7 @@ void main() {
         lighting += diffuse;
         // specular
         vec3 halfwayDir = normalize(lightDir + viewDir);
-        float spec = pow(max(dot(normal, halfwayDir), 0.0), SPEC_SHININESS);
+        float spec = clamp(pow(max(dot(normal, halfwayDir), 0.0), SPEC_SHININESS), 0, 1);
         vec3 specular = SPEC_STRENGTH * spec * ubo.lights[i].colorAndRadius.xyz;
         lighting += specular;
     }

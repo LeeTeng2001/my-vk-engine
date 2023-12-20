@@ -1,6 +1,6 @@
-#include <SDL.h>
 #include <algorithm>
 #include <cstring>
+#include <SDL3/SDL.h>
 
 #include "input_system.hpp"
 

@@ -18,7 +18,6 @@ MeshComponent::~MeshComponent() {
 void MeshComponent::onUpdateWorldTransform() {
     if (_modelState != nullptr) {
          _modelState->worldTransform = getOwner()->getWorldTransform();
-         _modelState->rotationTransform = glm::mat4_cast(getOwner()->getRotation());
     }
 }
 
@@ -111,6 +110,31 @@ void MeshComponent::loadModal(const string &path) {
                 }
             }
 
+            // good figures: https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/
+            // calculate tangent bitangent for normals
+            glm::vec3& v0 = _modelData.vertex[index_offset+0].pos;
+            glm::vec3& v1 = _modelData.vertex[index_offset+1].pos;
+            glm::vec3& v2 = _modelData.vertex[index_offset+2].pos;
+            glm::vec2& uv0 = _modelData.vertex[index_offset+0].texCoord;
+            glm::vec2& uv1 = _modelData.vertex[index_offset+1].texCoord;
+            glm::vec2& uv2 = _modelData.vertex[index_offset+2].texCoord;
+
+            // Edges of the triangle : position delta, UV delta
+            glm::vec3 deltaPos1 = v1-v0;
+            glm::vec3 deltaPos2 = v2-v0;
+            glm::vec2 deltaUV1 = uv1-uv0;
+            glm::vec2 deltaUV2 = uv2-uv0;
+
+            // formula for tangent
+            // great formula derivation: https://learnopengl.com/Advanced-Lighting/Normal-Mapping#:~:text=Tangent%20space%20is%20a%20space,of%20the%20final%20transformed%20direction.
+            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+            glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y)*r;
+            glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x)*r;
+            for (int i = 0; i < 3; ++i) { // TODO: could probably optimise this
+                _modelData.vertex[index_offset+i].tangents = tangent;
+                _modelData.vertex[index_offset+i].bitangents = bitangent;
+            }
+
             // By default obj uses counter-clockwise face
             // since, our front face is counter clockwise, and the
             // viewport get flipped during projection transformation
@@ -125,13 +149,13 @@ void MeshComponent::loadModal(const string &path) {
 void MeshComponent::generatedSquarePlane(float sideLength) {
     // generate square plane facing upward
     float hs = sideLength / 2;
-    // pos, normal, color, tex
+    // pos, normal, color, tex, tangent, bitangent
     // clockwise, will be flipped by cam projection
     _modelData.vertex = {
-            {{-hs, 0, hs}, {0, 1, 0}, {0, 0, 0}, {0, 0}},
-            {{hs, 0, hs}, {0, 1, 0},  {1, 0, 0}, {1, 0}},
-            {{-hs, 0, -hs}, {0, 1, 0},{0, 1, 0}, {0, 1}},
-            {{hs, 0, -hs}, {0, 1, 0}, {1, 1, 0}, {1, 1}},
+            {{-hs, 0, hs},  {0, 1, 0}, {0, 0, 0}, {0, 0}, {1,0,0}, {0,0,-1}},
+            {{hs, 0, hs},   {0, 1, 0},  {1, 0, 0}, {1, 0},{1,0,0}, {0,0,-1}},
+            {{-hs, 0, -hs}, {0, 1, 0},{0, 1, 0}, {0, 1},  {1,0,0}, {0,0,-1}},
+            {{hs, 0, -hs},  {0, 1, 0}, {1, 1, 0}, {1, 1}, {1,0,0}, {0,0,-1}},
     };
     _modelData.indices = {
             0, 2, 1,

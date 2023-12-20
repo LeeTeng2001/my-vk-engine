@@ -9,7 +9,7 @@
 #include "components/anim/tween.hpp"
 #include "components/graphic/mesh.hpp"
 #include "core/engine.hpp"
-#include "core/input_system.hpp"
+#include "core/input/input_system.hpp"
 #include "renderer/renderer.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {

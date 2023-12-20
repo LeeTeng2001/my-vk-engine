@@ -22,12 +22,15 @@ add_executable(${EXE_NAME}
         components/control/move.cpp
         components/graphic/mesh.cpp
         components/graphic/mesh.hpp
+        components/physic/rigidbody.cpp
+        components/physic/rigidbody.hpp
 
-        core/camera.hpp
         core/engine.hpp
         core/engine.cpp
-        core/input_system.hpp
-        core/input_system.cpp
+        core/input/input_system.hpp
+        core/input/input_system.cpp
+        core/physic/physic.cpp
+        core/physic/physic.hpp
 
         renderer/renderer.hpp
         renderer/renderer.cpp
@@ -56,6 +59,7 @@ target_link_libraries(${EXE_NAME}
         stb_image
         tinygltf
         spdlog::spdlog
+        Jolt # physic
         )
 
 add_dependencies(${EXE_NAME} Shaders)

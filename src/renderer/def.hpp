@@ -22,7 +22,7 @@ struct MrtUboData {
 
 struct MrtPushConstantData {
     glm::mat4 viewModalTransform;
-    glm::mat4 rotationTransform;
+    glm::mat4 perspectiveTransform;
 };
 
 struct Light {
@@ -45,6 +45,8 @@ struct Vertex {
     glm::vec3 normal;
     glm::vec3 color;
     glm::vec2 texCoord;
+    glm::vec3 tangents;
+    glm::vec3 bitangents;
 
     static vector<VkVertexInputBindingDescription> getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -115,7 +117,6 @@ struct ModelData {
 struct ModalState {
     // update by application
     glm::mat4 worldTransform{};
-    glm::mat4 rotationTransform{};
     // populated by renderer
     VmaAllocation allocation{};
     VkBuffer vBuffer{};

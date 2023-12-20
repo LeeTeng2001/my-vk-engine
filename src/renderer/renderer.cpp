@@ -627,6 +627,7 @@ bool Renderer::initDescriptors() {
 
     // MRT description layout and set ------------------------------------------------------------------------
     // describe binding in single set
+    l->debug("init mrt set resource");
     DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
     mrtSetBuilder.setTotalSet(1);
     mrtSetBuilder.pushDefaultUniform(0, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -637,6 +638,7 @@ bool Renderer::initDescriptors() {
     // resources are handled by application
 
     // Composition description layout and set ------------------------------------------------------------------------
+    l->debug("init comp set resource");
     DescriptorBuilder compSetBuilder(_device, _globalDescPool);
     compSetBuilder.setTotalSet(2);
     for (int i = 0; i < MRT_OUT_SIZE; ++i) {
@@ -648,7 +650,7 @@ bool Renderer::initDescriptors() {
 
     // create descriptor set
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        compSetBuilder.clearSetWrite(0);
+        compSetBuilder.clearSetWrite();
 
         // bind set 0 MRT sampler
         for (const auto &imgResouce: _flightResources[i]->compImgResourceList) {
@@ -1019,6 +1021,10 @@ void Renderer::beginRecordCmd() {
     mrtRenderPassInfo.clearValueCount = _mrtClearColor.size();
     mrtRenderPassInfo.pClearValues = _mrtClearColor.data();
 
+    compRenderPassInfo.clearValueCount = 1;
+    auto c = VkClearValue{.color = {0, 0, 0}};
+    compRenderPassInfo.pClearValues = &c;
+
     vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
     vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -1043,7 +1049,7 @@ void Renderer::drawAllModel() {
 
         // compute final transform
         mrtData.viewModalTransform = _camViewTransform * modalState->worldTransform;
-        mrtData.rotationTransform = modalState->rotationTransform;
+        mrtData.perspectiveTransform = _camProjectionTransform;
 
         vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(MrtPushConstantData), &mrtData);

@@ -1,6 +1,6 @@
 #include "actor.hpp"
 #include "components/component.hpp"
-#include "core/input_system.hpp"
+#include "core/input/input_system.hpp"
 
 Actor::~Actor() {
     // Need to delete components, because ~Component calls RemoveComponent, need a different style loop

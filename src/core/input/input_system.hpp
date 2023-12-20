@@ -1,11 +1,10 @@
 #pragma once
 
-#include <SDL_scancode.h>
-#include <SDL_gamepad.h>
-#include <SDL_mouse.h>
+#include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_mouse.h>
 
 #include "utils/common.hpp"
-#include "SDL_oldnames.h"
 
 enum ButtonState {
 	ENone,
