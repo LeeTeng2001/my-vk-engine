@@ -215,7 +215,7 @@ bool Renderer::initBase() {
     return true;
 }
 
-Renderer::~Renderer() {
+void Renderer::shutdown() {
     // make sure the gpu has stopped doing its things
     // for (auto &item : _frames)
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {

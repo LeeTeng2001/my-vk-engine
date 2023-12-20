@@ -1,6 +1,10 @@
 #include <SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 
+#include "core/engine.hpp"
+#include "core/input/input_system.hpp"
+#include "core/physic/physic.hpp"
+#include "core/renderer/renderer.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
 #include "actors/object/static.hpp"
@@ -8,9 +12,6 @@
 #include "actors/object/point_light.hpp"
 #include "components/anim/tween.hpp"
 #include "components/graphic/mesh.hpp"
-#include "core/engine.hpp"
-#include "core/input/input_system.hpp"
-#include "renderer/renderer.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {
     _self = self;
@@ -24,6 +25,12 @@ bool Engine::initialize(shared_ptr<Engine> &self) {
     _inputSystem = make_shared<InputSystem>();
     if (!_inputSystem->initialise()) {
         l->error("failed to initialise input system");
+        return false;
+    }
+    PhysicSystem p;
+    _physicSystem = make_shared<PhysicSystem>();
+    if (!_physicSystem->initialise()) {
+        l->error("failed to initialise physic system");
         return false;
     }
 
@@ -43,7 +50,11 @@ void Engine::run() {
     }
 }
 
-Engine::~Engine() = default;
+Engine::~Engine() {
+    if (_inputSystem) _inputSystem->shutdown();
+    if (_renderer) _renderer->shutdown();
+    if (_physicSystem) _physicSystem->shutdown();
+};
 
 void Engine::processInput() {
     _inputSystem->prepareForUpdate();

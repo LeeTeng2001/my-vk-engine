@@ -33,10 +33,10 @@ struct FlightResource {
 class Renderer {
 public:
     Renderer() = default;
-    ~Renderer();
 
     // used during screen resize
     bool initialise(RenderConfig renderConfig = {});
+    void shutdown();
     // void rebuild();
 
     // render related, should invoke in order
@@ -108,8 +108,8 @@ private:
     VmaAllocator _allocator{};  // Memory allocator by gpuopen
 
     // props
-    VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures;
-    VkFormat _depthFormat;
+    VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures{};
+    VkFormat _depthFormat{};
 
     // Queues
     VkQueue _graphicsQueue{};
@@ -138,7 +138,7 @@ private:
     // Resources
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
-    VkDescriptorPool _globalDescPool;
+    VkDescriptorPool _globalDescPool{};
     vector<VkClearValue> _mrtClearColor;
     vector<FlightResource*> _flightResources;
 };

@@ -29,6 +29,7 @@ add_executable(${EXE_NAME}
         core/engine.cpp
         core/input/input_system.hpp
         core/input/input_system.cpp
+        core/physic/def.hpp
         core/physic/physic.cpp
         core/physic/physic.hpp
         core/renderer/renderer.hpp

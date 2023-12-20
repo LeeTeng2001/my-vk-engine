@@ -3,10 +3,11 @@
 #include "core/input/input_system.hpp"
 #include "utils/common.hpp"
 
-class Actor;
 class Renderer;
 class RenderConfig;
 class InputSystem;
+class PhysicSystem;
+class Actor;
 class CameraActor;
 class StaticActor;
 
@@ -36,6 +37,7 @@ public:
     // Core Getter accessed by subsystem
     shared_ptr<Renderer> getRenderer() { return _renderer; }
     shared_ptr<InputSystem> getInputSystem() { return _inputSystem; }
+    shared_ptr<PhysicSystem> getPhysicSystem() { return _physicSystem; }
 
 private:
     weak_ptr<Engine> _self;
@@ -45,6 +47,7 @@ private:
     // System
     shared_ptr<Renderer> _renderer = nullptr;
     shared_ptr<InputSystem> _inputSystem = nullptr;
+    shared_ptr<PhysicSystem> _physicSystem = nullptr;
 
     // game specific member
     // TODO: refactor to game/scene class
