@@ -29,3 +29,6 @@
 [submodule "libs/spdlog"]
 	path = libs/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "libs/joltphysics"]
+	path = libs/joltphysics
+	url = https://github.com/jrouwe/JoltPhysics
