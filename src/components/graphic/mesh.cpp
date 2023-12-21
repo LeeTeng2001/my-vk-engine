@@ -143,6 +143,10 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
             index_offset += 3;
         }
     }
+
+    // TODO: Material System
+    for (const auto &mat: materials) {
+    }
 }
 
 void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
