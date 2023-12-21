@@ -20,6 +20,9 @@ public:
     void uploadToGpu();
 
 private:
+    void loadObj(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
+    void loadGlb(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
+
     ModelData _modelData;
     shared_ptr<ModalState> _modelState;
 };

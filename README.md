@@ -16,11 +16,23 @@ You might want to put SDL3.dll in the root directory
 - functions in camelCase
 - private class member prefix with _
 
+## Roadmap
+- Directional,cone,area light
+- Physic Components
+- Shadows
+- Bloom
+- Animation System
+- Material system and material id
+- God rays
+
 ## Ideas
 - Post processing: LUT, Viginette, Bloom
+- Particle Systems
+- GLTF loader
 - node inheritance actors, world transform & local transform
 - animation system
 - lookup key actor, components, not vector
+- Game scene format
 
 ## Resources
 - Quaternion: https://www.youtube.com/watch?v=xoTqBqQtrY4

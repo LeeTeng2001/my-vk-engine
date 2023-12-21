@@ -25,13 +25,13 @@ struct MrtPushConstantData {
     glm::mat4 perspectiveTransform;
 };
 
-struct Light {
+struct PointLight {
     glm::vec4 position;
     glm::vec4 colorAndRadius;
 };
 
 struct CompUboData {
-    Light lights[6];
+    PointLight lights[6];
     glm::vec4 camPos;
 };
 

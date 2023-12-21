@@ -1,5 +1,6 @@
 #include <utility>
 #include <tiny_obj_loader.h>
+#include <tiny_gltf.h>
 
 #include "core/engine.hpp"
 #include "actors/actor.hpp"
@@ -22,11 +23,11 @@ void MeshComponent::postUpdate() {
     }
 }
 
-void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
+void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
     fs::path modelPath(path);
 
-    l->info(fmt::format("Loading model: {:s}", modelPath.generic_string()));
+    l->info(fmt::format("Loading obj model: {:s}", modelPath.generic_string()));
     tinyobj::ObjReader objReader;
     tinyobj::ObjReaderConfig reader_config;
     reader_config.triangulate = true;
@@ -141,6 +142,43 @@ void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
 
             index_offset += 3;
         }
+    }
+}
+
+void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
+    auto l = SLog::get();
+
+    l->info(fmt::format("Loading glb model: {:s}", path));
+    tinygltf::Model modal;
+    tinygltf::TinyGLTF loader;
+    string err;
+    string warn;
+
+    if (!loader.LoadBinaryFromFile(&modal, &err, &warn, path)) {
+        l->error("failed to parse binary glb file");
+        return;
+    }
+    if (!err.empty()) {
+        l->error(fmt::format("Load glb file error: {:s}", err));
+        return;
+    }
+    if (!warn.empty()) {
+        l->warn(warn);
+    }
+
+    // TODO: implement the rest
+//    for (const auto &mesh: modal.meshes) {
+//    }
+}
+
+void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
+    if (path.ends_with(".obj")) {
+        loadObj(path, upAxis);
+    } else if (path.ends_with(".glb")) {
+        loadGlb(path, upAxis);
+    } else {
+        auto l = SLog::get();
+        l->error("unrecognised model format");
     }
 }
 

@@ -141,6 +141,9 @@ bool Engine::prepareScene() {
     shared_ptr<TweenComponent> tweenComp;
     shared_ptr<MeshComponent> meshComp;
 
+    staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
+    addActor(staticActor);
+
     // viking room
     emptyActor = make_shared<EmptyActor>();
     addActor(emptyActor);
