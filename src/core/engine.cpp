@@ -105,6 +105,9 @@ void Engine::updateGame() {
             actor->update(deltaTime);
         }
 
+        // update physic
+        _physicSystem->update(deltaTime);
+
         // Check dead vector and remove
         for (auto actorIter = _actorList.begin(); actorIter != _actorList.end();) {
             if (actorIter->get()->getState() == Actor::EDead) {
@@ -131,39 +134,52 @@ void Engine::addActor(const shared_ptr<Actor>& actor) {
 bool Engine::prepareScene() {
     _camActor = make_shared<CameraActor>();
     addActor(_camActor);
+    _camActor->setLocalPosition(glm::vec3{0, 0.5, 3});
 
-    shared_ptr<Actor> s;
+    shared_ptr<Actor> staticActor;
+    shared_ptr<EmptyActor> emptyActor;
     shared_ptr<TweenComponent> tweenComp;
+    shared_ptr<MeshComponent> meshComp;
 
     // viking room
-    s = make_shared<StaticActor>("assets/models/viking_room.obj", "assets/textures/viking_room.png");
-    addActor(s);
+    emptyActor = make_shared<EmptyActor>();
+    addActor(emptyActor);
+    meshComp = make_shared<MeshComponent>(emptyActor);
+    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
+    meshComp->loadDiffuseTexture("assets/textures/viking_room.png");
+    meshComp->uploadToGpu();
+    emptyActor->addComponent(meshComp);
 
-    // moving cube
-    s = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
-    addActor(s);
-    tweenComp = make_shared<TweenComponent>(s);
+    // moving cube with a parent
+    emptyActor = make_shared<EmptyActor>();
+    addActor(emptyActor);
+    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
+    staticActor = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
+    addActor(staticActor);
+    staticActor->setParent(emptyActor);
+    tweenComp = make_shared<TweenComponent>(staticActor);
     tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
-    s->addComponent(tweenComp);
+    staticActor->addComponent(tweenComp);
 
     // procedural floor plane
-    auto customAct = make_shared<EmptyActor>();
-    addActor(customAct);
-    auto procMeshComp = make_shared<MeshComponent>(customAct);
-    procMeshComp->generatedSquarePlane(2);
-    procMeshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
-    procMeshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
-    procMeshComp->uploadToGpu();
-    customAct->addComponent(procMeshComp);
-    customAct->setPosition(glm::vec3{0, 0, -1});
+    emptyActor = make_shared<EmptyActor>();
+    addActor(emptyActor);
+    meshComp = make_shared<MeshComponent>(emptyActor);
+    meshComp->generatedSquarePlane(2);
+    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
+    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
+    meshComp->uploadToGpu();
+    emptyActor->addComponent(meshComp);
+    emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
+    emptyActor->setRotation(glm::angleAxis(glm::radians(-45.0f), glm::vec3{1, 0, 0}));
 
+    // Light
     auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
-    lightAct->setPosition(glm::vec3{0, 5, 0});
-    tweenComp = make_shared<TweenComponent>(lightAct);
-    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(3, glm::vec3{-5, 0, 0});
-    lightAct->addComponent(tweenComp);
-
     addActor(lightAct);
+    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
+    tweenComp = make_shared<TweenComponent>(lightAct);
+    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
+    lightAct->addComponent(tweenComp);
 
     return true;
 }

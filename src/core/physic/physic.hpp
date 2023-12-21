@@ -15,7 +15,15 @@ public:
     bool initialise();
     void shutdown();
 
+    void update(float deltaTime);
+
+    // exposed methods
+
 private:
+    // update related
+    const float _fixedUpdateStepS = 1.0f / 60.0f;
+    float _accumUpdateS = 0;
+
     // for temp alloc, rn fix it at 10MB
     unique_ptr<JPH::TempAllocatorImpl> _joltAlloc;
     unique_ptr<JPH::JobSystemThreadPool> _jobSystem;

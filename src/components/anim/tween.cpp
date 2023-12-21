@@ -47,7 +47,7 @@ TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
         glm::vec3 pos = getOwner()->getLocalPosition();
         pos += offSet * actualPerc;
-        getOwner()->setPosition(pos);
+        getOwner()->setLocalPosition(pos);
     };
     _animSeqList.emplace_back(std::move(seqPtr));
 

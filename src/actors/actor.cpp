@@ -10,10 +10,11 @@ Actor::~Actor() {
 
 void Actor::update(float deltaTime) {
     if (_state == EActive) {
-        computeWorldTransform();
         updateComponents(deltaTime);
         updateActor(deltaTime);
-        computeWorldTransform();
+        for (const auto &comp: _components) {
+            comp->postUpdate();
+        }
     }
 }
 
@@ -45,16 +46,45 @@ void Actor::removeComponent(const shared_ptr<Component>& component) {
     }
 }
 
-void Actor::computeWorldTransform() {
-    if (_recomputeWorldTransform) {
-        _recomputeWorldTransform = false;
-
-        // Scale, then rotate, then translate
-        _worldTransform = glm::translate(glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale, _position);
-
-        // Inform components world transform updated
-        for (const auto &comp: _components) {
-            comp->onUpdateWorldTransform();
-        }
+void Actor::setParent(const shared_ptr<Actor>& parent) {
+    if (!_parentPtr.expired()) {
+        // remove original parent reference
+        _parentPtr.lock()->removeChild(getSelf().lock());
     }
+    _parentPtr = parent;
+    parent->addChild(getSelf().lock());
+
+    // TODO: if update priority is set, update along
+}
+
+void Actor::addChild(const shared_ptr<Actor>& child) {
+    _childrenPtrList.insert(child);
+}
+
+void Actor::removeChild(const shared_ptr<Actor>& child) {
+    auto iter = std::find(_childrenPtrList.begin(), _childrenPtrList.end(), child);
+    if (iter != _childrenPtrList.end()) {
+        _childrenPtrList.erase(iter);
+    }
+}
+
+const glm::mat4 &Actor::getLocalTransform() {
+    if (_recomputeLocalTransform) {
+        _recomputeLocalTransform = false;
+        // Scale, then rotate, then translate
+        _localTransform = glm::translate(glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale, _position);
+    }
+    return _localTransform;
+}
+
+glm::mat4 Actor::getWorldTransform() {
+    // TODO: optimise into cache
+    glm::mat4 worldTransform = getLocalTransform();
+    weak_ptr<Actor> parentPtr = _parentPtr;
+    while (!parentPtr.expired()) {
+        auto p = parentPtr.lock();
+        worldTransform = p->getLocalTransform() * worldTransform;
+        parentPtr = p->getParent();
+    }
+    return worldTransform;
 }

@@ -5,5 +5,7 @@
 #include "components/component.hpp"
 
 class RigidBodyComponent : public Component {
+public:
 
+private:
 };

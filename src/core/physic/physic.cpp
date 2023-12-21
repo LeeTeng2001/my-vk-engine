@@ -42,3 +42,24 @@ void PhysicSystem::shutdown() {
     delete JPH::Factory::sInstance;
     JPH::Factory::sInstance = nullptr;
 }
+
+void PhysicSystem::update(float deltaTime) {
+    _accumUpdateS += deltaTime;
+
+    int totalCollisionSteps = 0;
+    while (_accumUpdateS < _fixedUpdateStepS) {
+        _accumUpdateS -= _fixedUpdateStepS;
+        totalCollisionSteps++;
+    }
+    if (totalCollisionSteps == 0) {
+        return;
+    }
+
+    if (totalCollisionSteps > 1) {
+        auto l = SLog::get();
+        l->warn(fmt::format("collision step is larger than 1, drifting: {:d}", totalCollisionSteps));
+    }
+
+    // update
+    _joltPhysicSystem.Update(_fixedUpdateStepS, totalCollisionSteps, _joltAlloc.get(), _jobSystem.get());
+}

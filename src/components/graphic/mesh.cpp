@@ -5,6 +5,7 @@
 #include "actors/actor.hpp"
 #include "core/renderer/renderer.hpp"
 #include "mesh.hpp"
+#include "utils/algo.hpp"
 
 MeshComponent::MeshComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
 }
@@ -15,13 +16,13 @@ MeshComponent::~MeshComponent() {
     }
 }
 
-void MeshComponent::onUpdateWorldTransform() {
+void MeshComponent::postUpdate() {
     if (_modelState != nullptr) {
          _modelState->worldTransform = getOwner()->getWorldTransform();
     }
 }
 
-void MeshComponent::loadModal(const string &path) {
+void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
     fs::path modelPath(path);
 
@@ -47,6 +48,8 @@ void MeshComponent::loadModal(const string &path) {
     l->info(fmt::format("model shapes: {:d}", shapes.size()));
     l->info(fmt::format("model materials: {:d}", materials.size()));
 
+    array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
+
     // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
     // Loop over shapes
     // By default obj is already in counter-clockwise order
@@ -61,9 +64,9 @@ void MeshComponent::loadModal(const string &path) {
 
                 // access to vertex
                 tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
-                tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
-                tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
-                tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+                tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+axisIdxOrder[0]];
+                tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+axisIdxOrder[1]];
+                tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+axisIdxOrder[2]];
 
                 vertex.pos.x = vx;
                 vertex.pos.y = vy;
@@ -74,9 +77,9 @@ void MeshComponent::loadModal(const string &path) {
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
-                    tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
-                    tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
-                    tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+                    tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+axisIdxOrder[0]];
+                    tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+axisIdxOrder[1]];
+                    tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+axisIdxOrder[2]];
                     vertex.normal.x = nx;
                     vertex.normal.y = ny;
                     vertex.normal.z = nz;

@@ -14,12 +14,11 @@ public:
     explicit Component(weak_ptr<Actor> owner, int updateOrder = 100);
     virtual ~Component();
 
-    // update related
+    // calculate new state
     virtual void update(float deltaTime) {};
+    // post update happens when all actor update and components are processed, should only push result and not calculate new result
+    virtual void postUpdate() {};
     virtual void processInput(const struct InputState& keyState) {};
-
-    // Notify when parent's being updated
-    virtual void onUpdateWorldTransform() {};
 
     // Getter
     [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner.lock(); }

@@ -17,6 +17,7 @@ You might want to put SDL3.dll in the root directory
 - private class member prefix with _
 
 ## Ideas
+- Post processing: LUT, Viginette, Bloom
 - node inheritance actors, world transform & local transform
 - animation system
 - lookup key actor, components, not vector

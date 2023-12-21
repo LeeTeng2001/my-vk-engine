@@ -8,11 +8,11 @@ public:
     explicit MeshComponent(weak_ptr<Actor> owner, int updateOrder = 10);
     ~MeshComponent() override;
 
-    void onUpdateWorldTransform() override;
+    void postUpdate() override;
 
     // TODO: right now be like  this
     // can either load modal or procedurally generate one
-    void loadModal(const std::string &path);
+    void loadModal(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
     void generatedSquarePlane(float sideLength);
 
     void loadDiffuseTexture(const std::string &path);

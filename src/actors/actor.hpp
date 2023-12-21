@@ -1,11 +1,15 @@
 #pragma once
 
-#include "utils/common.hpp"
 #include <set>
+#include <unordered_set>
 #include <glm/gtx/euler_angles.hpp>
+
+#include "utils/common.hpp"
 
 class Component;
 class Engine;
+
+// TODO: actor update priority order, maybe child inherit parent +1?
 
 class Actor {
 public:
@@ -31,10 +35,11 @@ public:
     virtual void actorInput(const struct InputState& keyState) {};
 
     // Setter
-    void setPosition(const glm::vec3& pos) { _position = pos; _recomputeWorldTransform = true; }
-    void setScale(float scale) { _scale = scale; _recomputeWorldTransform = true; }
-    void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeWorldTransform = true; }
+    void setLocalPosition(const glm::vec3& pos) { _position = pos; _recomputeLocalTransform = true; }
+    void setScale(float scale) { _scale = scale; _recomputeLocalTransform = true; }
+    void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeLocalTransform = true; }
     void setState(State state) { _state = state; }
+    void setParent(const shared_ptr<Actor> &parent);
 
     // Getter
     [[nodiscard]] const glm::vec3& getLocalPosition() const { return _position; }
@@ -44,25 +49,34 @@ public:
     [[nodiscard]] float getScale() const { return _scale; }
     [[nodiscard]] const glm::quat& getRotation() const { return _rotation; }
     [[nodiscard]] State getState() const { return _state; }
-    [[nodiscard]] const glm::mat4& getWorldTransform() const { return _worldTransform; }
+    [[nodiscard]] const glm::mat4& getLocalTransform();
+    [[nodiscard]] glm::mat4 getWorldTransform();
     [[nodiscard]] shared_ptr<Engine> getEngine() { return _engine; }
     [[nodiscard]] weak_ptr<Actor> getSelf() { return _selfPtr; }
+    [[nodiscard]] weak_ptr<Actor> getParent() { return _parentPtr; }
 
     // Helper function
-    void computeWorldTransform();
     void addComponent(const shared_ptr<Component>& component);
     void removeComponent(const shared_ptr<Component>& component);
 
 private:
+    void addChild(const shared_ptr<Actor> &child);
+    void removeChild(const shared_ptr<Actor> &child);
+
     // Actor state & components
     State _state = EActive;
-    bool _recomputeWorldTransform = true;  // when our transform change we need to recalculate
+    bool _recomputeLocalTransform = true;  // when our transform change we need to recalculate
     std::multiset<shared_ptr<Component>> _components;
     shared_ptr<Engine> _engine;
     weak_ptr<Actor> _selfPtr;
 
+    // Hierarchy
+    weak_ptr<Actor> _parentPtr;
+    std::unordered_set<shared_ptr<Actor>> _childrenPtrList;
+
     // Transform related
-    glm::mat4 _worldTransform{};
+    glm::mat4 _cacheWorldTransform{};
+    glm::mat4 _localTransform{};
     glm::vec3 _position{};
     glm::quat _rotation = glm::angleAxis(glm::radians(0.f), glm::vec3(0.f, 1.f, 0.f));
     float _scale = 1;

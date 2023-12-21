@@ -35,6 +35,6 @@ void MoveComponent::update(float deltaTime) {
         glm::vec3 pos = getOwner()->getLocalPosition();
         pos += getOwner()->getForward() * _forwardSpeed * deltaTime;
         pos += getOwner()->getRight() * _strafeSpeed * deltaTime;
-        getOwner()->setPosition(pos);
+        getOwner()->setLocalPosition(pos);
     }
 }
