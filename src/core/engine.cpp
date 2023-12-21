@@ -171,7 +171,7 @@ bool Engine::prepareScene() {
     meshComp->uploadToGpu();
     emptyActor->addComponent(meshComp);
     emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
-    emptyActor->setRotation(glm::angleAxis(glm::radians(-45.0f), glm::vec3{1, 0, 0}));
+    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
 
     // Light
     auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});

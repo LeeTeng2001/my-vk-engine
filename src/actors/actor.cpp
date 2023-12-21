@@ -72,7 +72,7 @@ const glm::mat4 &Actor::getLocalTransform() {
     if (_recomputeLocalTransform) {
         _recomputeLocalTransform = false;
         // Scale, then rotate, then translate
-        _localTransform = glm::translate(glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale, _position);
+        _localTransform = glm::translate(glm::identity<glm::mat4>(), _position) * glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale;
     }
     return _localTransform;
 }
