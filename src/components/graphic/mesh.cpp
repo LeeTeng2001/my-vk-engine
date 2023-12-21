@@ -28,6 +28,7 @@ void MeshComponent::loadModal(const string &path) {
     l->info(fmt::format("Loading model: {:s}", modelPath.generic_string()));
     tinyobj::ObjReader objReader;
     tinyobj::ObjReaderConfig reader_config;
+    reader_config.triangulate = true;
     if (!objReader.ParseFromFile(modelPath.generic_string(), reader_config)) {
         l->error("load model return error");
         if (!objReader.Error().empty()) {
@@ -135,12 +136,6 @@ void MeshComponent::loadModal(const string &path) {
                 _modelData.vertex[index_offset+i].bitangents = bitangent;
             }
 
-            // By default obj uses counter-clockwise face
-            // since, our front face is counter clockwise, and the
-            // viewport get flipped during projection transformation
-            // we need to swap front faces to clockwise in world space
-            std::swap(_modelData.vertex[index_offset+1], _modelData.vertex[index_offset+2]);
-
             index_offset += 3;
         }
     }
@@ -150,12 +145,12 @@ void MeshComponent::generatedSquarePlane(float sideLength) {
     // generate square plane facing upward
     float hs = sideLength / 2;
     // pos, normal, color, tex, tangent, bitangent
-    // clockwise, will be flipped by cam projection
+    // counter-clockwise
     _modelData.vertex = {
-            {{-hs, 0, hs},  {0, 1, 0}, {0, 0, 0}, {0, 0}, {1,0,0}, {0,0,-1}},
-            {{hs, 0, hs},   {0, 1, 0},  {1, 0, 0}, {1, 0},{1,0,0}, {0,0,-1}},
-            {{-hs, 0, -hs}, {0, 1, 0},{0, 1, 0}, {0, 1},  {1,0,0}, {0,0,-1}},
-            {{hs, 0, -hs},  {0, 1, 0}, {1, 1, 0}, {1, 1}, {1,0,0}, {0,0,-1}},
+            {{-hs, hs, 0},  {0, 0, 1}, {0, 0, 0}, {0, 0},   {1,0,0}, {0,1,0}},
+            {{hs, hs, 0},   {0, 0, 1},  {1, 0, 0}, {1, 0},  {1,0,0}, {0,1,0}},
+            {{-hs, -hs, 0}, {0, 0, 1},{0, 1, 0}, {0, 1},    {1,0,0}, {0,1,0}},
+            {{hs, -hs, 0},  {0, 0, 1}, {1, 1, 0}, {1, 1},   {1,0,0}, {0,1,0}},
     };
     _modelData.indices = {
             0, 2, 1,

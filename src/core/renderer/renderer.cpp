@@ -13,9 +13,6 @@
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
-constexpr int MRT_SAMPLE_SIZE = 2;
-constexpr int MRT_OUT_SIZE = 4;
-
 bool Renderer::initialise(RenderConfig renderConfig) {
     auto l = SLog::get();
     _renderConf = renderConfig;
@@ -351,6 +348,7 @@ bool Renderer::initRenderPass() {
     vector<VkAttachmentReference> colorAttachmentRefList{};
 
     for (int i = 1; i < MRT_OUT_SIZE; ++i) {
+        colorAttachment.format = _imgInfoList[i].format;
         allAttachments.push_back(colorAttachment);
         colorAttachmentRef.attachment = i;
         colorAttachmentRefList.push_back(colorAttachmentRef);
@@ -455,28 +453,27 @@ bool Renderer::initRenderResources() {
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     // one of the unused A channel can be used to store specular/bump highlight
     // MRT: depth, albedo, normal, position
-    std::array<ImgResource, MRT_OUT_SIZE> imgInfoList = {};
     _mrtClearColor.resize(MRT_OUT_SIZE);
-    imgInfoList[0].format = _depthFormat;
-    imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imgInfoList[0].extent = _swapChainExtent;
-    imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    _imgInfoList[0].format = _depthFormat;
+    _imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    _imgInfoList[0].extent = _swapChainExtent;
+    _imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     _mrtClearColor[0].color = {};
     _mrtClearColor[0].depthStencil.depth = 1.0f;
-    imgInfoList[1].format = VK_FORMAT_R8G8B8A8_UNORM;
-    imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imgInfoList[1].extent = _swapChainExtent;
-    imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _imgInfoList[1].format = VK_FORMAT_R8G8B8A8_UNORM;
+    _imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    _imgInfoList[1].extent = _swapChainExtent;
+    _imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     _mrtClearColor[1].color =  {{0.2f, 0.2f, 0.5f, 1.0f}};
-    imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imgInfoList[2].extent = _swapChainExtent;
-    imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    _imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    _imgInfoList[2].extent = _swapChainExtent;
+    _imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     _mrtClearColor[2].color =  {{0, 0, 0, 1.0f}};
-    imgInfoList[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
-    imgInfoList[3].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    imgInfoList[3].extent = _swapChainExtent;
-    imgInfoList[3].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    _imgInfoList[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
+    _imgInfoList[3].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    _imgInfoList[3].extent = _swapChainExtent;
+    _imgInfoList[3].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     _mrtClearColor[3].color =  {{0, 0, 0, 1.0f}};
 
     // allocate from GPU LOCAL memory
@@ -485,7 +482,7 @@ bool Renderer::initRenderResources() {
     localAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        for (const auto &imgInfo: imgInfoList) {
+        for (const auto &imgInfo: _imgInfoList) {
             auto newImgResource = new ImgResource(imgInfo);
 
             // create image, image view, sampler for each of the resources
@@ -1036,7 +1033,7 @@ void Renderer::beginRecordCmd() {
                             _flightResources[_curFrameInFlight]->compDescSetList.data(), 0, nullptr);
 
     // Draw imgui
-    ImGui::Text("World coord: up +y, right +x, forward +z");
+    ImGui::Text("World coord: up +y, right +x, forward -z");
 }
 
 void Renderer::drawAllModel() {

@@ -2,7 +2,10 @@ You might want to put SDL3.dll in the root directory
 
 ## Introduction
 - Face is rendered in counter-clockwise order
-- World space & camera space is up:+y, right: +x, forward:+z
+- World space & camera space is up:+y, right: +x, forward:-z
+- Clip space: up:-y, right: +x, forward:+z
+- Front-Face: counter-clockwise
+- Tex coord: top left 0,0, right +x, down +y
 - Other than Vulkan SDK, every other dependencies are managed as submodules
 
 ## Code style

@@ -9,6 +9,8 @@
 constexpr float MOVEMENT_SPEED = 2.0;
 constexpr float HOR_ANGLE_SPEED = 30;
 constexpr float VERT_ANGLE_SPEED = 10;
+constexpr float MIN_ANGLE_PITCH = -85;
+constexpr float MAX_ANGLE_PITCH = 85;
 
 void CameraActor::delayInit() {
     _moveComp = make_shared<MoveComponent>(getSelf());
@@ -16,6 +18,25 @@ void CameraActor::delayInit() {
 }
 
 void CameraActor::updateActor(float deltaTime) {
+    // set new camera rotation
+    if (_moveComp->getEnabled()) {
+        glm::vec2 mouseOffset = getEngine()->getInputSystem()->getState().Mouse.getOffsetPosition();
+        if (mouseOffset.x < 20 && mouseOffset.y < 20) {
+            _yawAngle = (_yawAngle - mouseOffset.x * HOR_ANGLE_SPEED * deltaTime);
+            _pitchAngle = glm::clamp(_pitchAngle - mouseOffset.y * VERT_ANGLE_SPEED * deltaTime,
+                                     MIN_ANGLE_PITCH, MAX_ANGLE_PITCH);
+            while (_yawAngle > 360) {
+                _yawAngle -= 360;
+            }
+            while (_yawAngle < 0) {
+                _yawAngle += 360;
+            }
+
+            // set rotation, yaw first then pitch
+            setRotation(glm::eulerAngleYX(glm::radians(_yawAngle), glm::radians(_pitchAngle)));
+        }
+    }
+
     // Compute new camera from this actor
     getEngine()->getRenderer()->setViewMatrix(getCamViewTransform());
     getEngine()->getRenderer()->setProjectionMatrix(getPerspectiveTransformMatrix());
@@ -32,8 +53,6 @@ void CameraActor::updateActor(float deltaTime) {
 void CameraActor::actorInput(const struct InputState &state) {
     float forwardSpeed = 0.0f;
     float strafSpeed = 0.0f;
-    float angularSpeed = 0.0f;
-    float pitchSpeed = 0.0f;
 
     // wasd movement
     if (state.Keyboard.getKeyState(SDL_SCANCODE_P) == EPressed) {
@@ -54,16 +73,8 @@ void CameraActor::actorInput(const struct InputState &state) {
         strafSpeed += MOVEMENT_SPEED;
     }
 
-    glm::vec2 mouseOffset = state.Mouse.getOffsetPosition();
-    if (mouseOffset.x < 20 && mouseOffset.y < 20) {
-        angularSpeed = mouseOffset.x * HOR_ANGLE_SPEED;
-        pitchSpeed = mouseOffset.y * VERT_ANGLE_SPEED;
-    }
-
     _moveComp->setForwardSpeed(forwardSpeed);
     _moveComp->setStrafeSpeed(strafSpeed);
-    _moveComp->setHorAngularSpeed(angularSpeed);
-    _moveComp->setVertAngularSpeed(pitchSpeed);
 }
 
 
@@ -77,22 +88,17 @@ glm::mat4 CameraActor::getCamViewTransform() {
     glm::vec3 upVec(0, 1, 0);
 
     // calculate forward vector from two rotation angle, already normalised
-    // formula from euler angle on three axis
-//    glm::vec3 lookAtDir{
-//            glm::sin(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
-//            glm::sin(glm::radians(camPitchAngle)),
-//            glm::cos(glm::radians(camYawAngle)) * glm::cos(glm::radians(camPitchAngle)),
-//    };
-    glm::vec3 lookAtDir = glm::normalize(getForward());
+    glm::vec3 lookAtDir = getForward();
 
-    // use cross product to determine cam base axis
-    glm::vec3 right = glm::normalize(glm::cross(upVec, lookAtDir));
-    glm::vec3 camUp = glm::normalize(glm::cross(lookAtDir, right));
+    // use cross product to determine cam base axis, RH rules
+    glm::vec3 right = glm::normalize(glm::cross(lookAtDir, upVec));
+    glm::vec3 camUp = glm::normalize(glm::cross(right, lookAtDir));
+    // NOTICE z is inverted cuz we're constructing new basis, and -z as new basis of inverse lookAt
     glm::mat4 camMatrix{
-            glm::vec4{right.x, camUp.x, lookAtDir.x, 0},
-            glm::vec4{right.y, camUp.y, lookAtDir.y, 0},
-            glm::vec4{right.z, camUp.z, lookAtDir.z, 0},
-            glm::vec4{-glm::dot(getLocalPosition(), right), -glm::dot(getLocalPosition(), camUp), -glm::dot(getLocalPosition(), lookAtDir), 1},
+            glm::vec4{right.x, camUp.x, -lookAtDir.x, 0},
+            glm::vec4{right.y, camUp.y, -lookAtDir.y, 0},
+            glm::vec4{right.z, camUp.z, -lookAtDir.z, 0},
+            glm::vec4{-glm::dot(getLocalPosition(), right), -glm::dot(getLocalPosition(), camUp), glm::dot(getLocalPosition(), lookAtDir), 1},
     };  // construct new axis, where 4th arg is the translation
     // REMEMBER translation is the projection of the lenght onto the NEW axis, so
     // you can't just straight up use position.x!! Must be projected into the new axis
@@ -107,6 +113,15 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     // TODO: refactor, should probably cache the value
     const int viewWidth = getEngine()->getRenderer()->getRenderConfig().windowWidth;
     const int viewHeight = getEngine()->getRenderer()->getRenderConfig().windowHeight;
+
+    // transform world coord to view coord
+    // World: up:+y, right: +x, forward:-z
+    // Clip:  up:-y, right: +x, forward:+z
+    glm::mat4 viewSpaceTransform{1};
+    viewSpaceTransform[0][0] = 1;
+    viewSpaceTransform[1][1] = -1;
+    viewSpaceTransform[2][2] = -1;
+    viewSpaceTransform[3][3] = 1;
 
     // 2. use similar triangle to transform to near plane
     // Map z through a non-linear transformation but preserving depth ordering
@@ -129,9 +144,9 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
     float nearWidth = nearHeight * aspectRatio;
     glm::mat4 sca(1);
     sca[0][0] = 2.0f / float(nearWidth);
-    sca[1][1] = -2.0f / float(nearHeight);  // inverse to clip space y
+    sca[1][1] = 2.0f / float(nearHeight);  // inverse to clip space y
     sca[2][2] = 1.0f / float(_farDepth);
-    projection = sca * projection;
+    projection = sca * projection * viewSpaceTransform;
 
     return projection;
 }

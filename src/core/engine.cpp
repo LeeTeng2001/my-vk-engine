@@ -155,7 +155,7 @@ bool Engine::prepareScene() {
     procMeshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
     procMeshComp->uploadToGpu();
     customAct->addComponent(procMeshComp);
-    customAct->setPosition(glm::vec3{0, -0.5, 0});
+    customAct->setPosition(glm::vec3{0, 0, -1});
 
     auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
     lightAct->setPosition(glm::vec3{0, 5, 0});

@@ -38,8 +38,8 @@ public:
 
     // Getter
     [[nodiscard]] const glm::vec3& getLocalPosition() const { return _position; }
-    [[nodiscard]] glm::vec3 getForward() const { return glm::mat4_cast(_rotation) * glm::vec4(0, 0, 1, 1); };
-    [[nodiscard]] glm::vec3 getRight() const { return glm::normalize(glm::cross(glm::vec3{0, 1, 0}, getForward())); };
+    [[nodiscard]] glm::vec3 getForward() const { return glm::mat4_cast(_rotation) * glm::vec4(0, 0, -1, 1); };
+    [[nodiscard]] glm::vec3 getRight() const { return glm::normalize(glm::cross(getForward(), glm::vec3{0, 1, 0})); };
     [[nodiscard]] glm::vec3 getUp() const { return glm::normalize(glm::cross(getRight(), getForward())); };
     [[nodiscard]] float getScale() const { return _scale; }
     [[nodiscard]] const glm::quat& getRotation() const { return _rotation; }
@@ -50,7 +50,6 @@ public:
 
     // Helper function
     void computeWorldTransform();
-//    void RotateToNewForward(const Vector3& forward);
     void addComponent(const shared_ptr<Component>& component);
     void removeComponent(const shared_ptr<Component>& component);
 

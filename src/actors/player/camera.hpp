@@ -24,5 +24,9 @@ private:
     float _farDepth;
     float _fovYInAngle;
 
+    // rotation, look to z
+    float _pitchAngle = 0; // head updown [-85, 85], ++ up
+    float _yawAngle = 0; // head rightleft [0, 360], ++ to the right, clockwise
+
     shared_ptr<MoveComponent> _moveComp;
 };

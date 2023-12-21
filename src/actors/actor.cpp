@@ -1,6 +1,7 @@
 #include "actor.hpp"
 #include "components/component.hpp"
 #include "core/input/input_system.hpp"
+#include "glm/gtx/string_cast.hpp"
 
 Actor::~Actor() {
     // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
@@ -57,22 +58,3 @@ void Actor::computeWorldTransform() {
         }
     }
 }
-
-//void Actor::RotateToNewForward(const Vector3 &forward) {
-//    // Figure out difference between original (unit x) and new
-//    float dot = Vector3::Dot(Vector3::UnitX, forward);
-//    float angle = Math::Acos(dot);
-//    if (dot > 0.9999f) {
-//        // Facing down X
-//        SetRotation(Quaternion::Identity);
-//    }
-//    else if (dot < -0.9999f) {
-//        // Facing down -X
-//        SetRotation(Quaternion(Vector3::UnitZ, Math::Pi));
-//    } else {
-//        // Rotate about axis from cross product
-//        Vector3 axis = Vector3::Cross(Vector3::UnitX, forward);
-//        axis.Normalize();
-//        SetRotation(Quaternion(axis, angle));
-//    }
-//}

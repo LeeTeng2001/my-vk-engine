@@ -7,6 +7,9 @@
 // for vulkan renderer?
 // this is not a general renderer!
 
+constexpr int MRT_SAMPLE_SIZE = 2;
+constexpr int MRT_OUT_SIZE = 4;
+
 // resources in a single flight
 struct FlightResource {
     // MRT
@@ -106,6 +109,9 @@ private:
     VkDevice _device{};
     VkSurfaceKHR _surface{};
     VmaAllocator _allocator{};  // Memory allocator by gpuopen
+
+    // defer info
+    std::array<ImgResource, MRT_OUT_SIZE> _imgInfoList = {};
 
     // props
     VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures{};
