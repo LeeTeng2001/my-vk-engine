@@ -74,8 +74,6 @@ void drawSobet() {
     if (sobel.r > SOBEL_THRESHOLD || sobel.g > SOBEL_THRESHOLD || sobel.b > SOBEL_THRESHOLD) {
         outColor = SOBEL_OUTLINE_COLOR;
     } else {
-        outColor = texture(colorSampler, inUV);
-
         vec3 fragPos = texture(positionSampler, inUV).rgb;
         vec3 viewDir = normalize(ubo.camPos.xyz - fragPos);
         vec3 normal = texture(normalSampler, inUV).rgb;
@@ -83,9 +81,11 @@ void drawSobet() {
 
         // Skip for sky
         if (normal == vec3(0,0,0)) {
+            outColor = texture(colorSampler, inUV);
             return;
         }
 
+        float brightness = 0;
         bool shouldShadeBlack = true;
         for (int i = -1; i < LIGHT_COUNT; ++i) {
             // early stop condition
@@ -99,11 +99,18 @@ void drawSobet() {
             if (i >= 0) { lightDir = normalize(ubo.lights[i].position.xyz - fragPos); }
             else { lightDir = -ubo.globalDirLight.direction.xyz; }
             vec3 halfwayDir = normalize(lightDir + viewDir);
-            float brightness = max(dot(normal, lightDir), 0.0);
+            // ambient specular
+            brightness += max(dot(normal, lightDir), 0.0);
             brightness += SPEC_STRENGTH * pow(max(dot(normal, halfwayDir), 0.0), SPEC_SHININESS);
-            shouldShadeBlack = shouldShadeBlack && shouldProdecuralMobius(inUV * textureSize(colorSampler, 0), brightness, noiseVal);
         }
-        if (shouldShadeBlack) { outColor = vec4(0, 0, 0, 0); };
+
+        // TODO: to make it more believable, mesh should stay the same based on rotation
+
+        if (shouldProdecuralMobius(inUV * textureSize(colorSampler, 0), brightness, noiseVal)) {
+            outColor = vec4(0, 0, 0, 0);
+        } else {
+            outColor = clamp(brightness, 0.4, 1) * texture(colorSampler, inUV);
+        }
     }
 }
 

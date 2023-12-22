@@ -1,6 +1,8 @@
 #define PI 3.14159265
 #define LINE_WIDTH 1.5
 #define LINE_SEPERATION_WIDTH 10.0
+#define MOBIUS_HIGHLIGHT 0.9
+#define MOBIUS_HIGHLIGHT_THRESHOLD 0.001
 
 float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -20,6 +22,11 @@ float smoothwiggle(float t, float frequency, float seed) {
 bool shouldProdecuralMobius(vec2 screenUv, float lightPerc, float noise) {
     // fragCoord += SOBEL_WIGGLE_FACTOR * smoothwiggle(uv.x + uv.y, 50.0, 128.0);
     vec2 positionInBlock = mod(screenUv + noise, LINE_WIDTH + LINE_SEPERATION_WIDTH);
+
+//    // check for special light perc
+//    if (abs(lightPerc - MOBIUS_HIGHLIGHT) < MOBIUS_HIGHLIGHT_THRESHOLD) {
+//        return true;
+//    }
 
     if (lightPerc < 0.15) { // darkest, calculate distance to diag
         float distanceToDiagLine = mod(abs(screenUv.x + screenUv.y), LINE_WIDTH + LINE_SEPERATION_WIDTH / 2.5);

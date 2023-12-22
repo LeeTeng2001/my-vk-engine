@@ -70,11 +70,11 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
             }
         }
         if (!mat.normal_texname.empty()) {
-            matCpu.albedoTexture.path = mat.normal_texname;
-            matCpu.albedoTexture.stbRef = stbi_load(mat.normal_texname.c_str(), &matCpu.normalTexture.texWidth, &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
-            matCpu.albedoTexture.texChannels = 4;
-            if (!matCpu.albedoTexture.stbRef) {
-                l->error(fmt::format("failed to load diffuse texture at path: {:s}", mat.normal_texname));
+            matCpu.normalTexture.path = mat.normal_texname;
+            matCpu.normalTexture.stbRef = stbi_load(mat.normal_texname.c_str(), &matCpu.normalTexture.texWidth, &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
+            matCpu.normalTexture.texChannels = 4;
+            if (!matCpu.normalTexture.stbRef) {
+                l->error(fmt::format("failed to load normal texture at path: {:s}", mat.normal_texname));
             } else {
                 matCpu.info.setNormal();
             }
@@ -219,9 +219,52 @@ void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
         l->warn(warn);
     }
 
-    // TODO: implement the rest
-//    for (const auto &mesh: modal.meshes) {
-//    }
+    l->info(fmt::format("model shapes: {:d}", modal.meshes.size()));
+    l->info(fmt::format("model materials: {:d}", modal.materials.size()));
+
+    array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
+
+    // Upload materials info
+    vector<int> gpuMatId{};
+    for (const auto &gltfMat: modal.materials) {
+        MaterialCpu matCpu{};
+        matCpu.info.diffuse = glm::vec4{gltfMat.pbrMetallicRoughness.baseColorFactor[0],
+                                        gltfMat.pbrMetallicRoughness.baseColorFactor[1],
+                                        gltfMat.pbrMetallicRoughness.baseColorFactor[2], 1};
+        matCpu.info.emissive = glm::vec4{gltfMat.emissiveFactor[0], gltfMat.emissiveFactor[1], gltfMat.emissiveFactor[2], 1};
+
+        // Load texture if any
+        if (gltfMat.pbrMetallicRoughness.baseColorTexture.index != -1) {
+            matCpu.albedoTexture.path = modal.textures[gltfMat.pbrMetallicRoughness.baseColorTexture.index].name;
+            matCpu.albedoTexture.stbRef = stbi_load(matCpu.albedoTexture.path.c_str(), &matCpu.albedoTexture.texWidth, &matCpu.albedoTexture.texHeight, &matCpu.albedoTexture.texChannels, 4);
+            matCpu.albedoTexture.texChannels = 4;
+            if (!matCpu.albedoTexture.stbRef) {
+                l->error(fmt::format("failed to load diffuse texture at path: {:s}", matCpu.albedoTexture.path.c_str()));
+            } else {
+                matCpu.info.setColor();
+            }
+        }
+        if (gltfMat.normalTexture.index != -1) {
+            matCpu.normalTexture.path = modal.textures[gltfMat.normalTexture.index].name;
+            matCpu.normalTexture.stbRef = stbi_load(matCpu.normalTexture.path.c_str(), &matCpu.normalTexture.texWidth, &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
+            matCpu.normalTexture.texChannels = 4;
+            if (!matCpu.normalTexture.stbRef) {
+                l->error(fmt::format("failed to load normal texture at path: {:s}", matCpu.normalTexture.path.c_str()));
+            } else {
+                matCpu.info.setNormal();
+            }
+        }
+        // TODO: load ao, height, roughness into single image
+
+        gpuMatId.push_back(getOwner()->getEngine()->getRenderer()->createMaterial(matCpu));
+    }
+
+    ModelDataPartition curPartition{};
+    curPartition.materialId = -1;
+
+    // reference: https://github.com/SaschaWillems/Vulkan-glTF-PBR/blob/master/base/VulkanglTFModel.cpp
+    // TODO: implement rest
+//    modal.scenes[modal.defaultScene].
 }
 
 void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {

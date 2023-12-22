@@ -152,7 +152,7 @@ bool Engine::prepareScene() {
 //    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
 //    meshComp->uploadToGpu();
 //    emptyActor->addComponent(meshComp);
-//
+
 //    // moving cube with a parent
 //    emptyActor = make_shared<EmptyActor>();
 //    addActor(emptyActor);
