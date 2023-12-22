@@ -1,9 +1,14 @@
 #version 450
+#extension GL_GOOGLE_include_directive : enable
+
+#include "util.glsl"
 
 #define SOBEL_THRESHOLD 0.4
+#define SOBEL_OUTLINE_COLOR vec4(0, 0, 0, 1.0)
+#define SOBEL_WIGGLE_FACTOR 3  // higher is more wiggly
 #define LIGHT_COUNT 6
-#define SPEC_SHININESS 64  // higher is more subtle
-#define SPEC_STRENGTH 0.5  // higher contribute more
+#define SPEC_SHININESS 32  // higher is more subtle
+#define SPEC_STRENGTH 0.4  // higher contribute more
 
 layout (location = 0) in vec2 inUV;
 
@@ -20,15 +25,12 @@ struct PointLight {
 };
 
 struct DirectionalLight {
-    vec3 direction;
-    vec3 color;
+    vec4 direction;
+    vec4 color;
 };
 
-//struct MaterialInfo {
-//
-//};
-
 layout(set = 1, binding = 0) uniform UBO {
+    DirectionalLight globalDirLight;
     PointLight lights[LIGHT_COUNT];
     vec4 camPos;
 } ubo;
@@ -37,10 +39,6 @@ layout (push_constant) uniform PushConstantData {
     float sobelWidth;
     float sobelHeight;
 } pushC;
-
-float rand(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 // https://gist.github.com/Hebali/6ebfc66106459aacee6a9fac029d0115
 void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord) {
@@ -60,7 +58,11 @@ void make_kernel(inout vec4 n[9], sampler2D tex, vec2 coord) {
 void drawSobet() {
     // DRAW color texture with border with sobel filter
     // add some noise to the central position
-    vec2 uv_offset = rand(inUV) / 1.5 * vec2(pushC.sobelWidth, pushC.sobelHeight) / textureSize(normalSampler, 0);
+
+    // draw the smooth curve, this does some cheap smooth linear interpolation
+//    vec2 uv_offset = rand(inUV) / SOBEL_WIGGLE_FACTOR * vec2(pushC.sobelWidth, pushC.sobelHeight) / textureSize(normalSampler, 0);
+    float noiseVal = SOBEL_WIGGLE_FACTOR * smoothwiggle(inUV.x + (inUV.y * 0.7), 20, 128);
+    vec2 uv_offset = noiseVal * vec2(pushC.sobelWidth, pushC.sobelHeight) / textureSize(normalSampler, 0);
 
     vec4 n[9];
     make_kernel(n, normalSampler, inUV + uv_offset);
@@ -70,9 +72,38 @@ void drawSobet() {
     vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
     // The prominent edge will be bright R
     if (sobel.r > SOBEL_THRESHOLD || sobel.g > SOBEL_THRESHOLD || sobel.b > SOBEL_THRESHOLD) {
-        outColor = vec4(1, 1, 1, 1.0);
+        outColor = SOBEL_OUTLINE_COLOR;
     } else {
         outColor = texture(colorSampler, inUV);
+
+        vec3 fragPos = texture(positionSampler, inUV).rgb;
+        vec3 viewDir = normalize(ubo.camPos.xyz - fragPos);
+        vec3 normal = texture(normalSampler, inUV).rgb;
+//        vec2 objUv = vec2(texture(normalSampler, inUV).a, texture(positionSampler, inUV).a);
+
+        // Skip for sky
+        if (normal == vec3(0,0,0)) {
+            return;
+        }
+
+        bool shouldShadeBlack = true;
+        for (int i = -1; i < LIGHT_COUNT; ++i) {
+            // early stop condition
+            if (i != -1 && ubo.lights[i].colorAndRadius.rgb == vec3(0, 0, 0)) {
+                break;
+            }
+            // TODO: check for light distance
+
+            // brightness to determine line shading
+            vec3 lightDir;
+            if (i >= 0) { lightDir = normalize(ubo.lights[i].position.xyz - fragPos); }
+            else { lightDir = -ubo.globalDirLight.direction.xyz; }
+            vec3 halfwayDir = normalize(lightDir + viewDir);
+            float brightness = max(dot(normal, lightDir), 0.0);
+            brightness += SPEC_STRENGTH * pow(max(dot(normal, halfwayDir), 0.0), SPEC_SHININESS);
+            shouldShadeBlack = shouldShadeBlack && shouldProdecuralMobius(inUV * textureSize(colorSampler, 0), brightness, noiseVal);
+        }
+        if (shouldShadeBlack) { outColor = vec4(0, 0, 0, 0); };
     }
 }
 

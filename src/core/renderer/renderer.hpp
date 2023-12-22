@@ -7,7 +7,7 @@
 // for vulkan renderer?
 // this is not a general renderer!
 
-constexpr int MRT_SAMPLE_SIZE = 2;
+constexpr int MRT_SAMPLE_SIZE = 3;
 constexpr int MRT_OUT_SIZE = 4;
 
 // resources in a single flight
@@ -51,7 +51,8 @@ public:
     void draw();
 
     // data related
-    shared_ptr<ModalState> uploadAndPopulateModal(ModelData& modelData);
+    int createMaterial(MaterialCpu& materialCpu); // return material id
+    shared_ptr<ModalState> uploadModel(ModelDataCpu& modelData);
     void removeModal(const shared_ptr<ModalState>& modelData);
 
     // setter
@@ -59,6 +60,7 @@ public:
     void setProjectionMatrix(const glm::mat4 &projectionTransform) { _camProjectionTransform = projectionTransform; };
     void setCamPos(const glm::vec3 &pos) { _nextCompUboData.camPos = glm::vec4{pos, 1}; };
     void setLightInfo(const glm::vec3 &pos, const glm::vec3 &color, float radius);
+    void setDirLight(const glm::vec3 &dir, const glm::vec3 &color) { _nextCompUboData.dirLight = {glm::vec4{dir, 1}, glm::vec4{color, 1}};};
 
     // getter
     [[nodiscard]] const RenderConfig& getRenderConfig() { return _renderConf; }
@@ -94,6 +96,7 @@ private:
     CompUboData _nextCompUboData{};
     int _nextLightPos{};
     vector<string> _debugUiText;
+    vector<shared_ptr<MaterialGpu>> _materialList;
     vector<shared_ptr<ModalState>> _modalStateList;
 
     // members

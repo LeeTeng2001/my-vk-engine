@@ -94,6 +94,7 @@ void Engine::updateGame() {
     uint64_t curTicks = SDL_GetTicks();
     float deltaTime = static_cast<float>(curTicks - _tickCountMs) / 1000.0f;
     _tickCountMs = curTicks;
+    _renderer->writeDebugUi(fmt::format("FPS: {:d}", int(1.0f / deltaTime)));
 
     // Clamp maximum delta to prevent huge delta time (ex, when stepping through debugger)
     deltaTime = std::min(deltaTime, 0.05f);
@@ -144,45 +145,47 @@ bool Engine::prepareScene() {
     staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
     addActor(staticActor);
 
-    // viking room
-    emptyActor = make_shared<EmptyActor>();
-    addActor(emptyActor);
-    meshComp = make_shared<MeshComponent>(emptyActor);
-    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
-    meshComp->loadDiffuseTexture("assets/textures/viking_room.png");
-    meshComp->uploadToGpu();
-    emptyActor->addComponent(meshComp);
+//    // viking room
+//    emptyActor = make_shared<EmptyActor>();
+//    addActor(emptyActor);
+//    meshComp = make_shared<MeshComponent>(emptyActor);
+//    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
+//    meshComp->uploadToGpu();
+//    emptyActor->addComponent(meshComp);
+//
+//    // moving cube with a parent
+//    emptyActor = make_shared<EmptyActor>();
+//    addActor(emptyActor);
+//    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
+//    staticActor = make_shared<StaticActor>("assets/models/cube.obj");
+//    addActor(staticActor);
+//    staticActor->setParent(emptyActor);
+//    tweenComp = make_shared<TweenComponent>(staticActor);
+//    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
+//    staticActor->addComponent(tweenComp);
 
-    // moving cube with a parent
-    emptyActor = make_shared<EmptyActor>();
-    addActor(emptyActor);
-    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
-    staticActor = make_shared<StaticActor>("assets/models/cube.obj", "assets/textures/dice.png");
-    addActor(staticActor);
-    staticActor->setParent(emptyActor);
-    tweenComp = make_shared<TweenComponent>(staticActor);
-    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
-    staticActor->addComponent(tweenComp);
-
-    // procedural floor plane
-    emptyActor = make_shared<EmptyActor>();
-    addActor(emptyActor);
-    meshComp = make_shared<MeshComponent>(emptyActor);
-    meshComp->generatedSquarePlane(2);
-    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
-    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
-    meshComp->uploadToGpu();
-    emptyActor->addComponent(meshComp);
-    emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
-    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
+//    // procedural floor plane
+//    emptyActor = make_shared<EmptyActor>();
+//    addActor(emptyActor);
+//    meshComp = make_shared<MeshComponent>(emptyActor);
+//    meshComp->generatedSquarePlane(2);
+//    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
+//    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
+//    meshComp->uploadToGpu();
+//    emptyActor->addComponent(meshComp);
+//    emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
+//    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
 
     // Light
-    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
-    addActor(lightAct);
-    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
-    tweenComp = make_shared<TweenComponent>(lightAct);
-    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
-    lightAct->addComponent(tweenComp);
+//    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
+//    addActor(lightAct);
+//    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
+//    tweenComp = make_shared<TweenComponent>(lightAct);
+//    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
+//    lightAct->addComponent(tweenComp);
+
+    // Dir light, right now set it like this
+    getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});
 
     return true;
 }

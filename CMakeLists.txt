@@ -18,6 +18,10 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.comp"
         )
 
+file(GLOB_RECURSE GLSL_UTILS_FILES
+        "${PROJECT_SOURCE_DIR}/assets/shaders/*.glsl"
+)
+
 ## iterate each shader and compile
 foreach (GLSL ${GLSL_SOURCE_FILES})
     message(STATUS "BUILDING SHADER")
@@ -28,7 +32,7 @@ foreach (GLSL ${GLSL_SOURCE_FILES})
     add_custom_command(
             OUTPUT ${SPIRV}
             COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} -V ${GLSL} -o ${SPIRV}
-            DEPENDS ${GLSL})
+            DEPENDS ${GLSL} ${GLSL_UTILS_FILES})  # TODO: optimise dependencies
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach (GLSL)
 

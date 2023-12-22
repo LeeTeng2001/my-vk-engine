@@ -51,13 +51,60 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
 
     array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
 
+    // Upload materials info
+    vector<int> gpuMatId{};
+    for (const auto &mat: materials) {
+        MaterialCpu matCpu{};
+        matCpu.info.diffuse = glm::vec4{mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1};
+        matCpu.info.emissive = glm::vec4{mat.emission[0], mat.emission[1], mat.emission[2], 1};
+
+        // Load texture if any
+        if (!mat.diffuse_texname.empty()) {
+            matCpu.albedoTexture.path = mat.diffuse_texname;
+            matCpu.albedoTexture.stbRef = stbi_load(mat.diffuse_texname.c_str(), &matCpu.albedoTexture.texWidth, &matCpu.albedoTexture.texHeight, &matCpu.albedoTexture.texChannels, 4);
+            matCpu.albedoTexture.texChannels = 4;
+            if (!matCpu.albedoTexture.stbRef) {
+                l->error(fmt::format("failed to load diffuse texture at path: {:s}", mat.diffuse_texname));
+            } else {
+                matCpu.info.setColor();
+            }
+        }
+        if (!mat.normal_texname.empty()) {
+            matCpu.albedoTexture.path = mat.normal_texname;
+            matCpu.albedoTexture.stbRef = stbi_load(mat.normal_texname.c_str(), &matCpu.normalTexture.texWidth, &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
+            matCpu.albedoTexture.texChannels = 4;
+            if (!matCpu.albedoTexture.stbRef) {
+                l->error(fmt::format("failed to load diffuse texture at path: {:s}", mat.normal_texname));
+            } else {
+                matCpu.info.setNormal();
+            }
+        }
+        // TODO: load ao, height, roughness into single image
+
+        gpuMatId.push_back(getOwner()->getEngine()->getRenderer()->createMaterial(matCpu));
+    }
+
     // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
     // Loop over shapes
     // By default obj is already in counter-clockwise order
+    ModelDataPartition curPartition{};
+    curPartition.materialId = -1;
     for (auto &shape : shapes) {
+        l->info(fmt::format("shape: {:s}", shape.name));
         // Loop over faces (polygon)
         size_t index_offset = 0;
         for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            // check for new material group
+            if (gpuMatId[shape.mesh.material_ids[f]] != curPartition.materialId) {
+                if (curPartition.materialId != -1) {
+                    // push new material
+                    curPartition.indexCount = _modelData.indices.size() - curPartition.firstIndex;
+                    _modelData.modelDataPartition.push_back(curPartition);
+                }
+                curPartition.materialId = gpuMatId[shape.mesh.material_ids[f]];
+                curPartition.firstIndex = _modelData.indices.size();
+            }
+
             bool shouldGenerateNormal = false;
             // Loop over vertices in the face. (rn I hardcode 3 vertices for a face)
             for (size_t v = 0; v < 3; v++) {
@@ -72,9 +119,6 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
                 vertex.pos.x = vx;
                 vertex.pos.y = vy;
                 vertex.pos.z = vz;
-                vertex.color.x = vx;
-                vertex.color.y = vy;
-                vertex.color.z = vz;
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
@@ -142,11 +186,16 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
 
             index_offset += 3;
         }
+
+        // last partition
+        curPartition.indexCount = _modelData.indices.size() - curPartition.firstIndex;
+        _modelData.modelDataPartition.push_back(curPartition);
+        curPartition.materialId = -1;
+        l->debug(fmt::format("shape: {:s}, cur total partition: {:d}", shape.name, _modelData.modelDataPartition.size()));
     }
 
-    // TODO: Material System
-    for (const auto &mat: materials) {
-    }
+    l->info(fmt::format("model total indices: {:d}, partition: {:d}",
+                        _modelData.indices.size(), _modelData.modelDataPartition.size()));
 }
 
 void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
@@ -189,13 +238,13 @@ void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
 void MeshComponent::generatedSquarePlane(float sideLength) {
     // generate square plane facing upward
     float hs = sideLength / 2;
-    // pos, normal, color, tex, tangent, bitangent
+    // pos, normal, tex, tangent, bitangent
     // counter-clockwise
     _modelData.vertex = {
-            {{-hs, hs, 0},  {0, 0, 1}, {0, 0, 0}, {0, 0},   {1,0,0}, {0,1,0}},
-            {{hs, hs, 0},   {0, 0, 1},  {1, 0, 0}, {1, 0},  {1,0,0}, {0,1,0}},
-            {{-hs, -hs, 0}, {0, 0, 1},{0, 1, 0}, {0, 1},    {1,0,0}, {0,1,0}},
-            {{hs, -hs, 0},  {0, 0, 1}, {1, 1, 0}, {1, 1},   {1,0,0}, {0,1,0}},
+            {{-hs, hs, 0},  {0, 0, 1}, {0, 0},  {1,0,0}, {0,1,0}},
+            {{hs, hs, 0},   {0, 0, 1}, {1, 0},  {1,0,0}, {0,1,0}},
+            {{-hs, -hs, 0}, {0, 0, 1}, {0, 1},  {1,0,0}, {0,1,0}},
+            {{hs, -hs, 0},  {0, 0, 1}, {1, 1},  {1,0,0}, {0,1,0}},
     };
     _modelData.indices = {
             0, 2, 1,
@@ -203,41 +252,17 @@ void MeshComponent::generatedSquarePlane(float sideLength) {
     };
 }
 
-void MeshComponent::loadDiffuseTexture(const string &path) {
-    auto l = SLog::get();
-    l->info(fmt::format("loading texture {:s}", path));
-
-    _modelData.albedoTexture.path = path;
-    _modelData.albedoTexture.stbRef = stbi_load(path.c_str(), &_modelData.albedoTexture.texWidth, &_modelData.albedoTexture.texHeight, &_modelData.albedoTexture.texChannels, 4);
-    _modelData.albedoTexture.texChannels = 4; // this is 4 because we force it
-    if (!_modelData.albedoTexture.stbRef) {
-        l->error(fmt::format("failed to load diffuse texture at path: {:s}", path));
-    }
-}
-
-void MeshComponent::loadNormalTexture(const string &path) {
-    auto l = SLog::get();
-    l->info(fmt::format("loading texture {:s}", path));
-
-    _modelData.normalTexture.path = path;
-    _modelData.normalTexture.stbRef = stbi_load(path.c_str(), &_modelData.normalTexture.texWidth, &_modelData.normalTexture.texHeight, &_modelData.normalTexture.texChannels, 4);
-    _modelData.normalTexture.texChannels = 4; // this is 4 because we force it
-    if (!_modelData.normalTexture.stbRef) {
-        l->error(fmt::format("failed to load diffuse texture at path: {:s}", path));
-    }
-}
-
 void MeshComponent::uploadToGpu() {
     auto l = SLog::get();
 
     // Upload to GPU
-    _modelState = getOwner()->getEngine()->getRenderer()->uploadAndPopulateModal(_modelData);
+    _modelState = getOwner()->getEngine()->getRenderer()->uploadModel(_modelData);
     if (_modelState == nullptr) {
         l->error("failed to upload modal data to gpu");
     }
 
-    // free local resource
-    stbi_image_free(_modelData.albedoTexture.stbRef);
-    stbi_image_free(_modelData.normalTexture.stbRef);
+//    // TODO: free local resource
+//    stbi_image_free(_modelData.albedoTexture.stbRef);
+//    stbi_image_free(_modelData.normalTexture.stbRef);
 }
 

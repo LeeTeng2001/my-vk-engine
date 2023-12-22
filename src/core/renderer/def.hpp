@@ -14,15 +14,31 @@ struct RenderConfig {
 };
 
 struct MrtUboData {
+    glm::vec4 diffuse{};
+    glm::vec4 emissive{};
     int textureToggle {};
 
-    void useColor() { textureToggle |= 0b1;}
-    void useNormal() { textureToggle |= 0b10;}
+    bool useColor() { return (textureToggle & 0b1) != 0;}
+    bool useNormal() { return (textureToggle & 0b10) != 0;}
+    bool useAo() { return (textureToggle & 0b100) != 0;}
+    bool useRoughness() { return (textureToggle & 0b1000) != 0;}
+    bool useHeight() { return (textureToggle & 0b10000) != 0;}
+
+    void setColor() { textureToggle |= 0b1;}
+    void setNormal() { textureToggle |= 0b10;}
+    void setAo() { textureToggle |= 0b100;}
+    void setRoughness() { textureToggle |= 0b1000;}
+    void setHeight() { textureToggle |= 0b10000;}
 };
 
 struct MrtPushConstantData {
     glm::mat4 viewModalTransform;
     glm::mat4 perspectiveTransform;
+};
+
+struct DirectionalLight {
+    glm::vec4 position;
+    glm::vec4 color;
 };
 
 struct PointLight {
@@ -31,6 +47,7 @@ struct PointLight {
 };
 
 struct CompUboData {
+    DirectionalLight dirLight;
     PointLight lights[6];
     glm::vec4 camPos;
 };
@@ -43,7 +60,6 @@ struct CompPushConstantData {
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 normal;
-    glm::vec3 color;
     glm::vec2 texCoord;
     glm::vec3 tangents;
     glm::vec3 bitangents;
@@ -57,7 +73,7 @@ struct Vertex {
     };
 
     static vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-        vector<VkVertexInputAttributeDescription> attributeDescriptions(6);
+        vector<VkVertexInputAttributeDescription> attributeDescriptions(5);
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -70,23 +86,18 @@ struct Vertex {
 
         attributeDescriptions[2].binding = 0;
         attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(Vertex, color);
+        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
         attributeDescriptions[3].binding = 0;
         attributeDescriptions[3].location = 3;
-        attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[3].offset = offsetof(Vertex, texCoord);
+        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[3].offset = offsetof(Vertex, tangents);
 
         attributeDescriptions[4].binding = 0;
         attributeDescriptions[4].location = 4;
         attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[4].offset = offsetof(Vertex, tangents);
-
-        attributeDescriptions[5].binding = 0;
-        attributeDescriptions[5].location = 5;
-        attributeDescriptions[5].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[5].offset = offsetof(Vertex, bitangents);
+        attributeDescriptions[4].offset = offsetof(Vertex, bitangents);
 
         return attributeDescriptions;
     }
@@ -115,12 +126,42 @@ struct ImgResource {
     VmaAllocation allocation;
 };
 
+// partition single model into group of indices and materials
+struct ModelDataPartition {
+    int firstIndex{};
+    int indexCount{};
+    int materialId{};
+};
+
 // cpu submit
-struct ModelData {
+struct ModelDataCpu {
     vector<Vertex> vertex = {};
     vector<uint32_t> indices = {};
+    vector<ModelDataPartition> modelDataPartition = {};
+};
+
+struct MaterialCpu {
+    MrtUboData info{};
+
     TextureData albedoTexture = {};
     TextureData normalTexture = {};
+    TextureData aoRoughnessHeightTexture = {};
+};
+
+struct MaterialGpu {
+    // resource group
+    VkDescriptorSet descriptorSet{};
+
+    // uniform
+    MrtUboData uboData{};
+    VkBuffer uniformBuffer{};
+    VmaAllocation uniformAlloc{};
+    VmaAllocationInfo uniformAllocInfo{};
+
+    // sampler resource
+    ImgResource albedoTex{};              // rgb - albedo, a is unused because this is SNORM
+    ImgResource normalTex{};              // rgb - normal, a -
+    ImgResource aoRoughnessHeight = {};   // r - ao, g - roughness, b - height, a -
 };
 
 // shared state between model handler and renderer
@@ -133,15 +174,6 @@ struct ModalState {
     VkBuffer iBuffer{};
     uint32_t indicesSize{};
 
-    // uniform
-    MrtUboData uboData;
-    VkBuffer uniformBuffer;
-    VmaAllocation uniformAlloc{};
-    VmaAllocationInfo uniformAllocInfo{};
-
-    ImgResource albedoTex{};
-    ImgResource normalTex{};
-
-    VkDescriptorSet descriptorSet{};
+    vector<ModelDataPartition> modelDataPartition{};
 };
 

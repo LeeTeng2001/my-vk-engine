@@ -452,7 +452,7 @@ bool Renderer::initRenderResources() {
     // TODO: optiomise G buffer structure, for example RGB the A component is unused in normal map
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     // one of the unused A channel can be used to store specular/bump highlight
-    // MRT: depth, albedo, normal, position
+    // MRT: depth, albedo, normal, position, normal.a with position.a forms uv
     _mrtClearColor.resize(MRT_OUT_SIZE);
     _imgInfoList[0].format = _depthFormat;
     _imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -464,7 +464,7 @@ bool Renderer::initRenderResources() {
     _imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[1].extent = _swapChainExtent;
     _imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[1].color =  {{0.2f, 0.2f, 0.5f, 1.0f}};
+    _mrtClearColor[1].color =  {{0.8f, 0.6f, 0.4f, 1.0f}};
     _imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
     _imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[2].extent = _swapChainExtent;
@@ -611,13 +611,13 @@ bool Renderer::initDescriptors() {
 
     // Creat pool for binding resources
     std::vector<VkDescriptorPoolSize> sizes = {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 20 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 20 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 200 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200 },
     };
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pool_info.flags = 0;
-    pool_info.maxSets = 10;
+    pool_info.maxSets = 200;
     pool_info.poolSizeCount = (uint32_t)sizes.size();
     pool_info.pPoolSizes = sizes.data();
     vkCreateDescriptorPool(_device, &pool_info, nullptr, &_globalDescPool);
@@ -800,17 +800,62 @@ bool Renderer::initPipeline() {
     return true;
 }
 
-shared_ptr<ModalState> Renderer::uploadAndPopulateModal(ModelData& modelData) {
+int Renderer::createMaterial(MaterialCpu& materialCpu) {
+    auto l = SLog::get();
+    shared_ptr<MaterialGpu> gpuMaterial = make_shared<MaterialGpu>();
+
+    // uniform
+    l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(MrtUboData),
+                                                  gpuMaterial->uniformBuffer, gpuMaterial->uniformAlloc,
+                                                  gpuMaterial->uniformAllocInfo));
+
+    // Create descriptor set resource
+    DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
+    mrtSetBuilder.setTotalSet(1).setSetLayout(0, _mrtSetLayout);
+    mrtSetBuilder.pushDefaultUniform(0, VK_SHADER_STAGE_FRAGMENT_BIT);
+    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
+
+    mrtSetBuilder.pushSetWriteUniform(0, gpuMaterial->uniformBuffer, sizeof(MrtUboData));
+
+    // upload textures for sample
+    if (materialCpu.info.useColor()) {
+        uploadImageForSampling(materialCpu.albedoTexture, gpuMaterial->albedoTex, VK_FORMAT_R8G8B8A8_SRGB);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->albedoTex.imageView, gpuMaterial->albedoTex.sampler, 1);
+    }
+    if (materialCpu.info.useNormal()) {
+        uploadImageForSampling(materialCpu.normalTexture, gpuMaterial->normalTex, VK_FORMAT_R8G8B8A8_UNORM);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->normalTex.imageView, gpuMaterial->normalTex.sampler, 2);
+    }
+    if (materialCpu.info.useAo() || materialCpu.info.useHeight() || materialCpu.info.useRoughness()) {
+        uploadImageForSampling(materialCpu.aoRoughnessHeightTexture, gpuMaterial->aoRoughnessHeight, VK_FORMAT_R8G8B8A8_UNORM);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->aoRoughnessHeight.imageView, gpuMaterial->aoRoughnessHeight.sampler, 3);
+    }
+
+    gpuMaterial->uboData = materialCpu.info;
+    gpuMaterial->descriptorSet = mrtSetBuilder.buildSet(0);
+
+    _materialList.push_back(gpuMaterial);
+
+    return _materialList.size() - 1;
+}
+
+
+shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
     shared_ptr<ModalState> newModalState = make_shared<ModalState>();
 
     auto l = SLog::get();
     // VMA best usage info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
     // Buffer info
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(Vertex) * modelData.vertex.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    VkBufferCreateInfo stagingBufferInfo{};
+    stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    stagingBufferInfo.size = sizeof(Vertex) * modelData.vertex.size();
+    stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBufferCreateInfo gpuBufferInfo = stagingBufferInfo;
+    gpuBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     l->debug(fmt::format("copy vertex buffer to gpu (size: {:d}, total: {:d}, indices: {:d})",
                          sizeof(Vertex), modelData.vertex.size(), modelData.indices.size()));
@@ -821,62 +866,45 @@ shared_ptr<ModalState> Renderer::uploadAndPopulateModal(ModelData& modelData) {
     stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
     stagingAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
 
+    VmaAllocationCreateInfo dstAllocInfo{};
+    dstAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    dstAllocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    dstAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
     VmaAllocation stagingAllocation;  // represent underlying memory
     VmaAllocationInfo stagingAllocationInfo; // for persistent mapping: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
-    l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &newModalState->vBuffer, &stagingAllocation, &stagingAllocationInfo));
-    newModalState->allocation = stagingAllocation;
+    VkBuffer stagingBuffer;
+    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer, &stagingAllocation, &stagingAllocationInfo));
 
     // Copy vertex data to staging buffer physical memory
-    memcpy(stagingAllocationInfo.pMappedData, modelData.vertex.data(), bufferInfo.size);
+    memcpy(stagingAllocationInfo.pMappedData, modelData.vertex.data(), stagingBufferInfo.size);
     // TODO: Check stagingAllocationInfo.memoryType for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT to avoid flushing all
     // https://stackoverflow.com/questions/44366839/meaning-of-memorytypes-in-vulkan
-    vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
+    vmaFlushAllocation(_allocator, stagingAllocation, 0, stagingBufferInfo.size); // TODO: Transfer to destination buffer
     // Flush for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
 
+    // transfer and free
+    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->vBuffer, &newModalState->allocation, &stagingAllocationInfo));
+    copyBuffer(stagingBuffer, newModalState->vBuffer, sizeof(Vertex) * modelData.vertex.size());
+    vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
+
     // Buffer info
-    bufferInfo.size = sizeof(modelData.indices[0]) * modelData.indices.size();
-    bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    stagingBufferInfo.size = sizeof(modelData.indices[0]) * modelData.indices.size();
+    gpuBufferInfo.size = sizeof(modelData.indices[0]) * modelData.indices.size();
+    gpuBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-    l->vk_res(vmaCreateBuffer(_allocator, &bufferInfo, &stagingAllocInfo, &newModalState->iBuffer, &stagingAllocation, &stagingAllocationInfo));
+    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer, &stagingAllocation, &stagingAllocationInfo));
+    memcpy(stagingAllocationInfo.pMappedData, modelData.indices.data(), stagingBufferInfo.size);
+    vmaFlushAllocation(_allocator, stagingAllocation, 0, stagingBufferInfo.size); // TODO: Transfer to destination buffer
 
-    memcpy(stagingAllocationInfo.pMappedData, modelData.indices.data(), bufferInfo.size);
-    vmaFlushAllocation(_allocator, stagingAllocation, 0, bufferInfo.size); // TODO: Transfer to destination buffer
+    // transfer and free
+    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->iBuffer, &newModalState->allocation, &stagingAllocationInfo));
+    copyBuffer(stagingBuffer, newModalState->iBuffer, sizeof(modelData.indices[0]) * modelData.indices.size());
+    vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
 
+    // update modal state
     newModalState->indicesSize = modelData.indices.size();
-
-    // uniform
-    l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(MrtUboData),
-                                                  newModalState->uniformBuffer, newModalState->uniformAlloc,
-                                                  newModalState->uniformAllocInfo));
-
-    // Create descriptor set resource
-    DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
-    mrtSetBuilder.setTotalSet(1).setSetLayout(0, _mrtSetLayout);
-    mrtSetBuilder.pushDefaultUniform(0, VK_SHADER_STAGE_FRAGMENT_BIT);
-    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
-    mrtSetBuilder.pushDefaultFragmentSamplerBinding(0);
-
-    mrtSetBuilder.pushSetWriteUniform(0, newModalState->uniformBuffer, sizeof(MrtUboData));
-
-    // upload textures
-    if (modelData.albedoTexture.stbRef != nullptr) {
-        uploadImageForSampling(modelData.albedoTexture, newModalState->albedoTex,
-                               VK_FORMAT_R8G8B8A8_SRGB);
-        // update set info
-        mrtSetBuilder.pushSetWriteImgSampler(0, newModalState->albedoTex.imageView,
-                                             newModalState->albedoTex.sampler, 1);
-        newModalState->uboData.useColor();
-    }
-    if (modelData.normalTexture.stbRef != nullptr) {
-        uploadImageForSampling(modelData.normalTexture, newModalState->normalTex,
-                               VK_FORMAT_R8G8B8A8_UNORM);
-        // update set info
-        mrtSetBuilder.pushSetWriteImgSampler(0, newModalState->normalTex.imageView,
-                                             newModalState->normalTex.sampler, 2);
-        newModalState->uboData.useNormal();
-    }
-
-    newModalState->descriptorSet = mrtSetBuilder.buildSet(0);
+    newModalState->modelDataPartition = modelData.modelDataPartition;
 
     _modalStateList.push_back(newModalState);
 
@@ -886,19 +914,19 @@ shared_ptr<ModalState> Renderer::uploadAndPopulateModal(ModelData& modelData) {
 void Renderer::removeModal(const shared_ptr<ModalState> &modalState) {
     auto l = SLog::get();
     // TODO: should check
-    // TODO: release ubo buffer
     auto iter = std::find(_modalStateList.begin(), _modalStateList.end(), modalState);
     if (iter != _modalStateList.end()) {
         l->debug("removing modal");
         _modalStateList.erase(iter);
         vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->allocation);
         vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->allocation);
-        if (modalState->descriptorSet != nullptr) {
-            l->debug("removing albedo texture");
-            vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
-            vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
-            vmaDestroyImage(_allocator, modalState->albedoTex.image, modalState->albedoTex.allocation);
-        }
+        // TODO: release all material buffer
+//        if (modalState->descriptorSet != nullptr) {
+//            l->debug("removing albedo texture");
+//            vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
+//            vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
+//            vmaDestroyImage(_allocator, modalState->albedoTex.image, modalState->albedoTex.allocation);
+//        }
     }
 }
 
@@ -1040,25 +1068,29 @@ void Renderer::drawAllModel() {
     MrtPushConstantData mrtData{};
 
     for (const auto &modalState: _modalStateList) {
-        // bind resources
-        vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
-                                0, 1, &modalState->descriptorSet, 0, nullptr);
-
         // compute final transform
         mrtData.viewModalTransform = _camViewTransform * modalState->worldTransform;
         mrtData.perspectiveTransform = _camProjectionTransform;
-
         vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(MrtPushConstantData), &mrtData);
 
-        // uniform data
-        memcpy(modalState->uniformAllocInfo.pMappedData, &modalState->uboData, sizeof(MrtUboData));
-
-        // draw
+        // bind group of vertex and indices
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0, 1, &modalState->vBuffer, offsets);
         vkCmdBindIndexBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modalState->iBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modalState->indicesSize, 1, 0, 0, 0);
+
+        // modal partition based on material
+        for (const auto &modalDataPart: modalState->modelDataPartition) {
+            auto mat = _materialList[modalDataPart.materialId];
+            // bind resources
+            vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
+                                    0, 1, &mat->descriptorSet, 0, nullptr);
+            // uniform data
+            memcpy(mat->uniformAllocInfo.pMappedData, &mat->uboData, sizeof(MrtUboData));
+            // draw index partition
+            vkCmdDrawIndexed(_flightResources[_curFrameInFlight]->mrtCmdBuffer,
+                             modalDataPart.indexCount, 1, modalDataPart.firstIndex, 0, 0);
+        }
     }
 }
 
@@ -1069,7 +1101,7 @@ void Renderer::writeDebugUi(const string &msg) {
 void Renderer::endRecordCmd() {
     // debug ui text buffer
     for (const auto &t: _debugUiText) {
-        ImGui::Text(t.c_str());
+        ImGui::Text("%s", t.c_str());
     }
     _debugUiText.clear();
 

@@ -43,7 +43,7 @@ void Log::error(const std::string &msg, int lineNum, char const * funcName) {
 
 void Log::vk_res(VkResult res, int lineNum, char const * funcName) {
     if (res != VK_SUCCESS) {
-        error("VkResult is not success", lineNum, funcName);
+        error(fmt::format("VkResult is not success, result: {:s}", string_VkResult(res)), lineNum, funcName);
         assert(res == VK_SUCCESS);
     }
 }

@@ -5,10 +5,7 @@ void StaticActor::delayInit() {
     _meshComp = make_shared<MeshComponent>(getSelf());
     if (!_modelPath.empty()) {
         _meshComp->loadModal(_modelPath);
+        _meshComp->uploadToGpu();
     }
-    if (!_diffuseTexPath.empty()) {
-        _meshComp->loadDiffuseTexture(_diffuseTexPath);
-    }
-    _meshComp->uploadToGpu();
     addComponent(_meshComp);
 }
