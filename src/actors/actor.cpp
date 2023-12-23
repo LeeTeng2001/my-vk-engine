@@ -130,7 +130,6 @@ const glm::vec3 &Actor::getWorldPosition() const {
 }
 
 void Actor::setWorldPosition(const glm::vec3 &pos) {
-    // TODO: optimise into cache
     glm::vec3 relPos = pos;
     int recParentId = _parentId;
     while (recParentId != -1) {
