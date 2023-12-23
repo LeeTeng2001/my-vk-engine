@@ -12,6 +12,7 @@
 #include "actors/object/point_light.hpp"
 #include "components/anim/tween.hpp"
 #include "components/graphic/mesh.hpp"
+#include "components/physic/rigidbody.hpp"
 
 bool Engine::initialize(shared_ptr<Engine> &self) {
     _self = self;
@@ -142,6 +143,7 @@ bool Engine::prepareScene() {
     shared_ptr<EmptyActor> emptyActor;
     shared_ptr<TweenComponent> tweenComp;
     shared_ptr<MeshComponent> meshComp;
+    shared_ptr<RigidBodyComponent> rigidComp;
 
 //    staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
 //    addActor(staticActor);
@@ -184,6 +186,36 @@ bool Engine::prepareScene() {
 //    tweenComp = make_shared<TweenComponent>(lightAct);
 //    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
 //    lightAct->addComponent(tweenComp);
+
+
+    // Physic demo
+    // procedural floor plane
+    emptyActor = make_shared<EmptyActor>();
+    addActor(emptyActor);
+    meshComp = make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
+    meshComp->generatedSquarePlane(5);
+    meshComp->uploadToGpu();
+    emptyActor->addComponent(meshComp);
+    emptyActor->setLocalPosition(glm::vec3{0, -4, 0});
+    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
+    rigidComp = make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
+    emptyActor->addComponent(rigidComp);
+    rigidComp->setIsStatic(true);
+    rigidComp->setBounciness(0.8);
+    rigidComp->createBox(glm::vec3{2.5, 0.1, 2.5});
+
+    // procedural ball
+    emptyActor = make_shared<EmptyActor>();
+    addActor(emptyActor);
+    meshComp = make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
+    meshComp->generatedSphere(1, 10, 10);
+    meshComp->uploadToGpu();
+    emptyActor->addComponent(meshComp);
+    rigidComp = make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
+    emptyActor->addComponent(rigidComp);
+    rigidComp->setIsStatic(false);
+    rigidComp->createSphere(1);
+    rigidComp->setLinearVelocity(glm::vec3{0, -1, 0});
 
     // Dir light, right now set it like this
     getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});

@@ -47,7 +47,7 @@ void PhysicSystem::update(float deltaTime) {
     _accumUpdateS += deltaTime;
 
     int totalCollisionSteps = 0;
-    while (_accumUpdateS < _fixedUpdateStepS) {
+    while (_fixedUpdateStepS < _accumUpdateS) {
         _accumUpdateS -= _fixedUpdateStepS;
         totalCollisionSteps++;
     }
@@ -55,9 +55,9 @@ void PhysicSystem::update(float deltaTime) {
         return;
     }
 
-    if (totalCollisionSteps > 1) {
+    if (totalCollisionSteps > 3) {
         auto l = SLog::get();
-        l->warn(fmt::format("collision step is larger than 1, drifting: {:d}", totalCollisionSteps));
+        l->warn(fmt::format("collision step drifting: {:d}", totalCollisionSteps));
     }
 
     // update

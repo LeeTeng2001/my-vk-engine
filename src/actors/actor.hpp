@@ -36,6 +36,7 @@ public:
 
     // Setter
     void setLocalPosition(const glm::vec3& pos) { _position = pos; _recomputeLocalTransform = true; }
+    void setWorldPosition(const glm::vec3& pos);
     void setScale(float scale) { _scale = scale; _recomputeLocalTransform = true; }
     void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeLocalTransform = true; }
     void setState(State state) { _state = state; }

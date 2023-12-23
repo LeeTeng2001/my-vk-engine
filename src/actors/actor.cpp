@@ -83,7 +83,12 @@ const glm::mat4 &Actor::getLocalTransform() {
     if (_recomputeLocalTransform) {
         _recomputeLocalTransform = false;
         // Scale, then rotate, then translate
-        _localTransform = glm::translate(glm::identity<glm::mat4>(), _position) * glm::mat4_cast(_rotation) * glm::identity<glm::mat4>() * _scale;
+        glm::mat4 scaleMat{};
+        scaleMat[0][0] = _scale;
+        scaleMat[1][1] = _scale;
+        scaleMat[2][2] = _scale;
+        scaleMat[3][3] = 1;
+        _localTransform = glm::translate(glm::identity<glm::mat4>(), _position) * glm::mat4_cast(_rotation) * scaleMat;
     }
     return _localTransform;
 }
@@ -122,4 +127,23 @@ const glm::vec3 &Actor::getWorldPosition() const {
         }
     }
     return finalPos;
+}
+
+void Actor::setWorldPosition(const glm::vec3 &pos) {
+    // TODO: optimise into cache
+    glm::vec3 relPos = pos;
+    int recParentId = _parentId;
+    while (recParentId != -1) {
+        auto p = _engine->getActor(recParentId);
+        if (p == nullptr) {
+            auto l = SLog::get();
+            l->error(fmt::format("get engine actor returns null, id: {:d}", recParentId));
+            break;
+        } else {
+            relPos -= p->getLocalPosition();
+            recParentId = p->getParentId();
+        }
+    }
+    _position = relPos;
+    _recomputeLocalTransform = true;
 }

@@ -159,30 +159,7 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
                 }
             }
 
-            // good figures: https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/
-            // calculate tangent bitangent for normals
-            glm::vec3& v0 = _modelData.vertex[index_offset+0].pos;
-            glm::vec3& v1 = _modelData.vertex[index_offset+1].pos;
-            glm::vec3& v2 = _modelData.vertex[index_offset+2].pos;
-            glm::vec2& uv0 = _modelData.vertex[index_offset+0].texCoord;
-            glm::vec2& uv1 = _modelData.vertex[index_offset+1].texCoord;
-            glm::vec2& uv2 = _modelData.vertex[index_offset+2].texCoord;
-
-            // Edges of the triangle : position delta, UV delta
-            glm::vec3 deltaPos1 = v1-v0;
-            glm::vec3 deltaPos2 = v2-v0;
-            glm::vec2 deltaUV1 = uv1-uv0;
-            glm::vec2 deltaUV2 = uv2-uv0;
-
-            // formula for tangent
-            // great formula derivation: https://learnopengl.com/Advanced-Lighting/Normal-Mapping#:~:text=Tangent%20space%20is%20a%20space,of%20the%20final%20transformed%20direction.
-            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-            glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y)*r;
-            glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x)*r;
-            for (int i = 0; i < 3; ++i) { // TODO: could probably optimise this
-                _modelData.vertex[index_offset+i].tangents = tangent;
-                _modelData.vertex[index_offset+i].bitangents = bitangent;
-            }
+            generateTangentBitangent(index_offset+0, index_offset+1, index_offset+2);
 
             index_offset += 3;
         }
@@ -278,7 +255,38 @@ void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
     }
 }
 
-void MeshComponent::generatedSquarePlane(float sideLength) {
+void MeshComponent::generateTangentBitangent(int v0Idx, int v1Idx, int v2Idx) {
+    // good figures: https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/
+    // calculate tangent bitangent for normals
+    glm::vec3& v0 = _modelData.vertex[v0Idx].pos;
+    glm::vec3& v1 = _modelData.vertex[v1Idx].pos;
+    glm::vec3& v2 = _modelData.vertex[v2Idx].pos;
+    glm::vec2& uv0 = _modelData.vertex[v0Idx].texCoord;
+    glm::vec2& uv1 = _modelData.vertex[v1Idx].texCoord;
+    glm::vec2& uv2 = _modelData.vertex[v2Idx].texCoord;
+
+    // Edges of the triangle : position delta, UV delta
+    glm::vec3 deltaPos1 = v1-v0;
+    glm::vec3 deltaPos2 = v2-v0;
+    glm::vec2 deltaUV1 = uv1-uv0;
+    glm::vec2 deltaUV2 = uv2-uv0;
+
+    // formula for tangent
+    // great formula derivation: https://learnopengl.com/Advanced-Lighting/Normal-Mapping#:~:text=Tangent%20space%20is%20a%20space,of%20the%20final%20transformed%20direction.
+    float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+    glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y)*r;
+    glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x)*r;
+
+    // could optimise it
+    _modelData.vertex[v0Idx].tangents = tangent;
+    _modelData.vertex[v0Idx].bitangents = bitangent;
+    _modelData.vertex[v1Idx].tangents = tangent;
+    _modelData.vertex[v1Idx].bitangents = bitangent;
+    _modelData.vertex[v2Idx].tangents = tangent;
+    _modelData.vertex[v2Idx].bitangents = bitangent;
+}
+
+void MeshComponent::generatedSquarePlane(float sideLength, const glm::vec3 &color) {
     // generate square plane facing upward
     float hs = sideLength / 2;
     // pos, normal, tex, tangent, bitangent
@@ -293,6 +301,47 @@ void MeshComponent::generatedSquarePlane(float sideLength) {
             0, 2, 1,
             2, 3, 1,
     };
+    int matId = createDefaultMat(color);
+    _modelData.modelDataPartition.push_back({0, static_cast<int>(_modelData.indices.size()), matId});
+}
+
+void MeshComponent::generatedSphere(float radius, int horizontalLine, int verticalLine, const glm::vec3 &color) {
+    // https://stackoverflow.com/questions/4081898/procedurally-generate-a-sphere-mesh
+    // generate all vertices
+    for (int vi = 0; vi < verticalLine; ++vi) {
+        for (int hi = 0; hi <= horizontalLine; ++hi) {
+            glm::vec3 pos{
+                glm::sin(glm::pi<float>() * float(hi)/float(horizontalLine)) * glm::cos(2 * glm::pi<float>() * float(vi)/float(verticalLine)),
+                glm::sin(glm::pi<float>() * float(hi)/float(horizontalLine)) * glm::sin(2 * glm::pi<float>() * float(vi)/float(verticalLine)),
+                glm::cos(glm::pi<float>() * float(hi)/float(horizontalLine))
+            };
+            _modelData.vertex.push_back({pos*radius, pos, {float(vi)/float(verticalLine), float(hi)/float(horizontalLine)}});
+        }
+    }
+    // indices and tangent bitangent
+    for (int vi = 0; vi < verticalLine; ++vi) {
+        for (int hi = 0; hi < horizontalLine; ++hi) { // notice here is < horizontalLine
+            int curBase = vi * (horizontalLine + 1) + hi;
+            int nextBase = vi == verticalLine - 1 ? hi : (vi+1) * (horizontalLine + 1) + hi;
+            _modelData.indices.push_back(curBase);
+            _modelData.indices.push_back(curBase + 1);
+            _modelData.indices.push_back(nextBase);
+            generateTangentBitangent(curBase, curBase + 1, nextBase);
+            _modelData.indices.push_back(curBase + 1);
+            _modelData.indices.push_back(nextBase + 1);
+            _modelData.indices.push_back(nextBase);
+            generateTangentBitangent(curBase + 1, nextBase + 1, nextBase);
+        }
+    }
+
+    int matId = createDefaultMat(color);
+    _modelData.modelDataPartition.push_back({0, static_cast<int>(_modelData.indices.size()), matId});
+}
+
+int MeshComponent::createDefaultMat(const glm::vec3 &color) {
+    MaterialCpu matCpu{};
+    matCpu.info.diffuse = glm::vec4{color, 1};
+    return getEngine()->getRenderer()->createMaterial(matCpu);
 }
 
 void MeshComponent::uploadToGpu() {

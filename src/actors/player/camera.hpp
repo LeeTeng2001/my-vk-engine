@@ -17,6 +17,7 @@ public:
     // utils
     glm::mat4 getCamViewTransform();
     glm::mat4 getPerspectiveTransformMatrix();
+    glm::mat4 getOrthographicTransformMatrix();
 
 private:
     // cam config

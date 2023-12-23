@@ -150,3 +150,27 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
 
     return projection;
 }
+
+glm::mat4 CameraActor::getOrthographicTransformMatrix() {
+    // TODO: refactor, should probably cache the value
+    const int viewWidth = getEngine()->getRenderer()->getRenderConfig().windowWidth;
+    const int viewHeight = getEngine()->getRenderer()->getRenderConfig().windowHeight;
+
+    // transform world coord to view coord
+    // World: up:+y, right: +x, forward:-z
+    // Clip:  up:-y, right: +x, forward:+z
+    glm::mat4 viewSpaceTransform{1};
+    viewSpaceTransform[0][0] = 1;
+    viewSpaceTransform[1][1] = -1;
+    viewSpaceTransform[2][2] = -1;
+    viewSpaceTransform[3][3] = 1;
+
+    // 2. fit into canonical view box by scaling
+    // last one is 1/d because vulkan uses [0, 1] instead of [-1, 1] depth
+    glm::mat4 projection(1);
+    projection[0][0] = 2.0f / float(viewWidth);
+    projection[1][1] = 2.0f / float(viewHeight);  // inverse to clip space y
+    projection[2][2] = 1.0f / _farDepth;
+
+    return projection;
+}

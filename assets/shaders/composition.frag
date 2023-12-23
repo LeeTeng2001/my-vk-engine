@@ -143,10 +143,10 @@ void drawBlinnPhong() {
         lighting += specular;
     }
 
-    // https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color
-    lighting = clamp(lighting, 0, 1);
-    float luminance = (0.299*lighting.r + 0.587*lighting.g + 0.114*lighting.b);
-
+//    // https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color
+//    lighting = clamp(lighting, 0, 1);
+//    float luminance = (0.299*lighting.r + 0.587*lighting.g + 0.114*lighting.b);
+//
     outColor = vec4(lighting, 1.0);
     //    outColor = vec4(luminance, luminance, luminance, 1.0);
     //    if (luminance < 0.4) {
@@ -160,6 +160,7 @@ void drawBlinnPhong() {
 
 void main() {
     drawSobet();
+//    drawBlinnPhong();
 
     // NOTE: gamma correction is already being handled by SRGB frambuffer,
     // https://learnopengl.com/Advanced-Lighting/Gamma-Correction
