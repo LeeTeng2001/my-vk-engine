@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "core/input/input_system.hpp"
 #include "utils/common.hpp"
 
@@ -33,6 +35,7 @@ public:
 
     // Create or delete actors
     void addActor(const shared_ptr<Actor>& actor);
+    shared_ptr<Actor> getActor(int actorId) { auto iter = _actorMap.find(actorId); return iter == _actorMap.end() ? nullptr : iter->second;};
 
     // Core Getter accessed by subsystem
     shared_ptr<Renderer> getRenderer() { return _renderer; }
@@ -43,6 +46,7 @@ private:
     weak_ptr<Engine> _self;
     GameState _gameState = EGameplay;
     uint64_t _tickCountMs = 0;
+    int _actorIdInc = 0;
 
     // System
     shared_ptr<Renderer> _renderer = nullptr;
@@ -51,6 +55,6 @@ private:
 
     // game specific member
     // TODO: refactor to game/scene class
-    vector<shared_ptr<Actor>> _actorList;
+    std::unordered_map<int, shared_ptr<Actor>> _actorMap;
     shared_ptr<CameraActor> _camActor = nullptr;
 };

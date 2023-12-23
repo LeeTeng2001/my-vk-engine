@@ -4,7 +4,7 @@
 
 class MoveComponent : public Component {
 public:
-    explicit MoveComponent(weak_ptr<Actor> owner, int updateOrder = 10);
+    explicit MoveComponent(const shared_ptr<Engine> &engine, int ownerId);
 
     void update(float deltaTime) override;
 

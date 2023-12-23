@@ -79,8 +79,8 @@ void Engine::processInput() {
     // propagate input to global / actors / ui
     if (_gameState == EGameplay) {
         handleGlobalInput(state);
-        for (const auto& actor: _actorList) {
-            actor->processInput(state);
+        for (const auto& actorIter: _actorMap) {
+            actorIter.second->processInput(state);
         }
     }
 }
@@ -102,17 +102,17 @@ void Engine::updateGame() {
     // Only update in gameplay mode
     if (_gameState == EGameplay) {
         // Update all existing actors
-        for (auto &actor: _actorList) {
-            actor->update(deltaTime);
+        for (auto &actorIter: _actorMap) {
+            actorIter.second->update(deltaTime);
         }
 
         // update physic
         _physicSystem->update(deltaTime);
 
         // Check dead vector and remove
-        for (auto actorIter = _actorList.begin(); actorIter != _actorList.end();) {
-            if (actorIter->get()->getState() == Actor::EDead) {
-                actorIter = _actorList.erase(actorIter);
+        for (auto actorIter = _actorMap.begin(); actorIter != _actorMap.end();) {
+            if (actorIter->second->getState() == Actor::EDead) {
+                actorIter = _actorMap.erase(actorIter);
             } else { ++actorIter; }
         }
     }
@@ -128,8 +128,9 @@ void Engine::drawOutput() {
 }
 
 void Engine::addActor(const shared_ptr<Actor>& actor) {
-    actor->delayInit(actor, _self.lock());
-    _actorList.push_back(actor);
+    _actorMap.emplace(_actorIdInc, actor);
+    actor->delayInit(_actorIdInc, _self.lock());
+    _actorIdInc++;
 }
 
 bool Engine::prepareScene() {
@@ -142,8 +143,8 @@ bool Engine::prepareScene() {
     shared_ptr<TweenComponent> tweenComp;
     shared_ptr<MeshComponent> meshComp;
 
-    staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
-    addActor(staticActor);
+//    staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
+//    addActor(staticActor);
 
 //    // viking room
 //    emptyActor = make_shared<EmptyActor>();
@@ -159,8 +160,8 @@ bool Engine::prepareScene() {
 //    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
 //    staticActor = make_shared<StaticActor>("assets/models/cube.obj");
 //    addActor(staticActor);
-//    staticActor->setParent(emptyActor);
-//    tweenComp = make_shared<TweenComponent>(staticActor);
+//    staticActor->setParent(emptyActor->getId());
+//    tweenComp = make_shared<TweenComponent>(_self.lock(), staticActor->getId());
 //    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
 //    staticActor->addComponent(tweenComp);
 

@@ -1,14 +1,21 @@
 #include "component.hpp"
 
-#include <utility>
-#include "core/input/input_system.hpp"
+#include "core/engine.hpp"
 #include "actors/actor.hpp"
 
-Component::Component(weak_ptr<Actor> owner, int updateOrder) : _owner(std::move(owner)), _updateOrder(updateOrder) {
+Component::Component(shared_ptr<Engine> engine, int ownerId, int updateOrder) :
+    _engine(std::move(engine)), _ownerId(ownerId), _updateOrder(updateOrder) {
 }
 
 bool Component::operator<(const Component &rhs) const {
     return _updateOrder < rhs._updateOrder;
+}
+
+shared_ptr<Actor> Component::getOwner() {
+    if (_parentCache == nullptr) {
+        _parentCache = _engine->getActor(_ownerId);
+    }
+    return _parentCache;
 }
 
 Component::~Component() = default;

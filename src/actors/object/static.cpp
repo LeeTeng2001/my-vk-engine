@@ -2,7 +2,7 @@
 #include "components/graphic/mesh.hpp"
 
 void StaticActor::delayInit() {
-    _meshComp = make_shared<MeshComponent>(getSelf());
+    _meshComp = make_shared<MeshComponent>(getEngine(), getId());
     if (!_modelPath.empty()) {
         _meshComp->loadModal(_modelPath);
         _meshComp->uploadToGpu();

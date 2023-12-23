@@ -3,7 +3,8 @@
 #include "move.hpp"
 #include "actors/actor.hpp"
 
-MoveComponent::MoveComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
+MoveComponent::MoveComponent(const shared_ptr<Engine> &engine, int ownerId) :
+                        Component(engine, ownerId) {
 }
 
 void MoveComponent::update(float deltaTime) {

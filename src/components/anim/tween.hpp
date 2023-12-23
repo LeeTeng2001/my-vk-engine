@@ -4,7 +4,7 @@
 
 class TweenComponent: public Component {
 public:
-    explicit TweenComponent(weak_ptr<Actor> owner, int updateOrder = 10);
+    explicit TweenComponent(const shared_ptr<Engine> &engine, int ownerId, int updateOrder = 10);
 
     enum EaseType {
         EEaseLinear, EEaseInOutQuad

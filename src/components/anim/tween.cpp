@@ -1,12 +1,11 @@
-#include <utility>
-
 #include "tween.hpp"
 #include "actors/actor.hpp"
 #include "glm/gtx/string_cast.hpp"
 
-TweenComponent::TweenComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
-
+TweenComponent::TweenComponent(const shared_ptr<Engine> &engine, int ownerId, int updateOrder) :
+        Component(engine, ownerId, updateOrder) {
 }
+
 
 void TweenComponent::update(float deltaTime) {
     if (!getEnabled() || _animSeqList.empty()) {

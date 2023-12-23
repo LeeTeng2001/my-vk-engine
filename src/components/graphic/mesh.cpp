@@ -1,4 +1,3 @@
-#include <utility>
 #include <tiny_obj_loader.h>
 #include <tiny_gltf.h>
 
@@ -8,12 +7,13 @@
 #include "mesh.hpp"
 #include "utils/algo.hpp"
 
-MeshComponent::MeshComponent(weak_ptr<Actor> owner, int updateOrder) : Component(std::move(owner), updateOrder) {
+MeshComponent::MeshComponent(const shared_ptr<Engine> &engine, int ownerId) :
+            Component(engine, ownerId) {
 }
 
 MeshComponent::~MeshComponent() {
     if (_modelState != nullptr) {
-        getOwner()->getEngine()->getRenderer()->removeModal(_modelState);
+        getEngine()->getRenderer()->removeModal(_modelState);
     }
 }
 
@@ -81,7 +81,7 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
         }
         // TODO: load ao, height, roughness into single image
 
-        gpuMatId.push_back(getOwner()->getEngine()->getRenderer()->createMaterial(matCpu));
+        gpuMatId.push_back(getEngine()->getRenderer()->createMaterial(matCpu));
     }
 
     // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
@@ -256,7 +256,7 @@ void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
         }
         // TODO: load ao, height, roughness into single image
 
-        gpuMatId.push_back(getOwner()->getEngine()->getRenderer()->createMaterial(matCpu));
+        gpuMatId.push_back(getEngine()->getRenderer()->createMaterial(matCpu));
     }
 
     ModelDataPartition curPartition{};
@@ -299,7 +299,7 @@ void MeshComponent::uploadToGpu() {
     auto l = SLog::get();
 
     // Upload to GPU
-    _modelState = getOwner()->getEngine()->getRenderer()->uploadModel(_modelData);
+    _modelState = getEngine()->getRenderer()->uploadModel(_modelData);
     if (_modelState == nullptr) {
         l->error("failed to upload modal data to gpu");
     }

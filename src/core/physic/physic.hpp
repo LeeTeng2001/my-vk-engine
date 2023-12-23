@@ -10,6 +10,8 @@
 #include "def.hpp"
 #include "utils/common.hpp"
 
+// jolt physic has the same coordinate as our world space
+
 class PhysicSystem {
 public:
     bool initialise();
@@ -18,6 +20,7 @@ public:
     void update(float deltaTime);
 
     // exposed methods
+    JPH::BodyInterface& getBodyInf() { return _joltPhysicSystem.GetBodyInterface(); } // locking, thread safe
 
 private:
     // update related

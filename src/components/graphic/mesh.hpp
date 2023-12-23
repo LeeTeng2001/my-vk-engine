@@ -5,7 +5,7 @@
 
 class MeshComponent: public Component {
 public:
-    explicit MeshComponent(weak_ptr<Actor> owner, int updateOrder = 10);
+    explicit MeshComponent(const shared_ptr<Engine> &engine, int ownerId);
     ~MeshComponent() override;
 
     void postUpdate() override;
@@ -14,9 +14,6 @@ public:
     // can either load modal or procedurally generate one
     void loadModal(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
     void generatedSquarePlane(float sideLength);
-
-    void loadDiffuseTexture(const std::string &path);
-    void loadNormalTexture(const std::string &path);
     void uploadToGpu();
 
 private:

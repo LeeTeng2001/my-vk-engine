@@ -1,6 +1,7 @@
 #include "actor.hpp"
 #include "components/component.hpp"
 #include "core/input/input_system.hpp"
+#include "core/engine.hpp"
 #include "glm/gtx/string_cast.hpp"
 
 Actor::~Actor() {
@@ -46,26 +47,36 @@ void Actor::removeComponent(const shared_ptr<Component>& component) {
     }
 }
 
-void Actor::setParent(const shared_ptr<Actor>& parent) {
-    if (!_parentPtr.expired()) {
+void Actor::setParent(int parentId) {
+    if (_parentId != -1) {
         // remove original parent reference
-        _parentPtr.lock()->removeChild(getSelf().lock());
+        auto p = _engine->getActor(_parentId);
+        if (p == nullptr) {
+            auto l = SLog::get();
+            l->error(fmt::format("get engine actor returns null, id: {:d}", _parentId));
+            return;
+        } else {
+            p->removeChild(getId());
+        }
     }
-    _parentPtr = parent;
-    parent->addChild(getSelf().lock());
 
-    // TODO: if update priority is set, update along
+    _parentId = parentId;
+    auto p = _engine->getActor(_parentId);
+    if (p == nullptr) {
+        auto l = SLog::get();
+        l->error(fmt::format("get engine actor returns null, id: {:d}", _parentId));
+        return;
+    } else {
+        p->addChild(getId());
+    }
 }
 
-void Actor::addChild(const shared_ptr<Actor>& child) {
-    _childrenPtrList.insert(child);
+void Actor::addChild(int childId) {
+    _childrenIdList.insert(childId);
 }
 
-void Actor::removeChild(const shared_ptr<Actor>& child) {
-    auto iter = std::find(_childrenPtrList.begin(), _childrenPtrList.end(), child);
-    if (iter != _childrenPtrList.end()) {
-        _childrenPtrList.erase(iter);
-    }
+void Actor::removeChild(int childId) {
+    _childrenIdList.erase(childId);
 }
 
 const glm::mat4 &Actor::getLocalTransform() {
@@ -80,11 +91,35 @@ const glm::mat4 &Actor::getLocalTransform() {
 glm::mat4 Actor::getWorldTransform() {
     // TODO: optimise into cache
     glm::mat4 worldTransform = getLocalTransform();
-    weak_ptr<Actor> parentPtr = _parentPtr;
-    while (!parentPtr.expired()) {
-        auto p = parentPtr.lock();
-        worldTransform = p->getLocalTransform() * worldTransform;
-        parentPtr = p->getParent();
+    int recParentId = _parentId;
+    while (recParentId != -1) {
+        auto p = _engine->getActor(recParentId);
+        if (p == nullptr) {
+            auto l = SLog::get();
+            l->error(fmt::format("get engine actor returns null, id: {:d}", recParentId));
+            break;
+        } else {
+            worldTransform = p->getLocalTransform() * worldTransform;
+            recParentId = p->getParentId();
+        }
     }
     return worldTransform;
+}
+
+const glm::vec3 &Actor::getWorldPosition() const {
+    // TODO: optimise into cache
+    glm::vec3 finalPos = getLocalPosition();
+    int recParentId = _parentId;
+    while (recParentId != -1) {
+        auto p = _engine->getActor(recParentId);
+        if (p == nullptr) {
+            auto l = SLog::get();
+            l->error(fmt::format("get engine actor returns null, id: {:d}", recParentId));
+            break;
+        } else {
+            finalPos += p->getLocalPosition();
+            recParentId = p->getParentId();
+        }
+    }
+    return finalPos;
 }

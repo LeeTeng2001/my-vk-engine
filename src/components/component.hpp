@@ -11,7 +11,7 @@ class Engine;
 class Component {
 public:
     // (the lower the update order, the earlier the component updates)
-    explicit Component(weak_ptr<Actor> owner, int updateOrder = 100);
+    explicit Component(shared_ptr<Engine> engine, int ownerId, int updateOrder = 100);
     virtual ~Component();
 
     // calculate new state
@@ -21,7 +21,8 @@ public:
     virtual void processInput(const struct InputState& keyState) {};
 
     // Getter
-    [[nodiscard]] shared_ptr<Actor> getOwner() { return _owner.lock(); }
+    [[nodiscard]] shared_ptr<Actor> getOwner();
+    [[nodiscard]] shared_ptr<Engine>& getEngine() { return _engine; };
     [[nodiscard]] int getUpdateOrder() const { return _updateOrder; }
     [[nodiscard]] bool getEnabled() const { return _enable; }
 
@@ -32,6 +33,8 @@ public:
 
 private:
     bool _enable = true;
-    weak_ptr<Actor> _owner;
+    shared_ptr<Actor> _parentCache;
+    shared_ptr<Engine> _engine;
+    int _ownerId = -1;
     int _updateOrder;
 };

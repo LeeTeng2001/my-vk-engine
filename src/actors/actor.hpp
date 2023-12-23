@@ -18,12 +18,12 @@ public:
         EActive, EPause, EDead
     };
 
-    // delay init after proper reference is obtained
+    // delay init after proper reference is obtained from engine
     explicit Actor() = default;
     virtual ~Actor();
 
     virtual void delayInit() = 0;
-    void delayInit(const shared_ptr<Actor>& self, const shared_ptr<Engine> &engine) { _selfPtr = self; _engine = engine; delayInit(); }
+    void delayInit(int actorId, const shared_ptr<Engine> &engine) { _actorWorldId = actorId; _engine = engine; delayInit(); }
 
     // Update related (world, components, actor specific)
     void update(float deltaTime);
@@ -39,10 +39,11 @@ public:
     void setScale(float scale) { _scale = scale; _recomputeLocalTransform = true; }
     void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeLocalTransform = true; }
     void setState(State state) { _state = state; }
-    void setParent(const shared_ptr<Actor> &parent);
+    void setParent(int parentId);
 
     // Getter
     [[nodiscard]] const glm::vec3& getLocalPosition() const { return _position; }
+    [[nodiscard]] const glm::vec3& getWorldPosition() const;
     [[nodiscard]] glm::vec3 getForward() const { return glm::mat4_cast(_rotation) * glm::vec4(0, 0, -1, 1); };
     [[nodiscard]] glm::vec3 getRight() const { return glm::normalize(glm::cross(getForward(), glm::vec3{0, 1, 0})); };
     [[nodiscard]] glm::vec3 getUp() const { return glm::normalize(glm::cross(getRight(), getForward())); };
@@ -52,27 +53,27 @@ public:
     [[nodiscard]] const glm::mat4& getLocalTransform();
     [[nodiscard]] glm::mat4 getWorldTransform();
     [[nodiscard]] shared_ptr<Engine> getEngine() { return _engine; }
-    [[nodiscard]] weak_ptr<Actor> getSelf() { return _selfPtr; }
-    [[nodiscard]] weak_ptr<Actor> getParent() { return _parentPtr; }
+    [[nodiscard]] int getId() { return _actorWorldId; }
+    [[nodiscard]] int getParentId() { return _parentId; }
 
     // Helper function
     void addComponent(const shared_ptr<Component>& component);
     void removeComponent(const shared_ptr<Component>& component);
 
 private:
-    void addChild(const shared_ptr<Actor> &child);
-    void removeChild(const shared_ptr<Actor> &child);
+    void addChild(int childId);
+    void removeChild(int childId);
 
     // Actor state & components
     State _state = EActive;
     bool _recomputeLocalTransform = true;  // when our transform change we need to recalculate
     std::multiset<shared_ptr<Component>> _components;
     shared_ptr<Engine> _engine;
-    weak_ptr<Actor> _selfPtr;
+    int _actorWorldId = -1;
 
     // Hierarchy
-    weak_ptr<Actor> _parentPtr;
-    std::unordered_set<shared_ptr<Actor>> _childrenPtrList;
+    int _parentId = -1;
+    std::unordered_set<int> _childrenIdList;
 
     // Transform related
     glm::mat4 _cacheWorldTransform{};

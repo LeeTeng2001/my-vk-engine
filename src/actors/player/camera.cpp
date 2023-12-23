@@ -13,7 +13,7 @@ constexpr float MIN_ANGLE_PITCH = -85;
 constexpr float MAX_ANGLE_PITCH = 85;
 
 void CameraActor::delayInit() {
-    _moveComp = make_shared<MoveComponent>(getSelf());
+    _moveComp = make_shared<MoveComponent>(getEngine(), getId());
     addComponent(_moveComp);
 }
 
