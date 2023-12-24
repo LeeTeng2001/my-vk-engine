@@ -208,7 +208,7 @@ bool Engine::prepareScene() {
     emptyActor = make_shared<EmptyActor>();
     addActor(emptyActor);
     meshComp = make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
-    meshComp->generatedSphere(1, 10, 10);
+    meshComp->generatedSphere(1, 30, 30);
     meshComp->uploadToGpu();
     emptyActor->addComponent(meshComp);
     rigidComp = make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());

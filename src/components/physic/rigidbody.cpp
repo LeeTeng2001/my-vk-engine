@@ -35,12 +35,12 @@ void RigidBodyComponent::createBox(const glm::vec3 &boxHalfExtentDim) {
     // shape setting (verbose)
     JPH::BoxShapeSettings shapeSetting(JPH::Vec3(boxHalfExtentDim.x, boxHalfExtentDim.y, boxHalfExtentDim.z));
     JPH::ShapeSettings::ShapeResult boxShapeRes = shapeSetting.Create();
-    JPH::ShapeRefC boxShapeRef = boxShapeRes.Get();
     if (boxShapeRes.HasError()) {
         auto l = SLog::get();
         l->error(fmt::format("Create box shape error: {:s}", boxShapeRes.GetError()));
         return;
     }
+    JPH::ShapeRefC boxShapeRef = boxShapeRes.Get();
     createShape(boxShapeRef);
 }
 
