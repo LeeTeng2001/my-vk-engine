@@ -19,6 +19,8 @@ public:
 
     void update(float deltaTime);
 
+    void static preInit() { JPH::RegisterDefaultAllocator(); } // WINDOWS behaviour, this should be setup before making a new physic system
+
     // exposed methods
     JPH::BodyInterface& getBodyInf() { return _joltPhysicSystem.GetBodyInterface(); } // locking, thread safe
 

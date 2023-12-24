@@ -28,7 +28,7 @@ bool Engine::initialize(shared_ptr<Engine> &self) {
         l->error("failed to initialise input system");
         return false;
     }
-    PhysicSystem p;
+    PhysicSystem::preInit();
     _physicSystem = make_shared<PhysicSystem>();
     if (!_physicSystem->initialise()) {
         l->error("failed to initialise physic system");

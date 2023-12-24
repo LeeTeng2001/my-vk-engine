@@ -13,7 +13,6 @@ bool PhysicSystem::initialise() {
     // TODO: customisable physic configuration from initialisation arg
     // setup example: https://github.com/jrouwe/JoltPhysicsHelloWorld/blob/main/Source/HelloWorld.cpp
 
-    JPH::RegisterDefaultAllocator();
     // JPH::Trace = TraceFunc // implement trace callback
     _joltAlloc = make_unique<JPH::TempAllocatorImpl>(PhyTempAllocSize); // TODO: customise alloc impl
     _jobSystem = make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
