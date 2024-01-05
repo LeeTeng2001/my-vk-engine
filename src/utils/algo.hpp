@@ -3,9 +3,10 @@
 #include "common.hpp"
 #include <glm/gtx/string_cast.hpp>
 
+namespace luna {
 class HelperAlgo {
 public:
-    array<int, 3> static getAxisOrder(const glm::vec3 &upAxis) {
+    std::array<int, 3> static getAxisOrder(const glm::vec3 &upAxis) {
         // TODO: implement rest
         if (upAxis == glm::vec3{0, 1, 0}) {
             return {0, 1, 2};
@@ -18,3 +19,4 @@ public:
         }
     }
 };
+}

@@ -6,9 +6,12 @@
 #include "core/physic/def.hpp"
 #include "components/component.hpp"
 
+
+namespace luna {
+
 class RigidBodyComponent : public Component {
 public:
-    explicit RigidBodyComponent(const shared_ptr<Engine> &engine, int ownerId);
+    explicit RigidBodyComponent(const std::shared_ptr<Engine> &engine, int ownerId);
     ~RigidBodyComponent() override;
 
     void postUpdate() override;
@@ -41,3 +44,5 @@ private:
 
     JPH::BodyID _bodyId;
 };
+
+}

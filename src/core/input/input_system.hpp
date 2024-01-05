@@ -6,6 +6,8 @@
 
 #include "utils/common.hpp"
 
+namespace luna {
+
 enum ButtonState {
 	ENone,
 	EPressed,
@@ -114,3 +116,5 @@ private:
 	InputState _inputState{};
 	SDL_Gamepad* _controller = nullptr;
 };
+
+}

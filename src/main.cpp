@@ -3,7 +3,7 @@
 #include "core/engine.hpp"
 
 int main() {
-    auto engine = make_shared<Engine>();
+    auto engine = std::make_shared<luna::Engine>();
     if (!engine->initialize(engine)) {
         return 1;
     };

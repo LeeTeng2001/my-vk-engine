@@ -3,7 +3,9 @@
 #include "core/engine.hpp"
 #include "actors/actor.hpp"
 
-Component::Component(shared_ptr<Engine> engine, int ownerId, int updateOrder) :
+namespace luna {
+
+Component::Component(std::shared_ptr<Engine> engine, int ownerId, int updateOrder) :
     _engine(std::move(engine)), _ownerId(ownerId), _updateOrder(updateOrder) {
 }
 
@@ -11,7 +13,7 @@ bool Component::operator<(const Component &rhs) const {
     return _updateOrder < rhs._updateOrder;
 }
 
-shared_ptr<Actor> Component::getOwner() {
+std::shared_ptr<Actor> Component::getOwner() {
     if (_parentCache == nullptr) {
         _parentCache = _engine->getActor(_ownerId);
     }
@@ -19,3 +21,5 @@ shared_ptr<Actor> Component::getOwner() {
 }
 
 Component::~Component() = default;
+
+}

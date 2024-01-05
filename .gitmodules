@@ -32,3 +32,9 @@
 [submodule "libs/joltphysics"]
 	path = libs/joltphysics
 	url = https://github.com/jrouwe/JoltPhysics
+[submodule "libs/lua"]
+	path = libs/lua
+	url = git@github.com:lua/lua.git
+[submodule "libs/sol2"]
+	path = libs/sol2
+	url = git@github.com:ThePhD/sol2.git

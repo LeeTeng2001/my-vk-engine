@@ -7,7 +7,9 @@
 #include "mesh.hpp"
 #include "utils/algo.hpp"
 
-MeshComponent::MeshComponent(const shared_ptr<Engine> &engine, int ownerId) :
+namespace luna {
+
+MeshComponent::MeshComponent(const std::shared_ptr<Engine> &engine, int ownerId) :
             Component(engine, ownerId) {
 }
 
@@ -23,7 +25,7 @@ void MeshComponent::postUpdate() {
     }
 }
 
-void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
+void MeshComponent::loadObj(const std::string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
     fs::path modelPath(path);
 
@@ -49,10 +51,10 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
     l->info(fmt::format("model shapes: {:d}", shapes.size()));
     l->info(fmt::format("model materials: {:d}", materials.size()));
 
-    array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
+    std::array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
 
     // Upload materials info
-    vector<int> gpuMatId{};
+    std::vector<int> gpuMatId{};
     for (const auto &mat: materials) {
         MaterialCpu matCpu{};
         matCpu.info.diffuse = glm::vec4{mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1};
@@ -175,14 +177,14 @@ void MeshComponent::loadObj(const string &path, const glm::vec3 &upAxis) {
                         _modelData.indices.size(), _modelData.modelDataPartition.size()));
 }
 
-void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
+void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
 
     l->info(fmt::format("Loading glb model: {:s}", path));
     tinygltf::Model modal;
     tinygltf::TinyGLTF loader;
-    string err;
-    string warn;
+    std::string err;
+    std::string warn;
 
     if (!loader.LoadBinaryFromFile(&modal, &err, &warn, path)) {
         l->error("failed to parse binary glb file");
@@ -199,10 +201,10 @@ void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
     l->info(fmt::format("model shapes: {:d}", modal.meshes.size()));
     l->info(fmt::format("model materials: {:d}", modal.materials.size()));
 
-    array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
+    std::array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
 
     // Upload materials info
-    vector<int> gpuMatId{};
+    std::vector<int> gpuMatId{};
     for (const auto &gltfMat: modal.materials) {
         MaterialCpu matCpu{};
         matCpu.info.diffuse = glm::vec4{gltfMat.pbrMetallicRoughness.baseColorFactor[0],
@@ -244,7 +246,7 @@ void MeshComponent::loadGlb(const string &path, const glm::vec3 &upAxis) {
 //    modal.scenes[modal.defaultScene].
 }
 
-void MeshComponent::loadModal(const string &path, const glm::vec3 &upAxis) {
+void MeshComponent::loadModal(const std::string &path, const glm::vec3 &upAxis) {
     if (path.ends_with(".obj")) {
         loadObj(path, upAxis);
     } else if (path.ends_with(".glb")) {
@@ -358,3 +360,4 @@ void MeshComponent::uploadToGpu() {
 //    stbi_image_free(_modelData.normalTexture.stbRef);
 }
 
+}

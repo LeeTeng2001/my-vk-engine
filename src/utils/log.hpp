@@ -4,6 +4,7 @@
 #include <source_location>
 #include <vulkan/vulkan_core.h>
 
+namespace luna {
 class Log {
 private:
     std::unique_ptr<spdlog::logger> logger;
@@ -38,3 +39,4 @@ public:
         return &instance;
     }
 };
+}

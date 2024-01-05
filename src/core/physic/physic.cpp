@@ -2,6 +2,8 @@
 
 #include "physic.hpp"
 
+namespace luna {
+
 // TODO: refactor those constant into config
 constexpr int PhyTempAllocSize = 10 * 1024 * 1024;
 constexpr int MaxBodies = 65536;
@@ -14,8 +16,8 @@ bool PhysicSystem::initialise() {
     // setup example: https://github.com/jrouwe/JoltPhysicsHelloWorld/blob/main/Source/HelloWorld.cpp
 
     // JPH::Trace = TraceFunc // implement trace callback
-    _joltAlloc = make_unique<JPH::TempAllocatorImpl>(PhyTempAllocSize); // TODO: customise alloc impl
-    _jobSystem = make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
+    _joltAlloc = std::make_unique<JPH::TempAllocatorImpl>(PhyTempAllocSize); // TODO: customise alloc impl
+    _jobSystem = std::make_unique<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
                                                        std::thread::hardware_concurrency() - 1); // TODO: customise job impl
 
     // factory and types
@@ -61,4 +63,6 @@ void PhysicSystem::update(float deltaTime) {
 
     // update
     _joltPhysicSystem.Update(_fixedUpdateStepS, totalCollisionSteps, _joltAlloc.get(), _jobSystem.get());
+}
+
 }

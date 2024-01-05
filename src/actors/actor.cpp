@@ -4,6 +4,8 @@
 #include "core/engine.hpp"
 #include "glm/gtx/string_cast.hpp"
 
+namespace luna {
+
 Actor::~Actor() {
     // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
     _components.clear();
@@ -35,12 +37,12 @@ void Actor::processInput(const struct InputState &keyState) {
     }
 }
 
-void Actor::addComponent(const shared_ptr<Component>& component) {
+void Actor::addComponent(const std::shared_ptr<Component>& component) {
     // lower order at front with multiset property
     _components.insert(component);
 }
 
-void Actor::removeComponent(const shared_ptr<Component>& component) {
+void Actor::removeComponent(const std::shared_ptr<Component>& component) {
     auto iter = std::find(_components.begin(), _components.end(), component);
     if (iter != _components.end()) {
         _components.erase(iter);
@@ -145,4 +147,6 @@ void Actor::setWorldPosition(const glm::vec3 &pos) {
     }
     _position = relPos;
     _recomputeLocalTransform = true;
+}
+
 }

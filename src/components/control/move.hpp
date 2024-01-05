@@ -2,9 +2,11 @@
 
 #include "components/component.hpp"
 
+namespace luna {
+
 class MoveComponent : public Component {
 public:
-    explicit MoveComponent(const shared_ptr<Engine> &engine, int ownerId);
+    explicit MoveComponent(const std::shared_ptr<Engine> &engine, int ownerId);
 
     void update(float deltaTime) override;
 
@@ -22,3 +24,5 @@ private:
     // Controls side movement (units/second)
     float _strafeSpeed = 0;
 };
+
+}

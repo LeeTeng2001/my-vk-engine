@@ -13,6 +13,8 @@
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
+namespace luna{
+
 bool Renderer::initialise(RenderConfig renderConfig) {
     auto l = SLog::get();
     _renderConf = renderConfig;
@@ -236,7 +238,7 @@ void Renderer::printPhysDeviceProps() {
     // Get info
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &queueFamilyCount, nullptr);
-    vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &queueFamilyCount, queueFamilies.data());
 
     // Print info
@@ -344,8 +346,8 @@ bool Renderer::initRenderPass() {
     colorAttachmentRef.attachment = 1;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    vector<VkAttachmentDescription> allAttachments{depthAttachment};
-    vector<VkAttachmentReference> colorAttachmentRefList{};
+    std::vector<VkAttachmentDescription> allAttachments{depthAttachment};
+    std::vector<VkAttachmentReference> colorAttachmentRefList{};
 
     for (int i = 1; i < MRT_OUT_SIZE; ++i) {
         colorAttachment.format = _imgInfoList[i].format;
@@ -388,7 +390,7 @@ bool Renderer::initRenderPass() {
     outDependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     outDependency.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 
-    vector<VkSubpassDependency > allDependencies{
+    std::vector<VkSubpassDependency > allDependencies{
             inDependency, depthDependency, outDependency
     };
 
@@ -551,7 +553,7 @@ bool Renderer::initFramebuffer() {
     // mrt framebuffer for in flight
     framebufferInfo.renderPass = _mrtRenderPass;
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        vector<VkImageView> imgViewList;
+        std::vector<VkImageView> imgViewList;
         for (const auto &imgRes: _flightResources[i]->compImgResourceList) {
             imgViewList.push_back(imgRes->imageView);
         }
@@ -682,8 +684,8 @@ bool Renderer::initPipeline() {
     // MRT Pipeline ------------------------------------------------------------
 
     // Create programmable shaders
-    vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.vert.spv");
-    vector<char> mrtFragShaderCode = CreationHelper::readFile("assets/shaders/mrt.frag.spv");
+    std::vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.vert.spv");
+    std::vector<char> mrtFragShaderCode = CreationHelper::readFile("assets/shaders/mrt.frag.spv");
     VkShaderModule mrtVertShaderModule = CreationHelper::createShaderModule(mrtVertShaderCode, _device);
     VkShaderModule mrtFragShaderModule = CreationHelper::createShaderModule(mrtFragShaderCode, _device);
 
@@ -750,8 +752,8 @@ bool Renderer::initPipeline() {
 
     // Composition pipeline --------------------------------------------------------
 
-    vector<char> compVertShaderCode = CreationHelper::readFile("assets/shaders/composition.vert.spv");
-    vector<char> compFragShaderCode = CreationHelper::readFile("assets/shaders/composition.frag.spv");
+    std::vector<char> compVertShaderCode = CreationHelper::readFile("assets/shaders/composition.vert.spv");
+    std::vector<char> compFragShaderCode = CreationHelper::readFile("assets/shaders/composition.frag.spv");
     VkShaderModule compVertShaderModule = CreationHelper::createShaderModule(compVertShaderCode, _device);
     VkShaderModule compFragShaderModule = CreationHelper::createShaderModule(compFragShaderCode, _device);
 
@@ -802,7 +804,7 @@ bool Renderer::initPipeline() {
 
 int Renderer::createMaterial(MaterialCpu& materialCpu) {
     auto l = SLog::get();
-    shared_ptr<MaterialGpu> gpuMaterial = make_shared<MaterialGpu>();
+    std::shared_ptr<MaterialGpu> gpuMaterial = std::make_shared<MaterialGpu>();
 
     // uniform
     l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(MrtUboData),
@@ -842,8 +844,8 @@ int Renderer::createMaterial(MaterialCpu& materialCpu) {
 }
 
 
-shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
-    shared_ptr<ModalState> newModalState = make_shared<ModalState>();
+std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
+    std::shared_ptr<ModalState> newModalState = std::make_shared<ModalState>();
 
     auto l = SLog::get();
     // VMA best usage info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
@@ -911,7 +913,7 @@ shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
     return newModalState;
 }
 
-void Renderer::removeModal(const shared_ptr<ModalState> &modalState) {
+void Renderer::removeModal(const std::shared_ptr<ModalState> &modalState) {
     auto l = SLog::get();
     // TODO: should check
     auto iter = std::find(_modalStateList.begin(), _modalStateList.end(), modalState);
@@ -1094,7 +1096,7 @@ void Renderer::drawAllModel() {
     }
 }
 
-void Renderer::writeDebugUi(const string &msg) {
+void Renderer::writeDebugUi(const std::string &msg) {
     _debugUiText.emplace_back(msg);
 }
 
@@ -1376,5 +1378,5 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &outResourceInfo.sampler));
 }
 
-
+}
 

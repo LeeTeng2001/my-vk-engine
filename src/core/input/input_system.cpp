@@ -4,6 +4,8 @@
 
 #include "input_system.hpp"
 
+namespace luna {
+
 bool KeyboardState::getKeyValue(SDL_Scancode keyCode) const {
 	return _curState[keyCode] == 1;
 }
@@ -174,4 +176,6 @@ glm::vec2 InputSystem::filter2D(int inputX, int inputY) {
     }
 
     return dir;
+}
+
 }

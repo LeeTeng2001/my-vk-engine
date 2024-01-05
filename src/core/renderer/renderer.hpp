@@ -6,6 +6,7 @@
 // think about what kind of abstraction to expose to upper user
 // for vulkan renderer?
 // this is not a general renderer!
+namespace luna {
 
 constexpr int MRT_SAMPLE_SIZE = 3;
 constexpr int MRT_OUT_SIZE = 4;
@@ -18,10 +19,10 @@ struct FlightResource {
     VkCommandBuffer mrtCmdBuffer{};
 
     // Img Resources
-    vector<ImgResource*> compImgResourceList;
+    std::vector<ImgResource*> compImgResourceList;
 
     // Composition
-    vector<VkDescriptorSet> compDescSetList{};
+    std::vector<VkDescriptorSet> compDescSetList{};
     VkSemaphore compSemaphore{};
     VkCommandBuffer compCmdBuffer{};
 
@@ -46,14 +47,14 @@ public:
     void newFrame();
     void beginRecordCmd();
     void drawAllModel();
-    void writeDebugUi(const string &msg);
+    void writeDebugUi(const std::string &msg);
     void endRecordCmd();
     void draw();
 
     // data related
     int createMaterial(MaterialCpu& materialCpu); // return material id
-    shared_ptr<ModalState> uploadModel(ModelDataCpu& modelData);
-    void removeModal(const shared_ptr<ModalState>& modelData);
+    std::shared_ptr<ModalState> uploadModel(ModelDataCpu& modelData);
+    void removeModal(const std::shared_ptr<ModalState>& modelData);
 
     // setter
     void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
@@ -95,14 +96,14 @@ private:
     glm::mat4 _camProjectionTransform{};
     CompUboData _nextCompUboData{};
     int _nextLightPos{};
-    vector<string> _debugUiText;
-    vector<shared_ptr<MaterialGpu>> _materialList;
-    vector<shared_ptr<ModalState>> _modalStateList;
+    std::vector<std::string> _debugUiText;
+    std::vector<std::shared_ptr<MaterialGpu>> _materialList;
+    std::vector<std::shared_ptr<ModalState>> _modalStateList;
 
     // members
     RenderConfig _renderConf;
-    stack<function<void ()>> _interCleanup{};
-    stack<function<void ()>> _globCleanup;
+    std::stack<std::function<void ()>> _interCleanup{};
+    std::stack<std::function<void ()>> _globCleanup;
 
     // core
     class SDL_Window* _window{};
@@ -130,9 +131,9 @@ private:
     VkSwapchainKHR _swapchain{};
     VkFormat _swapchainImageFormat{};
     VkExtent2D _swapChainExtent{};
-    vector<VkImage> _swapchainImages;
-    vector<VkImageView> _swapchainImageViews;
-    vector<VkFramebuffer> _swapChainFramebuffers;
+    std::vector<VkImage> _swapchainImages;
+    std::vector<VkImageView> _swapchainImageViews;
+    std::vector<VkFramebuffer> _swapChainFramebuffers;
 
     // Descriptions & layout
     VkRenderPass _mrtRenderPass{}; // render to multiple attachment output
@@ -140,7 +141,7 @@ private:
     VkPipelineLayout _mrtPipelineLayout{};
     VkPipeline _mrtPipeline{};
     VkRenderPass _compositionRenderPass{};  // use multiple attachment as sampler, do some composition and present
-    vector<VkDescriptorSetLayout> _compSetLayoutList{};
+    std::vector<VkDescriptorSetLayout> _compSetLayoutList{};
     VkPipelineLayout _compPipelineLayout{};
     VkPipeline _compPipeline{};
 
@@ -148,6 +149,7 @@ private:
     VkCommandPool _renderCmdPool{};
     VkCommandPool _oneTimeCmdPool{};
     VkDescriptorPool _globalDescPool{};
-    vector<VkClearValue> _mrtClearColor;
-    vector<FlightResource*> _flightResources;
+    std::vector<VkClearValue> _mrtClearColor;
+    std::vector<FlightResource*> _flightResources;
 };
+}

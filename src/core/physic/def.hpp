@@ -5,6 +5,8 @@
 
 #include "utils/common.hpp"
 
+namespace luna {
+
 // Each broadphase layer results in a separate bounding volume tree in the broad phase. You at least want to have
 // a layer for non-moving and moving objects to avoid having to update a tree full of static objects every frame.
 // You can have a 1-on-1 mapping between object layers and broadphase layers (like in this case) but if you have
@@ -121,3 +123,5 @@ public:
         l->debug("a contact was removed");
     }
 };
+
+}

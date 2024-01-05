@@ -2,6 +2,8 @@
 
 #include "actors/actor.hpp"
 
+namespace luna {
+
 class TweenComponent;
 class MeshComponent;
 class Engine;
@@ -16,8 +18,10 @@ public:
     void updateActor(float deltaTime) override;
 
 private:
-    shared_ptr<TweenComponent> _tweenComp;
-    shared_ptr<MeshComponent> _meshComp;
+    std::shared_ptr<TweenComponent> _tweenComp;
+    std::shared_ptr<MeshComponent> _meshComp;
     float _radius;
     glm::vec3 _color;
 };
+
+}

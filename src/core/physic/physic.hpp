@@ -12,6 +12,8 @@
 
 // jolt physic has the same coordinate as our world space
 
+namespace luna {
+
 class PhysicSystem {
 public:
     bool initialise();
@@ -30,8 +32,8 @@ private:
     float _accumUpdateS = 0;
 
     // for temp alloc, rn fix it at 10MB
-    unique_ptr<JPH::TempAllocatorImpl> _joltAlloc;
-    unique_ptr<JPH::JobSystemThreadPool> _jobSystem;
+    std::unique_ptr<JPH::TempAllocatorImpl> _joltAlloc;
+    std::unique_ptr<JPH::JobSystemThreadPool> _jobSystem;
 
     // layers and broadcast implementation
     BPLayerInterfaceImpl _bpLayer{};
@@ -42,3 +44,5 @@ private:
 
     JPH::PhysicsSystem _joltPhysicSystem{};
 };
+
+}

@@ -4,9 +4,13 @@
 #include "components/anim/tween.hpp"
 #include "components/graphic/mesh.hpp"
 
+namespace luna {
+
 void PointLightActor::delayInit() {
 }
 
 void PointLightActor::updateActor(float deltaTime) {
     getEngine()->getRenderer()->setLightInfo(getLocalPosition(), _color, _radius);
+}
+
 }

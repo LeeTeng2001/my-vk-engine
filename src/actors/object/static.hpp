@@ -2,6 +2,8 @@
 
 #include "actors/actor.hpp"
 
+namespace luna {
+
 class MeshComponent;
 class Engine;
 
@@ -13,5 +15,7 @@ public:
 
 private:
     std::string _modelPath;
-    shared_ptr<MeshComponent> _meshComp;
+    std::shared_ptr<MeshComponent> _meshComp;
 };
+
+}

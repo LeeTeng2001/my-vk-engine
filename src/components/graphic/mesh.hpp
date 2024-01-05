@@ -3,9 +3,11 @@
 #include "components/component.hpp"
 #include "core/renderer/def.hpp"
 
+namespace luna {
+
 class MeshComponent: public Component {
 public:
-    explicit MeshComponent(const shared_ptr<Engine> &engine, int ownerId);
+    explicit MeshComponent(const std::shared_ptr<Engine> &engine, int ownerId);
     ~MeshComponent() override;
 
     void postUpdate() override;
@@ -25,6 +27,7 @@ private:
 
     // Group model data based on material group
     ModelDataCpu _modelData;
-    shared_ptr<ModalState> _modelState;
+    std::shared_ptr<ModalState> _modelState;
 };
 
+}

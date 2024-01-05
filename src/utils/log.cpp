@@ -6,6 +6,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include "log.hpp"
 
+namespace luna{
 Log::Log() {
     // TODO: configure different level from file or something
     // console sink
@@ -74,3 +75,4 @@ void Log::vk_res(VkResult res, std::source_location location) {
 }
 
 #endif
+}

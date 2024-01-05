@@ -14,22 +14,23 @@
 #include "components/graphic/mesh.hpp"
 #include "components/physic/rigidbody.hpp"
 
-bool Engine::initialize(shared_ptr<Engine> &self) {
+namespace luna{
+bool Engine::initialize(std::shared_ptr<Engine> &self) {
     _self = self;
     auto l = SLog::get();
 
-    _renderer = make_shared<Renderer>();
+    _renderer = std::make_shared<Renderer>();
     if (!_renderer->initialise()) { // TODO: custom config
         l->error("failed to initialise renderer");
         return false;
     }
-    _inputSystem = make_shared<InputSystem>();
+    _inputSystem = std::make_shared<InputSystem>();
     if (!_inputSystem->initialise()) {
         l->error("failed to initialise input system");
         return false;
     }
     PhysicSystem::preInit();
-    _physicSystem = make_shared<PhysicSystem>();
+    _physicSystem = std::make_shared<PhysicSystem>();
     if (!_physicSystem->initialise()) {
         l->error("failed to initialise physic system");
         return false;
@@ -128,49 +129,49 @@ void Engine::drawOutput() {
     _renderer->draw();
 }
 
-void Engine::addActor(const shared_ptr<Actor>& actor) {
+void Engine::addActor(const std::shared_ptr<Actor>& actor) {
     _actorMap.emplace(_actorIdInc, actor);
     actor->delayInit(_actorIdInc, _self.lock());
     _actorIdInc++;
 }
 
 bool Engine::prepareScene() {
-    _camActor = make_shared<CameraActor>();
+    _camActor = std::make_shared<CameraActor>();
     addActor(_camActor);
     _camActor->setLocalPosition(glm::vec3{0, 0.5, 3});
 
-    shared_ptr<Actor> staticActor;
-    shared_ptr<EmptyActor> emptyActor;
-    shared_ptr<TweenComponent> tweenComp;
-    shared_ptr<MeshComponent> meshComp;
-    shared_ptr<RigidBodyComponent> rigidComp;
+    std::shared_ptr<Actor> staticActor;
+    std::shared_ptr<EmptyActor> emptyActor;
+    std::shared_ptr<TweenComponent> tweenComp;
+    std::shared_ptr<MeshComponent> meshComp;
+    std::shared_ptr<RigidBodyComponent> rigidComp;
 
-//    staticActor = make_shared<StaticActor>("assets/models/miniature_night_city.obj");
+//    staticActor = std::make_shared<StaticActor>("assets/models/miniature_night_city.obj");
 //    addActor(staticActor);
 
 //    // viking room
-//    emptyActor = make_shared<EmptyActor>();
+//    emptyActor = std::make_shared<EmptyActor>();
 //    addActor(emptyActor);
-//    meshComp = make_shared<MeshComponent>(emptyActor);
+//    meshComp = std::make_shared<MeshComponent>(emptyActor);
 //    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
 //    meshComp->uploadToGpu();
 //    emptyActor->addComponent(meshComp);
 
 //    // moving cube with a parent
-//    emptyActor = make_shared<EmptyActor>();
+//    emptyActor = std::make_shared<EmptyActor>();
 //    addActor(emptyActor);
 //    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
-//    staticActor = make_shared<StaticActor>("assets/models/cube.obj");
+//    staticActor = std::make_shared<StaticActor>("assets/models/cube.obj");
 //    addActor(staticActor);
 //    staticActor->setParent(emptyActor->getId());
-//    tweenComp = make_shared<TweenComponent>(_self.lock(), staticActor->getId());
+//    tweenComp = std::make_shared<TweenComponent>(_self.lock(), staticActor->getId());
 //    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
 //    staticActor->addComponent(tweenComp);
 
 //    // procedural floor plane
-//    emptyActor = make_shared<EmptyActor>();
+//    emptyActor = std::make_shared<EmptyActor>();
 //    addActor(emptyActor);
-//    meshComp = make_shared<MeshComponent>(emptyActor);
+//    meshComp = std::make_shared<MeshComponent>(emptyActor);
 //    meshComp->generatedSquarePlane(2);
 //    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
 //    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
@@ -180,38 +181,38 @@ bool Engine::prepareScene() {
 //    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
 
     // Light
-//    auto lightAct = make_shared<PointLightActor>(glm::vec3{1, 1, 1});
+//    auto lightAct = std::make_shared<PointLightActor>(glm::vec3{1, 1, 1});
 //    addActor(lightAct);
 //    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
-//    tweenComp = make_shared<TweenComponent>(lightAct);
+//    tweenComp = std::make_shared<TweenComponent>(lightAct);
 //    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
 //    lightAct->addComponent(tweenComp);
 
 
     // Physic demo
     // procedural floor plane
-    emptyActor = make_shared<EmptyActor>();
+    emptyActor = std::make_shared<EmptyActor>();
     addActor(emptyActor);
-    meshComp = make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
+    meshComp = std::make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
     meshComp->generatedSquarePlane(5);
     meshComp->uploadToGpu();
     emptyActor->addComponent(meshComp);
     emptyActor->setLocalPosition(glm::vec3{0, -4, 0});
     emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
-    rigidComp = make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
+    rigidComp = std::make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
     emptyActor->addComponent(rigidComp);
     rigidComp->setIsStatic(true);
     rigidComp->setBounciness(0.8);
     rigidComp->createBox(glm::vec3{2.5, 0.1, 2.5});
 
     // procedural ball
-    emptyActor = make_shared<EmptyActor>();
+    emptyActor = std::make_shared<EmptyActor>();
     addActor(emptyActor);
-    meshComp = make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
+    meshComp = std::make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
     meshComp->generatedSphere(1, 30, 30);
     meshComp->uploadToGpu();
     emptyActor->addComponent(meshComp);
-    rigidComp = make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
+    rigidComp = std::make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
     emptyActor->addComponent(rigidComp);
     rigidComp->setIsStatic(false);
     rigidComp->createSphere(1);
@@ -229,4 +230,5 @@ void Engine::handleGlobalInput(const InputState& key) {
         l->info("detected exit key, exiting");
         _gameState = EQuit;
     }
+}
 }

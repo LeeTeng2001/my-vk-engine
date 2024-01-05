@@ -6,6 +6,8 @@
 
 #include "utils/common.hpp"
 
+namespace luna {
+
 class Component;
 class Engine;
 
@@ -23,7 +25,7 @@ public:
     virtual ~Actor();
 
     virtual void delayInit() = 0;
-    void delayInit(int actorId, const shared_ptr<Engine> &engine) { _actorWorldId = actorId; _engine = engine; delayInit(); }
+    void delayInit(int actorId, const std::shared_ptr<Engine> &engine) { _actorWorldId = actorId; _engine = engine; delayInit(); }
 
     // Update related (world, components, actor specific)
     void update(float deltaTime);
@@ -53,13 +55,13 @@ public:
     [[nodiscard]] State getState() const { return _state; }
     [[nodiscard]] const glm::mat4& getLocalTransform();
     [[nodiscard]] glm::mat4 getWorldTransform();
-    [[nodiscard]] shared_ptr<Engine> getEngine() { return _engine; }
+    [[nodiscard]] std::shared_ptr<Engine> getEngine() { return _engine; }
     [[nodiscard]] int getId() { return _actorWorldId; }
     [[nodiscard]] int getParentId() { return _parentId; }
 
     // Helper function
-    void addComponent(const shared_ptr<Component>& component);
-    void removeComponent(const shared_ptr<Component>& component);
+    void addComponent(const std::shared_ptr<Component>& component);
+    void removeComponent(const std::shared_ptr<Component>& component);
 
 private:
     void addChild(int childId);
@@ -68,8 +70,8 @@ private:
     // Actor state & components
     State _state = EActive;
     bool _recomputeLocalTransform = true;  // when our transform change we need to recalculate
-    std::multiset<shared_ptr<Component>> _components;
-    shared_ptr<Engine> _engine;
+    std::multiset<std::shared_ptr<Component>> _components;
+    std::shared_ptr<Engine> _engine;
     int _actorWorldId = -1;
 
     // Hierarchy
@@ -84,5 +86,5 @@ private:
     float _scale = 1;
 };
 
-
+}
 

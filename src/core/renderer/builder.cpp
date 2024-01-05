@@ -1,6 +1,8 @@
 
 #include "builder.hpp"
 
+namespace luna {
+
 DescriptorBuilder::~DescriptorBuilder() {
     for (const auto &item: _dynamicImageInfo) {
         delete item;
@@ -192,3 +194,4 @@ bool DescriptorBuilder::inConstrain(int targetSet) {
     return true;
 }
 
+}

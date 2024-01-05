@@ -6,6 +6,8 @@
 #include "core/engine.hpp"
 #include "core/renderer/renderer.hpp"
 
+namespace luna {
+
 constexpr float MOVEMENT_SPEED = 2.0;
 constexpr float HOR_ANGLE_SPEED = 30;
 constexpr float VERT_ANGLE_SPEED = 10;
@@ -13,7 +15,7 @@ constexpr float MIN_ANGLE_PITCH = -85;
 constexpr float MAX_ANGLE_PITCH = 85;
 
 void CameraActor::delayInit() {
-    _moveComp = make_shared<MoveComponent>(getEngine(), getId());
+    _moveComp = std::make_shared<MoveComponent>(getEngine(), getId());
     addComponent(_moveComp);
 }
 
@@ -173,4 +175,6 @@ glm::mat4 CameraActor::getOrthographicTransformMatrix() {
     projection[2][2] = 1.0f / _farDepth;
 
     return projection;
+}
+
 }

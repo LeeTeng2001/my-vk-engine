@@ -10,9 +10,11 @@
 #include "rigidbody.hpp"
 
 
+namespace luna {
+
 // https://github.com/jrouwe/JoltPhysicsHelloWorld/blob/main/Source/HelloWorld.cpp
 
-RigidBodyComponent::RigidBodyComponent(const shared_ptr<Engine> &engine, int ownerId) : Component(engine, ownerId) {
+RigidBodyComponent::RigidBodyComponent(const std::shared_ptr<Engine> &engine, int ownerId) : Component(engine, ownerId) {
 }
 
 RigidBodyComponent::~RigidBodyComponent() {
@@ -68,4 +70,6 @@ void RigidBodyComponent::createShape(const JPH::ShapeRefC& bodyShapeRef) {
 void RigidBodyComponent::setLinearVelocity(const glm::vec3& velo) {
     JPH::BodyInterface& bodyInf = getEngine()->getPhysicSystem()->getBodyInf();
     bodyInf.SetLinearVelocity(_bodyId, JPH::Vec3(velo[0], velo[1], velo[2]));
+}
+
 }

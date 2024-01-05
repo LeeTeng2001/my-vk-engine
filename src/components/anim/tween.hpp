@@ -2,9 +2,11 @@
 
 #include "components/component.hpp"
 
+namespace luna {
+
 class TweenComponent: public Component {
 public:
-    explicit TweenComponent(const shared_ptr<Engine> &engine, int ownerId, int updateOrder = 10);
+    explicit TweenComponent(const std::shared_ptr<Engine> &engine, int ownerId, int updateOrder = 10);
 
     enum EaseType {
         EEaseLinear, EEaseInOutQuad
@@ -16,7 +18,7 @@ public:
 
     struct SeqBlock {
         float durationS;
-        function<void (float, float)> invokeF; // perc [0, 1], delta [0, 1]
+        std::function<void (float, float)> invokeF; // perc [0, 1], delta [0, 1]
     };
 
     void update(float deltaTime) override;
@@ -33,7 +35,9 @@ private:
 
     float _accumTimestampS{};
     int _curSeqBlock{};
-    vector<unique_ptr<SeqBlock>> _animSeqList{};
+    std::vector<std::unique_ptr<SeqBlock>> _animSeqList{};
 
     static float getEaseVal(EaseType type, float perc);
 };
+
+}

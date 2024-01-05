@@ -29,6 +29,8 @@ add_executable(${EXE_NAME}
         core/engine.cpp
         core/input/input_system.hpp
         core/input/input_system.cpp
+        core/scripting/lua.cpp
+        core/scripting/lua.hpp
         core/physic/def.hpp
         core/physic/physic.cpp
         core/physic/physic.hpp
@@ -61,6 +63,9 @@ target_link_libraries(${EXE_NAME}
         tinygltf
         spdlog::spdlog
         Jolt # physic
+        # Lua scripting
+        lua::lua
+        sol2::sol2
         )
 
 add_dependencies(${EXE_NAME} Shaders)

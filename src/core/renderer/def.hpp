@@ -6,6 +6,8 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include "utils/common.hpp"
 
+namespace luna {
+
 struct RenderConfig {
     int maxFrameInFlight = 2;
     int windowWidth = 1700;
@@ -64,7 +66,7 @@ struct Vertex {
     glm::vec3 tangents;
     glm::vec3 bitangents;
 
-    static vector<VkVertexInputBindingDescription> getBindingDescription() {
+    static std::vector<VkVertexInputBindingDescription> getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
         bindingDescription.stride = sizeof(Vertex);
@@ -72,8 +74,8 @@ struct Vertex {
         return {bindingDescription};
     };
 
-    static vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-        vector<VkVertexInputAttributeDescription> attributeDescriptions(5);
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions(5);
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
         attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -135,9 +137,9 @@ struct ModelDataPartition {
 
 // cpu submit
 struct ModelDataCpu {
-    vector<Vertex> vertex = {};
-    vector<uint32_t> indices = {};
-    vector<ModelDataPartition> modelDataPartition = {};
+    std::vector<Vertex> vertex = {};
+    std::vector<uint32_t> indices = {};
+    std::vector<ModelDataPartition> modelDataPartition = {};
 };
 
 struct MaterialCpu {
@@ -174,6 +176,7 @@ struct ModalState {
     VkBuffer iBuffer{};
     uint32_t indicesSize{};
 
-    vector<ModelDataPartition> modelDataPartition{};
+    std::vector<ModelDataPartition> modelDataPartition{};
 };
 
+}

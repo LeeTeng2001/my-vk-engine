@@ -1,6 +1,8 @@
 #include "static.hpp"
 #include "components/graphic/mesh.hpp"
 
+namespace luna {
+
 void StaticActor::delayInit() {
     _meshComp = make_shared<MeshComponent>(getEngine(), getId());
     if (!_modelPath.empty()) {
@@ -8,4 +10,6 @@ void StaticActor::delayInit() {
         _meshComp->uploadToGpu();
     }
     addComponent(_meshComp);
+}
+
 }

@@ -5,13 +5,15 @@
 // components is unaware of owner actor
 // actor should be responsible for linking / unreferencing components
 
+namespace luna {
+
 class Actor;
 class Engine;
 
 class Component {
 public:
     // (the lower the update order, the earlier the component updates)
-    explicit Component(shared_ptr<Engine> engine, int ownerId, int updateOrder = 100);
+    explicit Component(std::shared_ptr<Engine> engine, int ownerId, int updateOrder = 100);
     virtual ~Component();
 
     // calculate new state
@@ -21,8 +23,8 @@ public:
     virtual void processInput(const struct InputState& keyState) {};
 
     // Getter
-    [[nodiscard]] shared_ptr<Actor> getOwner();
-    [[nodiscard]] shared_ptr<Engine>& getEngine() { return _engine; };
+    [[nodiscard]] std::shared_ptr<Actor> getOwner();
+    [[nodiscard]] std::shared_ptr<Engine>& getEngine() { return _engine; };
     [[nodiscard]] int getUpdateOrder() const { return _updateOrder; }
     [[nodiscard]] bool getEnabled() const { return _enable; }
 
@@ -33,8 +35,10 @@ public:
 
 private:
     bool _enable = true;
-    shared_ptr<Actor> _parentCache;
-    shared_ptr<Engine> _engine;
+    std::shared_ptr<Actor> _parentCache;
+    std::shared_ptr<Engine> _engine;
     int _ownerId = -1;
     int _updateOrder;
 };
+
+}

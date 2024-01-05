@@ -3,7 +3,9 @@
 #include "move.hpp"
 #include "actors/actor.hpp"
 
-MoveComponent::MoveComponent(const shared_ptr<Engine> &engine, int ownerId) :
+namespace luna {
+
+MoveComponent::MoveComponent(const std::shared_ptr<Engine> &engine, int ownerId) :
                         Component(engine, ownerId) {
 }
 
@@ -38,4 +40,6 @@ void MoveComponent::update(float deltaTime) {
         pos += getOwner()->getRight() * _strafeSpeed * deltaTime;
         getOwner()->setLocalPosition(pos);
     }
+}
+
 }

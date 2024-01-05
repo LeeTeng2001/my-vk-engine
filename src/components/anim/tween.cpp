@@ -2,7 +2,9 @@
 #include "actors/actor.hpp"
 #include "glm/gtx/string_cast.hpp"
 
-TweenComponent::TweenComponent(const shared_ptr<Engine> &engine, int ownerId, int updateOrder) :
+namespace luna {
+
+TweenComponent::TweenComponent(const std::shared_ptr<Engine> &engine, int ownerId, int updateOrder) :
         Component(engine, ownerId, updateOrder) {
 }
 
@@ -40,7 +42,7 @@ void TweenComponent::update(float deltaTime) {
 
 TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet, EaseType easeType) {
     // TODO: validation duration
-    unique_ptr<SeqBlock> seqPtr = make_unique<SeqBlock>();
+    std::unique_ptr<SeqBlock> seqPtr = std::make_unique<SeqBlock>();
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, offSet, easeType](float globalPerc, float stepDelta) {
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
@@ -55,7 +57,7 @@ TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
 
 TweenComponent& TweenComponent::addRotationOffset(float durS, float totalAngle, const glm::vec3 &axis, EaseType easeType) {
     // TODO: validation duration
-    unique_ptr<SeqBlock> seqPtr = make_unique<SeqBlock>();
+    std::unique_ptr<SeqBlock> seqPtr = std::make_unique<SeqBlock>();
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, axis, totalAngle, easeType](float globalPerc, float stepDelta) {
         float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
@@ -76,4 +78,6 @@ float TweenComponent::getEaseVal(TweenComponent::EaseType type, float perc) {
         case EEaseInOutQuad:
             return perc < 0.5 ? 2 * perc * perc : 1 - glm::pow(-2 * perc + 2, 2) / 2.0f;
     }
+}
+
 }

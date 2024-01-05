@@ -2,12 +2,14 @@
 
 #include "utils/common.hpp"
 
+namespace luna {
+
 struct SetInfo {
     VkDescriptorSetLayout layout;
     VkDescriptorSet set;
 
-    vector<VkDescriptorSetLayoutBinding> setBinding;
-    vector<VkWriteDescriptorSet> setWrite;
+    std::vector<VkDescriptorSetLayoutBinding> setBinding;
+    std::vector<VkWriteDescriptorSet> setWrite;
 };
 
 class DescriptorBuilder {
@@ -36,10 +38,12 @@ private:
     VkDescriptorPool _descPool;
     VkDevice _device;
     // setL -> bindingsL
-    vector<SetInfo> _setInfoList;
+    std::vector<SetInfo> _setInfoList;
     // TODO: refactor to shared pointer
-    vector<VkDescriptorImageInfo*> _dynamicImageInfo;
-    vector<VkDescriptorBufferInfo*> _dynamicBufferInfo;
+    std::vector<VkDescriptorImageInfo*> _dynamicImageInfo;
+    std::vector<VkDescriptorBufferInfo*> _dynamicBufferInfo;
 
     bool inConstrain(int targetSet);
 };
+
+}

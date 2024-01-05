@@ -3,6 +3,7 @@
 #include "utils/common.hpp"
 #include <fstream>
 
+namespace luna {
 class CreationHelper {
 public:
     static VkAttachmentDescription createVkAttDesc(VkFormat format, VkImageLayout finalLayout) {
@@ -141,11 +142,11 @@ public:
         return vmaCreateBuffer(allocator, &bufferInfo, &createAllocInfo, &outBuf, &outAlloc, &outAllocInfo);
     }
 
-    static vector<char> readFile(const string &filename) {
+    static std::vector<char> readFile(const std::string &filename) {
         std::ifstream f(filename, std::ios::ate | std::ios::binary);
 
         if (!f.is_open()) {
-            string errMsg = "Failed to open f: " + filename;
+            std::string errMsg = "Failed to open f: " + filename;
             throw std::runtime_error(errMsg);
         }
 
@@ -157,7 +158,7 @@ public:
         return buffer;
     }
 
-    static VkShaderModule createShaderModule(const vector<char> &code, VkDevice device) {
+    static VkShaderModule createShaderModule(const std::vector<char> &code, VkDevice device) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();
@@ -248,7 +249,7 @@ public:
         colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
         colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
 
-        vector<VkPipelineColorBlendAttachmentState> cbAttachVec{};
+        std::vector<VkPipelineColorBlendAttachmentState> cbAttachVec{};
         for (int i = 0; i < colorAttachmentCount; ++i) {
             cbAttachVec.push_back(colorBlendAttachment);
         }
@@ -266,7 +267,7 @@ public:
         colorBlending.blendConstants[3] = 0.0f; // Optional
 
         // Dynamic state to update without recreating the pipeline.
-        vector<VkDynamicState> dynamicStates = {
+        std::vector<VkDynamicState> dynamicStates = {
                 VK_DYNAMIC_STATE_VIEWPORT,
                 VK_DYNAMIC_STATE_LINE_WIDTH
         };
@@ -297,3 +298,4 @@ public:
         }
     }
 };
+}

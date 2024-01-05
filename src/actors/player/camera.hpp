@@ -2,6 +2,8 @@
 
 #include "actors/actor.hpp"
 
+namespace luna {
+
 class MoveComponent;
 class Engine;
 
@@ -29,5 +31,7 @@ private:
     float _pitchAngle = 0; // head updown [-85, 85], ++ up
     float _yawAngle = 0; // head rightleft [0, 360], ++ to the right, clockwise
 
-    shared_ptr<MoveComponent> _moveComp;
+    std::shared_ptr<MoveComponent> _moveComp;
 };
+
+}
