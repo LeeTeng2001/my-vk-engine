@@ -1,8 +1,12 @@
 #include "utils/common.hpp"
 #include "lua.hpp"
+#include "core/physic/physic.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
+#include "actors/object/empty.hpp"
 #include "components/component.hpp"
+#include "components/graphic/mesh.hpp"
+#include "components/physic/rigidbody.hpp"
 
 namespace luna {
 bool ScriptingSystem::initialise(const std::shared_ptr<Engine> &engine) {
@@ -28,6 +32,17 @@ void ScriptingSystem::registerGlm() {
                                   "y", &glm::vec3::y,
                                   "z", &glm::vec3::z
     );
+    glmNs.new_usertype<glm::quat>("quat",
+                                  sol::constructors<glm::quat(float, float, float, float)>(),
+                                  "x", &glm::quat::x,
+                                  "y", &glm::quat::y,
+                                  "z", &glm::quat::z,
+                                  "w", &glm::quat::w
+    );
+    glmNs.set_function("angleAxis", [](float angle, const glm::vec3 &axis) {
+        return glm::angleAxis(angle, axis);
+    });
+    glmNs.set_function("radians", glm::radians<float>);
 }
 
 void ScriptingSystem::registerLuna() {
@@ -43,19 +58,56 @@ void ScriptingSystem::registerLuna() {
     // Creation functions because lifetime is managed in CPP side
     lunaNs.set_function("GetLog", [](){ return SLog::get(); });
     lunaNs.set_function("GetEngine", [this](){ return _engine; });
+
+    // base actor
+    auto luaActor = lunaNs.new_usertype<Actor>("Actor");
+    luaActor["setLocalPosition"] = &Actor::setLocalPosition;
+    luaActor["getLocalPosition"] = &Actor::getLocalPosition;
+    luaActor["setRotation"] = &Actor::setRotation;
+    luaActor["getId"] = &Actor::getId;
+
+    // inherit actor
+    lunaNs.new_usertype<EmptyActor>("EmptyActor", sol::base_classes, sol::bases<Actor>());
+    lunaNs.set_function("NewEmptyActor", [this](){
+        auto a = std::make_shared<EmptyActor>();
+        _engine->addActor(a);
+        return a;
+    });
+    lunaNs.new_usertype<CameraActor>("CameraActor", sol::base_classes, sol::bases<Actor>());
     lunaNs.set_function("NewCameraActor", [this](){
         auto a = std::make_shared<CameraActor>();
         _engine->addActor(a);
         return a;
     });
 
-    // register actors methods
-    auto luaActor = lunaNs.new_usertype<Actor>("Actor");
-    luaActor["setLocalPosition"] = &Actor::setLocalPosition;
-    luaActor["getLocalPosition"] = &Actor::getLocalPosition;
-    lunaNs.new_usertype<CameraActor>("CameraActor", sol::base_classes, sol::bases<Actor>());
+    // base components
+    lunaNs.new_usertype<Component>("Component");
 
-    // register components methods
+    // TODO: use overload to reduce setup code https://sol2.readthedocs.io/en/latest/api/overload.html
+    // inherit components
+    lunaNs.new_usertype<MeshComponent>("MeshComponent", sol::base_classes, sol::bases<Component>(),
+            "generateSquarePlane", &MeshComponent::generateSquarePlane,
+            "generateSphere", &MeshComponent::generateSphere,
+            "uploadToGpu", &MeshComponent::uploadToGpu
+            );
+    lunaNs.set_function("NewMeshComponent", [this](int actorId){
+        auto c = std::make_shared<MeshComponent>(_engine, actorId);
+        _engine->getActor(actorId)->addComponent(c);
+        return c;
+    });
+
+    lunaNs.new_usertype<RigidBodyComponent>("RigidBodyComponent", sol::base_classes, sol::bases<Component>(),
+            "setIsStatic", &RigidBodyComponent::setIsStatic,
+            "setBounciness", &RigidBodyComponent::setBounciness,
+            "createBox", &RigidBodyComponent::createBox,
+            "createSphere", &RigidBodyComponent::createSphere,
+            "setLinearVelocity", &RigidBodyComponent::setLinearVelocity
+            );
+    lunaNs.set_function("NewRigidBodyComponent", [this](int actorId){
+        auto c = std::make_shared<RigidBodyComponent>(_engine, actorId);
+        _engine->getActor(actorId)->addComponent(c);
+        return c;
+    });
 
 }
 

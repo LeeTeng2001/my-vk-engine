@@ -15,8 +15,8 @@ public:
     // TODO: right now be like  this
     // can either load modal or procedurally generate one
     void loadModal(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
-    void generatedSquarePlane(float sideLength, const glm::vec3 &color = glm::vec3{0, 0.1, 0.9});
-    void generatedSphere(float radius, int horizontalLine, int verticalLine, const glm::vec3 &color = glm::vec3{0.3, 0.8, 0.1});
+    void generateSquarePlane(float sideLength, const glm::vec3 &color = glm::vec3{0, 0.1, 0.9});
+    void generateSphere(float radius, int horizontalLine, int verticalLine, const glm::vec3 &color = glm::vec3{0.3, 0.8, 0.1});
     void uploadToGpu();
 
 private:

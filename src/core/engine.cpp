@@ -149,7 +149,11 @@ bool Engine::prepareScene() {
     std::shared_ptr<MeshComponent> meshComp;
     std::shared_ptr<RigidBodyComponent> rigidComp;
 
-    _scriptSystem->execScriptFile("assets/script/scene.lua");
+    // rely on external lua script to setup scene
+    // flexible!
+    if (!_scriptSystem->execScriptFile("assets/script/scene.lua")) {
+        return false;
+    }
 
 //    staticActor = std::make_shared<StaticActor>("assets/models/miniature_night_city.obj");
 //    addActor(staticActor);
@@ -192,36 +196,6 @@ bool Engine::prepareScene() {
 //    tweenComp = std::make_shared<TweenComponent>(lightAct);
 //    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
 //    lightAct->addComponent(tweenComp);
-
-
-    // Physic demo
-    // procedural floor plane
-    emptyActor = std::make_shared<EmptyActor>();
-    addActor(emptyActor);
-    meshComp = std::make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
-    meshComp->generatedSquarePlane(5);
-    meshComp->uploadToGpu();
-    emptyActor->addComponent(meshComp);
-    emptyActor->setLocalPosition(glm::vec3{0, -4, 0});
-    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
-    rigidComp = std::make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
-    emptyActor->addComponent(rigidComp);
-    rigidComp->setIsStatic(true);
-    rigidComp->setBounciness(0.8);
-    rigidComp->createBox(glm::vec3{2.5, 0.1, 2.5});
-
-    // procedural ball
-    emptyActor = std::make_shared<EmptyActor>();
-    addActor(emptyActor);
-    meshComp = std::make_shared<MeshComponent>(_self.lock(), emptyActor->getId());
-    meshComp->generatedSphere(1, 30, 30);
-    meshComp->uploadToGpu();
-    emptyActor->addComponent(meshComp);
-    rigidComp = std::make_shared<RigidBodyComponent>(_self.lock(), emptyActor->getId());
-    emptyActor->addComponent(rigidComp);
-    rigidComp->setIsStatic(false);
-    rigidComp->createSphere(1);
-    rigidComp->setLinearVelocity(glm::vec3{0, -1, 0});
 
     // Dir light, right now set it like this
     getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});

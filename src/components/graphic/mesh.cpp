@@ -288,7 +288,7 @@ void MeshComponent::generateTangentBitangent(int v0Idx, int v1Idx, int v2Idx) {
     _modelData.vertex[v2Idx].bitangents = bitangent;
 }
 
-void MeshComponent::generatedSquarePlane(float sideLength, const glm::vec3 &color) {
+void MeshComponent::generateSquarePlane(float sideLength, const glm::vec3 &color) {
     // generate square plane facing upward
     float hs = sideLength / 2;
     // pos, normal, tex, tangent, bitangent
@@ -307,7 +307,7 @@ void MeshComponent::generatedSquarePlane(float sideLength, const glm::vec3 &colo
     _modelData.modelDataPartition.push_back({0, static_cast<int>(_modelData.indices.size()), matId});
 }
 
-void MeshComponent::generatedSphere(float radius, int horizontalLine, int verticalLine, const glm::vec3 &color) {
+void MeshComponent::generateSphere(float radius, int horizontalLine, int verticalLine, const glm::vec3 &color) {
     // https://stackoverflow.com/questions/4081898/procedurally-generate-a-sphere-mesh
     // generate all vertices
     for (int vi = 0; vi < verticalLine; ++vi) {

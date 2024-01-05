@@ -7,6 +7,7 @@ You might want to put SDL3.dll in the root directory
 - Front-Face: counter-clockwise
 - Tex coord: top left 0,0, right +x, down +y
 - Other than Vulkan SDK, every other dependencies are managed as submodules
+- Feature lua scripting for setting up world scene, avoid recompilation when we want to make quick iteration to world.
 
 ## Code style
 - https://stackoverflow.com/questions/3706379/what-is-a-good-naming-convention-for-vars-methods-etc-in-c
