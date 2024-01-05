@@ -15,6 +15,9 @@ public:
     bool execScriptFile(const std::string& path);
 
 private:
+    void registerGlm();
+    void registerLuna();
+
     sol::state _globState;
     std::shared_ptr<Engine> _engine;
 };

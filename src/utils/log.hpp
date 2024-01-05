@@ -33,12 +33,13 @@ public:
     }
 };
 
+// Lua Log wrapper
 class LuaLog {
 public:
     LuaLog() = default;
-    void debug(const std::string &msg) { auto l = SLog::get(); l->debug(msg, -1, "luadebug"); };
-    void info(const std::string &msg) { auto l = SLog::get(); l->info(msg, -1, "luainfo"); };
-    void warn(const std::string &msg) { auto l = SLog::get(); l->warn(msg, -1, "luawarn"); };
-    void error(const std::string &msg) { auto l = SLog::get(); l->error(msg, -1, "luaerror"); };
+    void debug(const std::string &msg) { auto l = SLog::get(); l->debug(msg, -1, "luaDebug"); };
+    void info(const std::string &msg) { auto l = SLog::get(); l->info(msg, -1, "luaInfo"); };
+    void warn(const std::string &msg) { auto l = SLog::get(); l->warn(msg, -1, "luaWarn"); };
+    void error(const std::string &msg) { auto l = SLog::get(); l->error(msg, -1, "luaError"); };
 };
 }

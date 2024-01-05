@@ -143,10 +143,6 @@ void Engine::addActor(const std::shared_ptr<Actor>& actor) {
 }
 
 bool Engine::prepareScene() {
-    _camActor = std::make_shared<CameraActor>();
-    addActor(_camActor);
-    _camActor->setLocalPosition(glm::vec3{0, 0.5, 3});
-
     std::shared_ptr<Actor> staticActor;
     std::shared_ptr<EmptyActor> emptyActor;
     std::shared_ptr<TweenComponent> tweenComp;
