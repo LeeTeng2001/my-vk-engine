@@ -10,6 +10,7 @@ class Renderer;
 class RenderConfig;
 class InputSystem;
 class PhysicSystem;
+class ScriptingSystem;
 class Actor;
 class CameraActor;
 class StaticActor;
@@ -53,6 +54,7 @@ private:
     std::shared_ptr<Renderer> _renderer = nullptr;
     std::shared_ptr<InputSystem> _inputSystem = nullptr;
     std::shared_ptr<PhysicSystem> _physicSystem = nullptr;
+    std::shared_ptr<ScriptingSystem> _scriptSystem = nullptr;
 
     // game specific member
     // TODO: refactor to game/scene class

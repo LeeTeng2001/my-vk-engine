@@ -13,6 +13,8 @@ add_executable(${EXE_NAME}
         actors/object/static.hpp
         actors/object/point_light.cpp
         actors/object/point_light.hpp
+        actors/object/empty.cpp
+        actors/object/empty.hpp
 
         components/component.hpp
         components/component.cpp
@@ -45,8 +47,6 @@ add_executable(${EXE_NAME}
         utils/common.hpp
         utils/log.hpp
         utils/log.cpp
-        actors/object/empty.cpp
-        actors/object/empty.hpp
         utils/algo.hpp
 )
 

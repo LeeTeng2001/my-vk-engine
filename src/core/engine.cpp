@@ -5,6 +5,7 @@
 #include "core/input/input_system.hpp"
 #include "core/physic/physic.hpp"
 #include "core/renderer/renderer.hpp"
+#include "core/scripting/lua.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
 #include "actors/object/static.hpp"
@@ -35,6 +36,11 @@ bool Engine::initialize(std::shared_ptr<Engine> &self) {
         l->error("failed to initialise physic system");
         return false;
     }
+    _scriptSystem = std::make_shared<ScriptingSystem>();
+    if (!_scriptSystem->initialise(self)) {
+        l->error("failed to initialise scripting system");
+        return false;
+    }
 
     if (!prepareScene()) {
         l->error("failed to prepare scene");
@@ -53,6 +59,7 @@ void Engine::run() {
 }
 
 Engine::~Engine() {
+    if (_scriptSystem) _scriptSystem->shutdown();
     if (_inputSystem) _inputSystem->shutdown();
     if (_renderer) _renderer->shutdown();
     if (_physicSystem) _physicSystem->shutdown();
@@ -145,6 +152,8 @@ bool Engine::prepareScene() {
     std::shared_ptr<TweenComponent> tweenComp;
     std::shared_ptr<MeshComponent> meshComp;
     std::shared_ptr<RigidBodyComponent> rigidComp;
+
+    _scriptSystem->execScriptFile("assets/script/scene.lua");
 
 //    staticActor = std::make_shared<StaticActor>("assets/models/miniature_night_city.obj");
 //    addActor(staticActor);

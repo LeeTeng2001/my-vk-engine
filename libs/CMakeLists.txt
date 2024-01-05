@@ -8,6 +8,9 @@ add_library(stb_image INTERFACE)
 # Script reference: https://github.com/eliasdaler/cmake-lua-with-sol2-example/blob/main/third_party/CMakeLists.txt
 # Rn it's pointing at v5.4.6, if the version bump up SOL_LUA_VERSION should change too
 file(GLOB LUA_SRC_FILES lua/*.c)
+get_filename_component(lua_binary_file ${CMAKE_CURRENT_SOURCE_DIR}/lua/onelua.c ABSOLUTE)  # exclude lua binary
+list(REMOVE_ITEM LUA_SRC_FILES ${lua_binary_file})
+#message("${LUA_SRC_FILES}")
 add_library(lua ${LUA_SRC_FILES})
 add_library(lua::lua ALIAS lua)
 target_include_directories(lua PUBLIC lua)

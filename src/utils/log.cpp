@@ -24,8 +24,6 @@ Log::Log() {
     logger->set_level(spdlog::level::debug);
 }
 
-#ifdef __APPLE__
-
 void Log::debug(const std::string &msg, int lineNum, char const * funcName) {
     logger->debug(fmt::format("{}({}): {}", funcName, lineNum, msg));
 }
@@ -49,30 +47,4 @@ void Log::vk_res(VkResult res, int lineNum, char const * funcName) {
     }
 }
 
-#else
-
-void Log::debug(const std::string &msg, const std::source_location location) {
-    logger->debug(fmt::format("{}({}): {}", location.function_name(), location.line(), msg));
-}
-
-void Log::info(const std::string &msg, const std::source_location location) {
-    logger->info(fmt::format("{}({}): {}", location.function_name(), location.line(), msg));
-}
-
-void Log::warn(const std::string &msg, const std::source_location location) {
-    logger->warn(fmt::format("{}({}): {}", location.function_name(), location.line(), msg));
-}
-
-void Log::error(const std::string &msg, const std::source_location location) {
-    logger->error(fmt::format("{}({}): {}", location.function_name(), location.line(), msg));
-}
-
-void Log::vk_res(VkResult res, std::source_location location) {
-    if (res != VK_SUCCESS) {
-        error(fmt::format("VkResult is not success, result: {:s}", string_VkResult(res)), location);
-        assert(res == VK_SUCCESS);
-    }
-}
-
-#endif
 }
