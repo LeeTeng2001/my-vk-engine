@@ -180,6 +180,7 @@ void MeshComponent::loadObj(const std::string &path, const glm::vec3 &upAxis) {
 void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
 
+    // https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_002_BasicGltfStructure.md
     l->info(fmt::format("Loading glb model: {:s}", path));
     tinygltf::Model modal;
     tinygltf::TinyGLTF loader;
@@ -242,8 +243,162 @@ void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
     curPartition.materialId = -1;
 
     // reference: https://github.com/SaschaWillems/Vulkan-glTF-PBR/blob/master/base/VulkanglTFModel.cpp
-    // TODO: implement rest
-//    modal.scenes[modal.defaultScene].
+    // A node can compose of mesh, transformation, right now we skip children
+    auto identity = glm::identity<glm::mat4>();
+    for (const auto &nodeIdx: modal.scenes[modal.defaultScene].nodes) {
+        recurParseGlb(nodeIdx, modal, gpuMatId, curPartition, identity);
+    }
+    // Last partition
+    if (curPartition.materialId != -1) { // push new material
+        curPartition.indexCount = _modelData.indices.size() - curPartition.firstIndex;
+        _modelData.modelDataPartition.push_back(curPartition);
+    }
+}
+
+void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, const std::vector<int> &gpuMatId
+                                  , ModelDataPartition &partition, const glm::mat4 &parentTransform) {
+    auto l = SLog::get();
+
+    const tinygltf::Node& node = modal.nodes[nodeIdx];
+
+    // sanity check for non-duplicate transformation, matrix or each individual can only exist one
+    if (!node.matrix.empty() && (!node.translation.empty() || !node.scale.empty() || !node.rotation.empty())) {
+        l->error("node has non-zero transform matrix and non-zero translation/scale/rotation");
+        return;
+    }
+
+    // compute current transformation matrix
+    glm::mat4 currentTransform = glm::identity<glm::mat4>();
+    // either use matrix directly or construct from
+    if (!node.matrix.empty()) {
+        for (int i = 0; i < 16; ++i) {
+            currentTransform[i/4][i%4] = static_cast<float>(node.matrix[i]);
+        }
+    } else {
+        if (node.translation.size() == 3) {
+            currentTransform = glm::translate(currentTransform, glm::vec3(node.translation[0], node.translation[1], node.translation[2]));
+        }
+        if (node.rotation.size() == 4) {
+            currentTransform *= glm::mat4_cast(glm::quat(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]));
+        }
+        if (node.scale.size() == 3) {
+            currentTransform = glm::scale(currentTransform, glm::vec3(node.scale[0], node.scale[1], node.scale[2]));
+        }
+    }
+
+    currentTransform = parentTransform * currentTransform;
+
+    // compute children
+    if (!node.children.empty()) {
+        l->debug(fmt::format("parsing node {:s} children {:d}", node.name, node.children.size()));
+        for (const auto &childNodeIdx: node.children) {
+            recurParseGlb(childNodeIdx, modal, gpuMatId, partition, currentTransform);
+        }
+        return;
+    }
+
+    // parse node info
+    // https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_003_MinimalGltfFile.md
+    if (node.mesh == -1) {  // parent node
+        l->warn(fmt::format("node {:s} has no children and empty mesh", node.name));
+        return;
+    }
+
+    for (const auto &primitive: modal.meshes[node.mesh].primitives) {
+        if (primitive.mode != TINYGLTF_MODE_TRIANGLES) {
+            l->warn(fmt::format("mesh {:s} primitive has non-triangle mode {:d}, skipping", modal.meshes[node.mesh].name, primitive.mode));
+            continue;
+        }
+
+        // Parse material, check for new material group
+        if (gpuMatId[primitive.material] != partition.materialId) {
+            if (partition.materialId != -1) { // push new material
+                partition.indexCount = _modelData.indices.size() - partition.firstIndex;
+                _modelData.modelDataPartition.push_back(partition);
+            }
+            partition.materialId = gpuMatId[primitive.material];
+            partition.firstIndex = _modelData.indices.size();
+        }
+
+
+        // TODO: optimsie by using the buffer directly instead of passing to
+        // index buffer for current primitive, right now we force scalar + 16bytes
+        const tinygltf::Accessor &indexAccesor = modal.accessors[primitive.indices];
+        if (indexAccesor.type != TINYGLTF_TYPE_SCALAR) {
+            l->error(fmt::format("index accessor type is not scalar {:d}", indexAccesor.type));
+        }
+        const tinygltf::BufferView &idxBufView = modal.bufferViews[indexAccesor.bufferView];
+        const tinygltf::Buffer &idxBuf = modal.buffers[idxBufView.buffer];
+        int bytePerStride = idxBufView.byteLength / indexAccesor.count;
+        if (bytePerStride != 2) {
+            l->error(fmt::format("index buffer is not in uint16 format {:d}", bytePerStride));
+        }
+        int baseIndicies = _modelData.indices.size();
+        _modelData.indices.resize(_modelData.indices.size() + indexAccesor.count);
+        // We force copy uint16, little endian
+        for (int i = 0; i < indexAccesor.count; ++i) {
+            memcpy(&_modelData.indices[baseIndicies + i], &idxBuf.data[idxBufView.byteOffset+(i*2)], 2);
+            _modelData.indices[baseIndicies + i] += baseIndicies;
+        }
+
+        // get vertex count
+        size_t vertexCount = modal.accessors[primitive.attributes.begin()->second].count;
+
+
+        glm::mat3 normMatrix = glm::transpose(glm::inverse(glm::mat3(currentTransform)));
+
+        int baseVertIdx = _modelData.vertex.size();
+        for (int i = 0; i < vertexCount; ++i) {
+            Vertex vertex{};
+
+            // parse each node attribute like position, normal
+            for (const auto &pAttr: primitive.attributes) {
+                const tinygltf::Accessor &accessor = modal.accessors[pAttr.second];
+                const tinygltf::BufferView &bufView = modal.bufferViews[accessor.bufferView];
+                const tinygltf::Buffer &buf = modal.buffers[bufView.buffer];
+
+                // size of float + stride
+                if (pAttr.first == "POSITION") {
+                    if (accessor.type != TINYGLTF_TYPE_VEC3) {
+                        l->error(fmt::format("position attribute is not vec3 {:d}", accessor.type));
+                    }
+                    memcpy(&vertex.pos.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
+                    memcpy(&vertex.pos.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
+                    memcpy(&vertex.pos.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+8)], 4);
+
+                    // transform
+                    glm::vec4 finalPos = currentTransform * glm::vec4{vertex.pos, 1};
+                    vertex.pos = finalPos;
+                } else if (pAttr.first == "NORMAL") {
+                    if (accessor.type != TINYGLTF_TYPE_VEC3) {
+                        l->error(fmt::format("normal attribute is not vec3 {:d}", accessor.type));
+                    }
+                    memcpy(&vertex.normal.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
+                    memcpy(&vertex.normal.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
+                    memcpy(&vertex.normal.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+8)], 4);
+
+                    vertex.normal = glm::normalize(normMatrix * vertex.normal); // normal correct ?
+                } else if (pAttr.first == "TEXCOORD_0") {
+                    if (accessor.type != TINYGLTF_TYPE_VEC2) {
+                        l->error(fmt::format("normal attribute is not vec3 {:d}", accessor.type));
+                    }
+                    memcpy(&vertex.texCoord.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
+                    memcpy(&vertex.texCoord.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
+                    // TODO: might need to flip sign
+                } else {
+                    l->error(fmt::format("unrecognised attribute name {:s}", pAttr.first));
+//                            return false;
+                }
+            }
+
+            _modelData.vertex.push_back(vertex);
+        }
+
+        // calculate bitangent
+        for (int i = 0; i < vertexCount; i+=3) {
+            generateTangentBitangent(baseVertIdx+i+0, baseVertIdx+i+1, baseVertIdx+i+2);
+        }
+    }
 }
 
 void MeshComponent::loadModal(const std::string &path, const glm::vec3 &upAxis) {

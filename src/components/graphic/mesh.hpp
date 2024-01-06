@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tiny_gltf.h>
+
 #include "components/component.hpp"
 #include "core/renderer/def.hpp"
 
@@ -22,8 +24,10 @@ public:
 private:
     int createDefaultMat(const glm::vec3 &color);
     void generateTangentBitangent(int v0Idx, int v1Idx, int v2Idx);
+
     void loadObj(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
     void loadGlb(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
+    void recurParseGlb(int nodeIdx, const tinygltf::Model& modal, const std::vector<int> &gpuMatId, ModelDataPartition &partition, const glm::mat4 &parentTransform);
 
     // Group model data based on material group
     ModelDataCpu _modelData;

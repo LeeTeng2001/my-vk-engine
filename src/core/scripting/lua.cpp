@@ -3,10 +3,12 @@
 #include "core/physic/physic.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
+#include "actors/object/static.hpp"
 #include "actors/object/empty.hpp"
 #include "components/component.hpp"
 #include "components/graphic/mesh.hpp"
 #include "components/physic/rigidbody.hpp"
+#include "components/anim/tween.hpp"
 
 namespace luna {
 bool ScriptingSystem::initialise(const std::shared_ptr<Engine> &engine) {
@@ -79,6 +81,12 @@ void ScriptingSystem::registerLuna() {
         _engine->addActor(a);
         return a;
     });
+    lunaNs.new_usertype<StaticActor>("StaticActor", sol::base_classes, sol::bases<Actor>());
+    lunaNs.set_function("NewStaticActor", [this](const std::string &modelPath){
+        auto a = std::make_shared<StaticActor>(modelPath);
+        _engine->addActor(a);
+        return a;
+    });
 
     // base components
     lunaNs.new_usertype<Component>("Component");
@@ -88,6 +96,7 @@ void ScriptingSystem::registerLuna() {
     lunaNs.new_usertype<MeshComponent>("MeshComponent", sol::base_classes, sol::bases<Component>(),
             "generateSquarePlane", &MeshComponent::generateSquarePlane,
             "generateSphere", &MeshComponent::generateSphere,
+            "loadModal", &MeshComponent::loadModal,
             "uploadToGpu", &MeshComponent::uploadToGpu
             );
     lunaNs.set_function("NewMeshComponent", [this](int actorId){
@@ -105,6 +114,17 @@ void ScriptingSystem::registerLuna() {
             );
     lunaNs.set_function("NewRigidBodyComponent", [this](int actorId){
         auto c = std::make_shared<RigidBodyComponent>(_engine, actorId);
+        _engine->getActor(actorId)->addComponent(c);
+        return c;
+    });
+
+    lunaNs.new_usertype<TweenComponent>("TweenComponent", sol::base_classes, sol::bases<Component>(),
+            "addTranslateOffset", &TweenComponent::addTranslateOffset,
+            "addRotationOffset", &TweenComponent::addRotationOffset,
+            "setLoopType", &TweenComponent::setLoopType
+            );
+    lunaNs.set_function("NewTweenComponent", [this](int actorId){
+        auto c = std::make_shared<TweenComponent>(_engine, actorId);
         _engine->getActor(actorId)->addComponent(c);
         return c;
     });

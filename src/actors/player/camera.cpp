@@ -23,7 +23,7 @@ void CameraActor::updateActor(float deltaTime) {
     // set new camera rotation
     if (_moveComp->getEnabled()) {
         glm::vec2 mouseOffset = getEngine()->getInputSystem()->getState().Mouse.getOffsetPosition();
-        if (mouseOffset.x < 20 && mouseOffset.y < 20) {
+//        if (mouseOffset.x < 20 && mouseOffset.y < 20) {
             _yawAngle = (_yawAngle - mouseOffset.x * HOR_ANGLE_SPEED * deltaTime);
             _pitchAngle = glm::clamp(_pitchAngle - mouseOffset.y * VERT_ANGLE_SPEED * deltaTime,
                                      MIN_ANGLE_PITCH, MAX_ANGLE_PITCH);
@@ -36,7 +36,7 @@ void CameraActor::updateActor(float deltaTime) {
 
             // set rotation, yaw first then pitch
             setRotation(glm::eulerAngleYX(glm::radians(_yawAngle), glm::radians(_pitchAngle)));
-        }
+//        }
     }
 
     // Compute new camera from this actor
@@ -61,6 +61,11 @@ void CameraActor::actorInput(const struct InputState &state) {
         auto l = SLog::get();
         l->info("toggling cam movement enabled");
         _moveComp->setEnable(!_moveComp->getEnabled());
+    }
+    if (state.Keyboard.getKeyState(SDL_SCANCODE_L) == EPressed) {
+        auto l = SLog::get();
+        l->info("toggling mouse relative movement");
+        getEngine()->getInputSystem()->setRelativeMouseMode(!state.Mouse.isRelative());
     }
     if (state.Keyboard.getKeyState(SDL_SCANCODE_W)) {
         forwardSpeed += MOVEMENT_SPEED;

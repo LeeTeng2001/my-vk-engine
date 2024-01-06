@@ -110,8 +110,8 @@ public:
 	void setRelativeMouseMode(bool value);
 
 private:
-	static float filter1D(int input);
-	static glm::vec2 filter2D(int inputX, int inputY);
+	static float filter1D(float input);
+	static glm::vec2 filter2D(float inputX, float inputY);
 
 	InputState _inputState{};
 	SDL_Gamepad* _controller = nullptr;

@@ -88,8 +88,8 @@ void InputSystem::update() {
     // Mouse
     float x = 0, y = 0;
     _inputState.Mouse._curButtons = _inputState.Mouse._isRelative ? SDL_GetRelativeMouseState(&x, &y) : SDL_GetMouseState(&x, &y);
-    _inputState.Mouse._mouseOffsetPos.x = x - _inputState.Mouse._mousePos.x;
-    _inputState.Mouse._mouseOffsetPos.y = y - _inputState.Mouse._mousePos.y;
+    _inputState.Mouse._mouseOffsetPos.x = _inputState.Mouse._isRelative ? x :  x - _inputState.Mouse._mousePos.x;
+    _inputState.Mouse._mouseOffsetPos.y = _inputState.Mouse._isRelative ? y :  y - _inputState.Mouse._mousePos.y;
     _inputState.Mouse._mousePos.x = x;
     _inputState.Mouse._mousePos.y = y;
 
@@ -126,23 +126,22 @@ void InputSystem::processEvent(union SDL_Event &event) {
 }
 
 void InputSystem::setRelativeMouseMode(bool value) {
-    SDL_bool set = value ? SDL_TRUE : SDL_FALSE;
-    SDL_SetRelativeMouseMode(set);
+    SDL_SetRelativeMouseMode(value);
     if (value) SDL_GetRelativeMouseState(nullptr, nullptr);  // clear out for relative
     _inputState.Mouse._isRelative = value;
 }
 
-float InputSystem::filter1D(int input) {
+float InputSystem::filter1D(float input) {
     // Could make this parameter user configurable
     // A value < dead zone is interpreted as 0%
     // A value > max value is interpreted as 100%
-    const int deadZone = 250;
-    const int maxValue = 30000;
+    constexpr float deadZone = 250;
+    constexpr float maxValue = 30000;
 
     float retVal = 0.0f;
 
     // Take absolute value of input
-    int absValue = std::abs(input);
+    float absValue = glm::abs(input);
     // Ignore input within dead zone
     if (absValue > deadZone) {
         retVal = static_cast<float>(absValue - deadZone) / (maxValue - deadZone);
@@ -153,12 +152,12 @@ float InputSystem::filter1D(int input) {
     return retVal;
 }
 
-glm::vec2 InputSystem::filter2D(int inputX, int inputY) {
+glm::vec2 InputSystem::filter2D(float inputX, float inputY) {
     const float deadZone = 8000.0f;
     const float maxValue = 30000.0f;
 
     // Make into 2D vector
-    glm::vec2 dir{static_cast<float>(inputX), static_cast<float>(inputY)};
+    glm::vec2 dir{inputX, inputY};
     float length = glm::length(dir);
 
     // If length < deadZone, should be no input

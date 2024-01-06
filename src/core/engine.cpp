@@ -97,7 +97,8 @@ void Engine::processInput() {
 void Engine::updateGame() {
     // Simple solution for frame limiting.
     // Wait until 16ms has elapsed since last frame
-//    while (!SDL_TICKS_PASSED(SDL_GetTicks(), _tickCountMs + 16));
+    Uint64 deadline = SDL_GetTicks() + 16;
+    while (SDL_GetTicks() < deadline);
 
     // Get delta in second
     uint64_t curTicks = SDL_GetTicks();
@@ -143,20 +144,11 @@ void Engine::addActor(const std::shared_ptr<Actor>& actor) {
 }
 
 bool Engine::prepareScene() {
-    std::shared_ptr<Actor> staticActor;
-    std::shared_ptr<EmptyActor> emptyActor;
-    std::shared_ptr<TweenComponent> tweenComp;
-    std::shared_ptr<MeshComponent> meshComp;
-    std::shared_ptr<RigidBodyComponent> rigidComp;
-
     // rely on external lua script to setup scene
     // flexible!
-    if (!_scriptSystem->execScriptFile("assets/script/scene.lua")) {
+    if (!_scriptSystem->execScriptFile("assets/scene/scene.lua")) {
         return false;
     }
-
-//    staticActor = std::make_shared<StaticActor>("assets/models/miniature_night_city.obj");
-//    addActor(staticActor);
 
 //    // viking room
 //    emptyActor = std::make_shared<EmptyActor>();
