@@ -113,7 +113,7 @@ glm::mat4 Actor::getWorldTransform() {
     return worldTransform;
 }
 
-const glm::vec3 &Actor::getWorldPosition() const {
+glm::vec3 Actor::getWorldPosition() const {
     // TODO: optimise into cache
     glm::vec3 finalPos = getLocalPosition();
     int recParentId = _parentId;

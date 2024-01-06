@@ -1,0 +1,39 @@
+newmtl hair
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/ganyu/hair.png
+
+newmtl cloth
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/ganyu/cloth.png
+
+newmtl skin
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/ganyu/skin.png
+
+newmtl expression
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/ganyu/expression.png
+
+newmtl face
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/ganyu/face.png

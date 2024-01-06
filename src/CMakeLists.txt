@@ -5,6 +5,7 @@ set(EXE_NAME vulkan_engine)
 add_executable(${EXE_NAME}
         main.cpp
 
+        actors/actor.tpp
         actors/actor.hpp
         actors/actor.cpp
         actors/player/camera.cpp

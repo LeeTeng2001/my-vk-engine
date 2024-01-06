@@ -46,7 +46,7 @@ public:
 
     // Getter
     [[nodiscard]] const glm::vec3& getLocalPosition() const { return _position; }
-    [[nodiscard]] const glm::vec3& getWorldPosition() const;
+    [[nodiscard]] glm::vec3 getWorldPosition() const;
     [[nodiscard]] glm::vec3 getForward() const { return glm::mat4_cast(_rotation) * glm::vec4(0, 0, -1, 1); };
     [[nodiscard]] glm::vec3 getRight() const { return glm::normalize(glm::cross(getForward(), glm::vec3{0, 1, 0})); };
     [[nodiscard]] glm::vec3 getUp() const { return glm::normalize(glm::cross(getRight(), getForward())); };
@@ -62,6 +62,8 @@ public:
     // Helper function
     void addComponent(const std::shared_ptr<Component>& component);
     void removeComponent(const std::shared_ptr<Component>& component);
+
+    template<class T> std::shared_ptr<T> getComponent();
 
 private:
     void addChild(int childId);
@@ -87,4 +89,7 @@ private:
 };
 
 }
+
+// https://stackoverflow.com/questions/495021/why-can-templates-only-be-implemented-in-the-header-file
+#include "actor.tpp"
 
