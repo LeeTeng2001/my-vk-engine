@@ -12,6 +12,7 @@ public:
     explicit StaticActor(std::string modelPath = "") : Actor(), _modelPath(std::move(modelPath)) {};
 
     void delayInit() override;
+    std::string displayName() override { return "StaticActor"; }
 
 private:
     std::string _modelPath;

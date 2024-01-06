@@ -16,6 +16,7 @@ public:
 
     void delayInit() override;
     void updateActor(float deltaTime) override;
+    std::string displayName() override { return "PointLightActor"; }
 
 private:
     std::shared_ptr<TweenComponent> _tweenComp;

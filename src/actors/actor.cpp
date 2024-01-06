@@ -38,11 +38,19 @@ void Actor::processInput(const struct InputState &keyState) {
 }
 
 void Actor::addComponent(const std::shared_ptr<Component>& component) {
+    if (_locked) {
+        SLog::get()->warn("actor is locked, cannot add component");
+        return;
+    }
     // lower order at front with multiset property
     _components.insert(component);
 }
 
 void Actor::removeComponent(const std::shared_ptr<Component>& component) {
+    if (_locked) {
+        SLog::get()->warn("actor is locked, cannot remove component");
+        return;
+    }
     auto iter = std::find(_components.begin(), _components.end(), component);
     if (iter != _components.end()) {
         _components.erase(iter);
@@ -74,10 +82,18 @@ void Actor::setParent(int parentId) {
 }
 
 void Actor::addChild(int childId) {
+    if (_locked) {
+        SLog::get()->warn("actor is locked, cannot add children");
+        return;
+    }
     _childrenIdList.insert(childId);
 }
 
 void Actor::removeChild(int childId) {
+    if (_locked) {
+        SLog::get()->warn("actor is locked, cannot remove children");
+        return;
+    }
     _childrenIdList.erase(childId);
 }
 

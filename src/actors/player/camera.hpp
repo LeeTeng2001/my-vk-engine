@@ -15,6 +15,7 @@ public:
     void delayInit() override;
     void updateActor(float deltaTime) override;
     void actorInput(const struct InputState &state) override;
+    std::string displayName() override { return "CameraActor"; }
 
     // utils
     glm::mat4 getCamViewTransform();

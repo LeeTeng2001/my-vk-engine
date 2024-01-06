@@ -186,6 +186,7 @@ void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
     auto l = SLog::get();
 
     // https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_002_BasicGltfStructure.md
+    // Load GLB will expand all scene
     l->info(fmt::format("Loading glb model: {:s}", path));
     tinygltf::Model modal;
     tinygltf::TinyGLTF loader;

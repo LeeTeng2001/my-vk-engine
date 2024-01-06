@@ -11,6 +11,7 @@ public:
     explicit EmptyActor() : Actor() {};
 
     void delayInit() override;
+    std::string displayName() override { return "EmptyActor"; }
 };
 
 }

@@ -27,6 +27,8 @@ public:
     void processInput();
     void updateGame();
     void drawOutput();
+    void drawDebugUi();
+    void drawDebugUiActorRecursive(const std::shared_ptr<Actor> &actor);
     void handleGlobalInput(const InputState& key);
 
     enum GameState {

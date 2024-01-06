@@ -129,12 +129,43 @@ void Engine::updateGame() {
 }
 
 void Engine::drawOutput() {
-    // Renderer
+    // new frame
     _renderer->newFrame();
     _renderer->beginRecordCmd();
     _renderer->drawAllModel();
+    drawDebugUi();
     _renderer->endRecordCmd();
     _renderer->draw();
+}
+
+void Engine::drawDebugUi() {
+    if (ImGui::Begin("Engine##ActorHierarchy")) {
+        for (const auto &actorIter: _actorMap) {
+            // find root
+            if (actorIter.second->getParentId() == -1) {
+                drawDebugUiActorRecursive(actorIter.second);
+            }
+        }
+        ImGui::End();
+    }
+}
+
+void Engine::drawDebugUiActorRecursive(const std::shared_ptr<Actor> &actor) {
+    ImGuiTreeNodeFlags initFlag = actor->getDebugUiExpand() ? ImGuiTreeNodeFlags_DefaultOpen : 0;
+    if (ImGui::TreeNodeEx(actor->debugDisplayName().c_str(), initFlag)) {
+        actor->setDebugUiExpand(true);
+        for (const auto &childId: actor->getChildrenIdList()) {
+            auto childActor = _actorMap.find(childId);
+            if (childActor == _actorMap.end()) {
+                SLog::get()->error(fmt::format("actor has child id {:d} but it is not found in engine!", childId));
+                return;
+            }
+            drawDebugUiActorRecursive(childActor->second);
+        }
+        ImGui::TreePop();
+    } else {
+        actor->setDebugUiExpand(false);
+    }
 }
 
 void Engine::addActor(const std::shared_ptr<Actor>& actor) {

@@ -27,6 +27,16 @@ public:
     virtual void delayInit() = 0;
     void delayInit(int actorId, const std::shared_ptr<Engine> &engine) { _actorWorldId = actorId; _engine = engine; delayInit(); }
 
+    // Debug Display related
+    virtual std::string displayName() = 0;
+    const std::string& debugDisplayName() {
+        if (!_cacheDisplayName.empty()) {
+            return _cacheDisplayName;
+        }
+        _cacheDisplayName = fmt::format("{:s}({:d})", displayName(), _actorWorldId);
+        return _cacheDisplayName;
+    };
+
     // Update related (world, components, actor specific)
     void update(float deltaTime);
     void updateComponents(float deltaTime);
@@ -42,7 +52,9 @@ public:
     void setScale(float scale) { _scale = scale; _recomputeLocalTransform = true; }
     void setRotation(const glm::quat &rotation) { _rotation = rotation; _recomputeLocalTransform = true; }
     void setState(State state) { _state = state; }
+    void setLock(bool lock) { _locked = lock; };
     void setParent(int parentId);
+    void setDebugUiExpand(bool expand) { _debugUiExpanded = expand; };
 
     // Getter
     [[nodiscard]] const glm::vec3& getLocalPosition() const { return _position; }
@@ -58,6 +70,8 @@ public:
     [[nodiscard]] std::shared_ptr<Engine> getEngine() { return _engine; }
     [[nodiscard]] int getId() { return _actorWorldId; }
     [[nodiscard]] int getParentId() { return _parentId; }
+    [[nodiscard]] int getDebugUiExpand() { return _debugUiExpanded; }
+    [[nodiscard]] const std::unordered_set<int> &getChildrenIdList() { return _childrenIdList; }
 
     // Helper function
     void addComponent(const std::shared_ptr<Component>& component);
@@ -76,7 +90,12 @@ private:
     std::shared_ptr<Engine> _engine;
     int _actorWorldId = -1;
 
+    // debug ui
+    bool _debugUiExpanded = false;
+    std::string _cacheDisplayName;
+
     // Hierarchy
+    bool _locked = false;  // locked means we cannot further modify the structure of the actor (component/child)
     int _parentId = -1;
     std::unordered_set<int> _childrenIdList;
 

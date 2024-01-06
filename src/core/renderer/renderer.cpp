@@ -222,6 +222,11 @@ void Renderer::shutdown() {
         vkWaitForFences(_device, 1, &_flightResources[i]->renderFence, true, 1000000000);
     }
     vkDeviceWaitIdle(_device);
+
+    // Imgui
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+
     while (!_interCleanup.empty()) {
         auto nextCleanup = _interCleanup.top();
         _interCleanup.pop();
