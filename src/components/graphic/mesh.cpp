@@ -97,13 +97,18 @@ void MeshComponent::loadObj(const std::string &path, const glm::vec3 &upAxis) {
         size_t index_offset = 0;
         for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
             // check for new material group
-            if (gpuMatId[shape.mesh.material_ids[f]] != curPartition.materialId) {
+            int primitiveGpuMatId = 0;  // 0 is always default mat
+            if (shape.mesh.material_ids[f] != -1) {
+                primitiveGpuMatId = gpuMatId[shape.mesh.material_ids[f]];
+            }
+
+            if (primitiveGpuMatId != curPartition.materialId) {
                 if (curPartition.materialId != -1) {
                     // push new material
                     curPartition.indexCount = _modelData.indices.size() - curPartition.firstIndex;
                     _modelData.modelDataPartition.push_back(curPartition);
                 }
-                curPartition.materialId = gpuMatId[shape.mesh.material_ids[f]];
+                curPartition.materialId = primitiveGpuMatId;
                 curPartition.firstIndex = _modelData.indices.size();
             }
 
@@ -242,7 +247,10 @@ void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
     ModelDataPartition curPartition{};
     curPartition.materialId = -1;
 
-    // reference: https://github.com/SaschaWillems/Vulkan-glTF-PBR/blob/master/base/VulkanglTFModel.cpp
+    // GLTF two reference should be enough, one is the visual guide, one is the official tutorial
+    // Visual guide, handybook: https://www.khronos.org/files/gltf20-reference-guide.pdf
+    // Official tutorial: https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial
+
     // A node can compose of mesh, transformation, right now we skip children
     auto identity = glm::identity<glm::mat4>();
     for (const auto &nodeIdx: modal.scenes[modal.defaultScene].nodes) {
@@ -310,13 +318,19 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, con
             continue;
         }
 
+        // Fallback default material
+        int primitiveGpuMatId = 0;  // 0 is always default mat
+        if (primitive.material != -1) {
+            primitiveGpuMatId = gpuMatId[primitive.material];
+        }
+
         // Parse material, check for new material group
-        if (gpuMatId[primitive.material] != partition.materialId) {
+        if (primitiveGpuMatId != partition.materialId) {
             if (partition.materialId != -1) { // push new material
                 partition.indexCount = _modelData.indices.size() - partition.firstIndex;
                 _modelData.modelDataPartition.push_back(partition);
             }
-            partition.materialId = gpuMatId[primitive.material];
+            partition.materialId = primitiveGpuMatId;
             partition.firstIndex = _modelData.indices.size();
         }
 
@@ -329,15 +343,11 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, con
         }
         const tinygltf::BufferView &idxBufView = modal.bufferViews[indexAccesor.bufferView];
         const tinygltf::Buffer &idxBuf = modal.buffers[idxBufView.buffer];
-        int bytePerStride = idxBufView.byteLength / indexAccesor.count;
-        if (bytePerStride != 2) {
-            l->error(fmt::format("index buffer is not in uint16 format {:d}", bytePerStride));
-        }
-        int baseIndicies = _modelData.indices.size();
+        int baseIndicies = _modelData.vertex.size();
         _modelData.indices.resize(_modelData.indices.size() + indexAccesor.count);
         // We force copy uint16, little endian
         for (int i = 0; i < indexAccesor.count; ++i) {
-            memcpy(&_modelData.indices[baseIndicies + i], &idxBuf.data[idxBufView.byteOffset+(i*2)], 2);
+            memcpy(&_modelData.indices[baseIndicies + i], &idxBuf.data[indexAccesor.byteOffset+idxBufView.byteOffset+(i*2)], 2);
             _modelData.indices[baseIndicies + i] += baseIndicies;
         }
 
@@ -362,9 +372,10 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, con
                     if (accessor.type != TINYGLTF_TYPE_VEC3) {
                         l->error(fmt::format("position attribute is not vec3 {:d}", accessor.type));
                     }
-                    memcpy(&vertex.pos.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
-                    memcpy(&vertex.pos.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
-                    memcpy(&vertex.pos.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+8)], 4);
+                    int stride = glm::max(static_cast<int>(bufView.byteStride), 12);  // might have / not have stride
+                    memcpy(&vertex.pos.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+0)], 4);
+                    memcpy(&vertex.pos.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+4)], 4);
+                    memcpy(&vertex.pos.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+8)], 4);
 
                     // transform
                     glm::vec4 finalPos = currentTransform * glm::vec4{vertex.pos, 1};
@@ -373,17 +384,19 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, con
                     if (accessor.type != TINYGLTF_TYPE_VEC3) {
                         l->error(fmt::format("normal attribute is not vec3 {:d}", accessor.type));
                     }
-                    memcpy(&vertex.normal.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
-                    memcpy(&vertex.normal.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
-                    memcpy(&vertex.normal.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+8)], 4);
+                    int stride = glm::max(static_cast<int>(bufView.byteStride), 12);
+                    memcpy(&vertex.normal.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+0)], 4);
+                    memcpy(&vertex.normal.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+4)], 4);
+                    memcpy(&vertex.normal.z, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+8)], 4);
 
                     vertex.normal = glm::normalize(normMatrix * vertex.normal); // normal correct ?
                 } else if (pAttr.first == "TEXCOORD_0") {
                     if (accessor.type != TINYGLTF_TYPE_VEC2) {
                         l->error(fmt::format("normal attribute is not vec3 {:d}", accessor.type));
                     }
-                    memcpy(&vertex.texCoord.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+0)], 4);
-                    memcpy(&vertex.texCoord.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*bufView.byteStride+4)], 4);
+                    int stride = glm::max(static_cast<int>(bufView.byteStride), 8);
+                    memcpy(&vertex.texCoord.x, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+0)], 4);
+                    memcpy(&vertex.texCoord.y, &buf.data[accessor.byteOffset+bufView.byteOffset+(i*stride+4)], 4);
                     // TODO: might need to flip sign
                 } else {
                     l->error(fmt::format("unrecognised attribute name {:s}", pAttr.first));
@@ -395,13 +408,30 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model& modal, con
         }
 
         // calculate bitangent
-        for (int i = 0; i < vertexCount; i+=3) {
-            generateTangentBitangent(baseVertIdx+i+0, baseVertIdx+i+1, baseVertIdx+i+2);
+        //
+        for (int i = 0; i < indexAccesor.count; i+=3) {
+            if (glm::length2(_modelData.vertex[_modelData.indices[baseIndicies+i+0]].normal) != 1) {
+                // since our model is being drawn in counter-clockwise
+                glm::vec3 v1 = _modelData.vertex[_modelData.indices[baseIndicies+i+2]].pos -
+                        _modelData.vertex[_modelData.indices[baseIndicies+i+1]].pos;
+                glm::vec3 v2 = _modelData.vertex[_modelData.indices[baseIndicies+i+0]].pos - _modelData.vertex[_modelData.indices[baseIndicies+i+1]].pos;
+                glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
+                for (int j = 0; j < 3; ++j) {
+                    _modelData.vertex[_modelData.indices[baseIndicies+i+j]].normal = norm;
+                }
+            }
+
+            generateTangentBitangent(_modelData.indices[baseIndicies+i+0],
+                                     _modelData.indices[baseIndicies+i+1],
+                                     _modelData.indices[baseIndicies+i+2]);
         }
     }
 }
 
 void MeshComponent::loadModal(const std::string &path, const glm::vec3 &upAxis) {
+    // Something to optimise
+    // 1. remove redundant code into function, material etc
+    // 2.
     if (path.ends_with(".obj")) {
         loadObj(path, upAxis);
     } else if (path.ends_with(".glb")) {

@@ -81,6 +81,7 @@ private:
     bool initSync();
     bool initPipeline();
     bool initImGUI();
+    bool initPreApp();
 
     // Command Helper
     void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);

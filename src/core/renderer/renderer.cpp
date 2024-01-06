@@ -31,6 +31,7 @@ bool Renderer::initialise(RenderConfig renderConfig) {
     if (!initSync()) { l->error("failed to create sync structure"); return false; };
     if (!initPipeline()) { l->error("failed to create pipeline"); return false; };
     if (!initImGUI()) { l->error("failed to create imgui"); return false; };
+    if (!initPreApp()) { l->error("failed to init preapp"); return false; };
 
     return true;
 }
@@ -1378,5 +1379,14 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &outResourceInfo.sampler));
 }
 
+bool Renderer::initPreApp() {
+    // Initialise default material for all object
+    auto mat = MaterialCpu{
+            .info = {.diffuse = glm::vec4{0, 0.2, 0.2, 1},}
+    };
+    createMaterial(mat);
+
+    return true;
+}
 }
 

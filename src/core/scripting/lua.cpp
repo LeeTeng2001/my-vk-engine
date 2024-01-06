@@ -66,6 +66,7 @@ void ScriptingSystem::registerLuna() {
     luaActor["setLocalPosition"] = &Actor::setLocalPosition;
     luaActor["getLocalPosition"] = &Actor::getLocalPosition;
     luaActor["setRotation"] = &Actor::setRotation;
+    luaActor["setScale"] = &Actor::setScale;
     luaActor["getId"] = &Actor::getId;
 
     // inherit actor

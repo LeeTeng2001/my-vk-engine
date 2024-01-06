@@ -4,5 +4,10 @@ function staticDemoScene()
 
     --luna.NewStaticActor("assets/models/cube.obj")
     --luna.NewStaticActor("assets/models/mic.glb")
-    luna.NewStaticActor("assets/models/box.glb")
+    --luna.NewStaticActor("assets/models/miniature_night_city.glb")
+    --luna.NewStaticActor("assets/models/2CylinderEngine.glb")
+    --luna.NewStaticActor("assets/models/gun.glb")
+
+    local ganyu = luna.NewStaticActor("assets/models/ganyu.obj")
+    ganyu:setScale(0.1);
 end
