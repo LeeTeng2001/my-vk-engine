@@ -2,6 +2,9 @@
 
 #include "components/component.hpp"
 
+// Provide tweening capability
+// for actor properties
+
 namespace luna {
 
 class TweenComponent: public Component {

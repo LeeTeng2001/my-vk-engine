@@ -19,6 +19,8 @@ add_executable(${EXE_NAME}
 
         components/component.hpp
         components/component.cpp
+        components/anim/animation.cpp
+        components/anim/animation.hpp
         components/anim/tween.hpp
         components/anim/tween.cpp
         components/control/move.hpp
@@ -27,6 +29,8 @@ add_executable(${EXE_NAME}
         components/graphic/mesh.hpp
         components/physic/rigidbody.cpp
         components/physic/rigidbody.hpp
+        components/utils/loader.cpp
+        components/utils/loader.hpp
 
         core/engine.hpp
         core/engine.cpp
@@ -67,7 +71,7 @@ target_link_libraries(${EXE_NAME}
         # Lua scripting
         lua::lua
         sol2::sol2
-        )
+)
 
 add_dependencies(${EXE_NAME} Shaders)
 

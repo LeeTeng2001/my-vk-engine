@@ -5,6 +5,8 @@
 #include "components/component.hpp"
 #include "core/renderer/def.hpp"
 
+// store mesh information, materials
+
 namespace luna {
 
 class MeshComponent: public Component {

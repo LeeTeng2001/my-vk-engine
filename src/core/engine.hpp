@@ -50,6 +50,7 @@ private:
     std::weak_ptr<Engine> _self;
     GameState _gameState = EGameplay;
     uint64_t _tickCountMs = 0;
+    uint64_t _lastDrawFrameTimeUs = 0;
     int _actorIdInc = 0;
 
     // System

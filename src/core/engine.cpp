@@ -104,7 +104,8 @@ void Engine::updateGame() {
     uint64_t curTicks = SDL_GetTicks();
     float deltaTime = static_cast<float>(curTicks - _tickCountMs) / 1000.0f;
     _tickCountMs = curTicks;
-    _renderer->writeDebugUi(fmt::format("FPS: {:d}", int(1.0f / deltaTime)));
+    _renderer->writeDebugUi(fmt::format("FPS:  {:d}", int(1.0f / deltaTime)));
+//    _renderer->writeDebugUi(fmt::format("Draw: {:d}us", _lastDrawFrameTimeUs));  // TODO: Benchmark each phase draw call time
 
     // Clamp maximum delta to prevent huge delta time (ex, when stepping through debugger)
     deltaTime = std::min(deltaTime, 0.05f);
