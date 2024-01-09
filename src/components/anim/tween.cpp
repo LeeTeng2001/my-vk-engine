@@ -76,7 +76,7 @@ float TweenComponent::getEaseVal(TweenComponent::EaseType type, float perc) {
         case EEaseLinear:
             return perc;
         case EEaseInOutQuad:
-            return perc < 0.5 ? 2 * perc * perc : 1 - glm::pow(-2 * perc + 2, 2) / 2.0f;
+            return perc < 0.5f ? 2.0f * perc * perc : 1.0f - glm::pow(-2.0f * perc + 2, 2.0f) / 2.0f;
     }
 }
 

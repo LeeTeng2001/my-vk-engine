@@ -7,11 +7,14 @@ add_library(stb_image INTERFACE)
 # Lua related because lua doesn't provide CMAKE
 # Script reference: https://github.com/eliasdaler/cmake-lua-with-sol2-example/blob/main/third_party/CMakeLists.txt
 # Rn it's pointing at v5.4.6, if the version bump up SOL_LUA_VERSION should change too
-file(GLOB LUA_SRC_FILES lua/*.c)
-get_filename_component(lua_binary_file ${CMAKE_CURRENT_SOURCE_DIR}/lua/onelua.c ABSOLUTE)  # exclude lua binary
-list(REMOVE_ITEM LUA_SRC_FILES ${lua_binary_file})
-#message("${LUA_SRC_FILES}")
-add_library(lua ${LUA_SRC_FILES})
+# Don't use glob, be explicit
+add_library(lua
+        lua/lapi.c      lua/lctype.c  lua/lfunc.c   lua/lmathlib.c  lua/loslib.c   lua/ltable.c   lua/lundump.c
+        lua/lauxlib.c   lua/ldblib.c  lua/lgc.c     lua/lmem.c      lua/lparser.c  lua/ltablib.c  lua/lutf8lib.c
+        lua/lbaselib.c  lua/ldebug.c  lua/linit.c   lua/loadlib.c   lua/lstate.c   lua/ltests.c   lua/lvm.c
+        lua/lcode.c     lua/ldo.c     lua/liolib.c  lua/lobject.c   lua/lstring.c  lua/ltm.c      lua/lzio.c
+        lua/lcorolib.c  lua/ldump.c   lua/llex.c    lua/lopcodes.c  lua/lstrlib.c  lua/lua.c
+)
 add_library(lua::lua ALIAS lua)
 target_include_directories(lua PUBLIC lua)
 if (WIN32)
