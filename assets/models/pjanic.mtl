@@ -1,0 +1,7 @@
+newmtl pjan
+Ka 0.0 0.0 0.0
+Kd 1.0 0.0627451 0.0627451
+Ks 0.0 0.0 0.0
+Ns 10.0
+illum 2
+map_Kd assets/textures/pjan.png
