@@ -73,6 +73,12 @@ target_link_libraries(${EXE_NAME}
         sol2::sol2
 )
 
+# For MSVC profiler
+if (MSVC AND ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    message(STATUS "debug mode + MSVC, adding profile flag")
+    set_target_properties(${EXE_NAME} PROPERTIES LINK_FLAGS "/PROFILE")
+endif()
+
 add_dependencies(${EXE_NAME} Shaders)
 
 # Unit tests ----------------------------------------------------------------------

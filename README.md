@@ -37,4 +37,6 @@ You might want to put SDL3.dll in the root directory
 
 ## Resources
 - Quaternion: https://www.youtube.com/watch?v=xoTqBqQtrY4
+- Profiling website: https://www.speedscope.app/
+- For MSVC look up at cmake project profiler in Visual Studio
 
