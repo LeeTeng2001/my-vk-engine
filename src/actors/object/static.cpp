@@ -12,4 +12,4 @@ void StaticActor::delayInit() {
     addComponent(_meshComp);
 }
 
-}
+}  // namespace luna

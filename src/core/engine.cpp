@@ -15,13 +15,13 @@
 #include "components/graphic/mesh.hpp"
 #include "components/physic/rigidbody.hpp"
 
-namespace luna{
+namespace luna {
 bool Engine::initialize(std::shared_ptr<Engine> &self) {
     _self = self;
     auto l = SLog::get();
 
     _renderer = std::make_shared<Renderer>();
-    if (!_renderer->initialise()) { // TODO: custom config
+    if (!_renderer->initialise()) {  // TODO: custom config
         l->error("failed to initialise renderer");
         return false;
     }
@@ -83,12 +83,12 @@ void Engine::processInput() {
     }
 
     _inputSystem->update();
-    const InputState& state = _inputSystem->getState();
+    const InputState &state = _inputSystem->getState();
 
     // propagate input to global / actors / ui
     if (_gameState == EGameplay) {
         handleGlobalInput(state);
-        for (const auto& actorIter: _actorMap) {
+        for (const auto &actorIter : _actorMap) {
             actorIter.second->processInput(state);
         }
     }
@@ -105,7 +105,8 @@ void Engine::updateGame() {
     float deltaTime = static_cast<float>(curTicks - _tickCountMs) / 1000.0f;
     _tickCountMs = curTicks;
     _renderer->writeDebugUi(fmt::format("FPS:  {:d}", int(1.0f / deltaTime)));
-//    _renderer->writeDebugUi(fmt::format("Draw: {:d}us", _lastDrawFrameTimeUs));  // TODO: Benchmark each phase draw call time
+    //    _renderer->writeDebugUi(fmt::format("Draw: {:d}us", _lastDrawFrameTimeUs));  // TODO:
+    //    Benchmark each phase draw call time
 
     // Clamp maximum delta to prevent huge delta time (ex, when stepping through debugger)
     deltaTime = std::min(deltaTime, 0.05f);
@@ -113,7 +114,7 @@ void Engine::updateGame() {
     // Only update in gameplay mode
     if (_gameState == EGameplay) {
         // Update all existing actors
-        for (auto &actorIter: _actorMap) {
+        for (auto &actorIter : _actorMap) {
             actorIter.second->update(deltaTime);
         }
 
@@ -124,7 +125,9 @@ void Engine::updateGame() {
         for (auto actorIter = _actorMap.begin(); actorIter != _actorMap.end();) {
             if (actorIter->second->getState() == Actor::EDead) {
                 actorIter = _actorMap.erase(actorIter);
-            } else { ++actorIter; }
+            } else {
+                ++actorIter;
+            }
         }
     }
 }
@@ -141,7 +144,7 @@ void Engine::drawOutput() {
 
 void Engine::drawDebugUi() {
     if (ImGui::Begin("Engine##ActorHierarchy")) {
-        for (const auto &actorIter: _actorMap) {
+        for (const auto &actorIter : _actorMap) {
             // find root
             if (actorIter.second->getParentId() == -1) {
                 drawDebugUiActorRecursive(actorIter.second);
@@ -155,10 +158,11 @@ void Engine::drawDebugUiActorRecursive(const std::shared_ptr<Actor> &actor) {
     ImGuiTreeNodeFlags initFlag = actor->getDebugUiExpand() ? ImGuiTreeNodeFlags_DefaultOpen : 0;
     if (ImGui::TreeNodeEx(actor->debugDisplayName().c_str(), initFlag)) {
         actor->setDebugUiExpand(true);
-        for (const auto &childId: actor->getChildrenIdList()) {
+        for (const auto &childId : actor->getChildrenIdList()) {
             auto childActor = _actorMap.find(childId);
             if (childActor == _actorMap.end()) {
-                SLog::get()->error(fmt::format("actor has child id {:d} but it is not found in engine!", childId));
+                SLog::get()->error(
+                    fmt::format("actor has child id {:d} but it is not found in engine!", childId));
                 return;
             }
             drawDebugUiActorRecursive(childActor->second);
@@ -169,7 +173,7 @@ void Engine::drawDebugUiActorRecursive(const std::shared_ptr<Actor> &actor) {
     }
 }
 
-void Engine::addActor(const std::shared_ptr<Actor>& actor) {
+void Engine::addActor(const std::shared_ptr<Actor> &actor) {
     _actorMap.emplace(_actorIdInc, actor);
     actor->delayInit(_actorIdInc, _self.lock());
     _actorIdInc++;
@@ -182,44 +186,44 @@ bool Engine::prepareScene() {
         return false;
     }
 
-//    // viking room
-//    emptyActor = std::make_shared<EmptyActor>();
-//    addActor(emptyActor);
-//    meshComp = std::make_shared<MeshComponent>(emptyActor);
-//    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
-//    meshComp->uploadToGpu();
-//    emptyActor->addComponent(meshComp);
+    //    // viking room
+    //    emptyActor = std::make_shared<EmptyActor>();
+    //    addActor(emptyActor);
+    //    meshComp = std::make_shared<MeshComponent>(emptyActor);
+    //    meshComp->loadModal("assets/models/viking_room.obj", glm::vec3{0, 0, 1});
+    //    meshComp->uploadToGpu();
+    //    emptyActor->addComponent(meshComp);
 
-//    // moving cube with a parent
-//    emptyActor = std::make_shared<EmptyActor>();
-//    addActor(emptyActor);
-//    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
-//    staticActor = std::make_shared<StaticActor>("assets/models/cube.obj");
-//    addActor(staticActor);
-//    staticActor->setParent(emptyActor->getId());
-//    tweenComp = std::make_shared<TweenComponent>(_self.lock(), staticActor->getId());
-//    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
-//    staticActor->addComponent(tweenComp);
+    //    // moving cube with a parent
+    //    emptyActor = std::make_shared<EmptyActor>();
+    //    addActor(emptyActor);
+    //    emptyActor->setLocalPosition(glm::vec3{-1, 0, 0});
+    //    staticActor = std::make_shared<StaticActor>("assets/models/cube.obj");
+    //    addActor(staticActor);
+    //    staticActor->setParent(emptyActor->getId());
+    //    tweenComp = std::make_shared<TweenComponent>(_self.lock(), staticActor->getId());
+    //    tweenComp->addRotationOffset(3, -360, glm::vec3{0, 0, 1});
+    //    staticActor->addComponent(tweenComp);
 
-//    // procedural floor plane
-//    emptyActor = std::make_shared<EmptyActor>();
-//    addActor(emptyActor);
-//    meshComp = std::make_shared<MeshComponent>(emptyActor);
-//    meshComp->generatedSquarePlane(2);
-//    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
-//    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
-//    meshComp->uploadToGpu();
-//    emptyActor->addComponent(meshComp);
-//    emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
-//    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
+    //    // procedural floor plane
+    //    emptyActor = std::make_shared<EmptyActor>();
+    //    addActor(emptyActor);
+    //    meshComp = std::make_shared<MeshComponent>(emptyActor);
+    //    meshComp->generatedSquarePlane(2);
+    //    meshComp->loadDiffuseTexture("assets/textures/Gravel_001_BaseColor.jpg");
+    //    meshComp->loadNormalTexture("assets/textures/Gravel_001_Normal.jpg");
+    //    meshComp->uploadToGpu();
+    //    emptyActor->addComponent(meshComp);
+    //    emptyActor->setLocalPosition(glm::vec3{0, 0, -1});
+    //    emptyActor->setRotation(glm::angleAxis(glm::radians(-90.0f), glm::vec3{1, 0, 0}));
 
     // Light
-//    auto lightAct = std::make_shared<PointLightActor>(glm::vec3{1, 1, 1});
-//    addActor(lightAct);
-//    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
-//    tweenComp = std::make_shared<TweenComponent>(lightAct);
-//    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10, 0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0});
-//    lightAct->addComponent(tweenComp);
+    //    auto lightAct = std::make_shared<PointLightActor>(glm::vec3{1, 1, 1});
+    //    addActor(lightAct);
+    //    lightAct->setLocalPosition(glm::vec3{0, 5, 0});
+    //    tweenComp = std::make_shared<TweenComponent>(lightAct);
+    //    tweenComp->addTranslateOffset(3, glm::vec3{5, 0, 0}).addTranslateOffset(6, glm::vec3{-10,
+    //    0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0}); lightAct->addComponent(tweenComp);
 
     // Dir light, right now set it like this
     getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});
@@ -227,11 +231,11 @@ bool Engine::prepareScene() {
     return true;
 }
 
-void Engine::handleGlobalInput(const InputState& key) {
+void Engine::handleGlobalInput(const InputState &key) {
     if (key.Keyboard.getKeyState(SDL_SCANCODE_ESCAPE) == EPressed) {
         auto l = SLog::get();
         l->info("detected exit key, exiting");
         _gameState = EQuit;
     }
 }
-}
+}  // namespace luna

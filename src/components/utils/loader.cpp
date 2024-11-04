@@ -4,10 +4,7 @@
 
 #include "loader.hpp"
 
-luna::LoaderComponent::LoaderComponent(const std::shared_ptr<Engine> &engine, int ownerId) : Component(engine, ownerId) {
+luna::LoaderComponent::LoaderComponent(const std::shared_ptr<Engine> &engine, int ownerId)
+    : Component(engine, ownerId) {}
 
-}
-
-luna::LoaderComponent::~LoaderComponent() {
-
-}
+luna::LoaderComponent::~LoaderComponent() {}

@@ -2,7 +2,6 @@
 
 namespace luna {
 
-void EmptyActor::delayInit() {
-}
+void EmptyActor::delayInit() {}
 
-}
+}  // namespace luna

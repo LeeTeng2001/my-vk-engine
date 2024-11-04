@@ -7,11 +7,11 @@ namespace luna {
 class Engine;
 
 class EmptyActor : public Actor {
-public:
-    explicit EmptyActor() : Actor() {};
+    public:
+        explicit EmptyActor() : Actor() {};
 
-    void delayInit() override;
-    std::string displayName() override { return "EmptyActor"; }
+        void delayInit() override;
+        std::string displayName() override { return "EmptyActor"; }
 };
 
-}
+}  // namespace luna

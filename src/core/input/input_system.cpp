@@ -6,9 +6,7 @@
 
 namespace luna {
 
-bool KeyboardState::getKeyValue(SDL_Scancode keyCode) const {
-	return _curState[keyCode] == 1;
-}
+bool KeyboardState::getKeyValue(SDL_Scancode keyCode) const { return _curState[keyCode] == 1; }
 
 ButtonState KeyboardState::getKeyState(SDL_Scancode keyCode) const {
     if (_prevState[keyCode] == 0) {
@@ -20,9 +18,7 @@ ButtonState KeyboardState::getKeyState(SDL_Scancode keyCode) const {
     }
 }
 
-bool MouseState::getButtonValue(int button) const {
-    return (SDL_BUTTON(button) & _curButtons);
-}
+bool MouseState::getButtonValue(int button) const { return (SDL_BUTTON(button) & _curButtons); }
 
 ButtonState MouseState::getButtonState(int button) const {
     int mask = SDL_BUTTON(button);
@@ -68,9 +64,7 @@ bool InputSystem::initialise() {
     return true;
 }
 
-void InputSystem::shutdown() {
-    SDL_CloseGamepad(_controller);
-}
+void InputSystem::shutdown() { SDL_CloseGamepad(_controller); }
 
 void InputSystem::prepareForUpdate() {
     // Copy current state to previous (because SDL overwrite its original key buffer)
@@ -79,31 +73,38 @@ void InputSystem::prepareForUpdate() {
 
     // mState.Mouse.mIsRelative = false;  // TODO: Bug reset?
     _inputState.Mouse._prevButtons = _inputState.Mouse._curButtons;
-    _inputState.Mouse._scrollWheel = {0, 0};  // only triggers on frames where the scroll wheel moves
+    _inputState.Mouse._scrollWheel = {0,
+                                      0};  // only triggers on frames where the scroll wheel moves
 
-    memcpy(_inputState.Controller._prevButtons, _inputState.Controller._curButtons, SDL_GAMEPAD_BUTTON_MAX);
+    memcpy(_inputState.Controller._prevButtons, _inputState.Controller._curButtons,
+           SDL_GAMEPAD_BUTTON_MAX);
 }
 
 void InputSystem::update() {
     // Mouse
     float x = 0, y = 0;
-    _inputState.Mouse._curButtons = _inputState.Mouse._isRelative ? SDL_GetRelativeMouseState(&x, &y) : SDL_GetMouseState(&x, &y);
-    _inputState.Mouse._mouseOffsetPos.x = _inputState.Mouse._isRelative ? x :  x - _inputState.Mouse._mousePos.x;
-    _inputState.Mouse._mouseOffsetPos.y = _inputState.Mouse._isRelative ? y :  y - _inputState.Mouse._mousePos.y;
+    _inputState.Mouse._curButtons = _inputState.Mouse._isRelative
+                                        ? SDL_GetRelativeMouseState(&x, &y)
+                                        : SDL_GetMouseState(&x, &y);
+    _inputState.Mouse._mouseOffsetPos.x =
+        _inputState.Mouse._isRelative ? x : x - _inputState.Mouse._mousePos.x;
+    _inputState.Mouse._mouseOffsetPos.y =
+        _inputState.Mouse._isRelative ? y : y - _inputState.Mouse._mousePos.y;
     _inputState.Mouse._mousePos.x = x;
     _inputState.Mouse._mousePos.y = y;
 
     // Controller --------------------------------------------------------
     // Buttons
     for (int i = 0; i < SDL_GAMEPAD_BUTTON_MAX; i++) {
-        _inputState.Controller._curButtons[i] = SDL_GetGamepadButton(_controller, SDL_GamepadButton(i));
+        _inputState.Controller._curButtons[i] =
+            SDL_GetGamepadButton(_controller, SDL_GamepadButton(i));
     }
 
     // Triggers
     _inputState.Controller._leftTrigger =
-            filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER));
+        filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER));
     _inputState.Controller._rightTrigger =
-            filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
+        filter1D(SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
 
     // Sticks, negates y because SDL report y axis in down positive
     x = SDL_GetGamepadAxis(_controller, SDL_GAMEPAD_AXIS_LEFTX);
@@ -145,8 +146,8 @@ float InputSystem::filter1D(float input) {
     // Ignore input within dead zone
     if (absValue > deadZone) {
         retVal = static_cast<float>(absValue - deadZone) / (maxValue - deadZone);
-        retVal = input > 0 ? retVal : -1.0f * retVal; // make sure sign
-        retVal = std::clamp(retVal, -1.0f, 1.0f); // clamp to [-1, 1]
+        retVal = input > 0 ? retVal : -1.0f * retVal;  // make sure sign
+        retVal = std::clamp(retVal, -1.0f, 1.0f);      // clamp to [-1, 1]
     }
 
     return retVal;
@@ -177,4 +178,4 @@ glm::vec2 InputSystem::filter2D(float inputX, float inputY) {
     return dir;
 }
 
-}
+}  // namespace luna

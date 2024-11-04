@@ -1,16 +1,15 @@
 #pragma once
 
 #include <spdlog/spdlog.h>
+#include <source_location>
 #include <vulkan/vulkan_core.h>
 
-#include <source_location>
-
 namespace luna {
-    class Log {
-       private:
+class Log {
+    private:
         std::unique_ptr<spdlog::logger> logger;
 
-       public:
+    public:
         Log();
 
         // std::source_location::current() is nice BUT it's too freaking verbose
@@ -25,12 +24,12 @@ namespace luna {
                    char const *funcName = __builtin_FUNCTION());
         void vk_res(VkResult res, int lineNum = __builtin_LINE(),
                     char const *funcName = __builtin_FUNCTION());
-    };
+};
 
-    // global logger handler
-    // https://stackoverflow.com/questions/1008019/how-do-you-implement-the-singleton-design-pattern
-    class SLog {
-       public:
+// global logger handler
+// https://stackoverflow.com/questions/1008019/how-do-you-implement-the-singleton-design-pattern
+class SLog {
+    public:
         SLog() = delete;
         SLog(const SLog &) = delete;
         SLog &operator=(const SLog &) = delete;
@@ -39,11 +38,11 @@ namespace luna {
             static Log instance{};
             return &instance;
         }
-    };
+};
 
-    // Lua Log wrapper
-    class LuaLog {
-       public:
+// Lua Log wrapper
+class LuaLog {
+    public:
         LuaLog() = default;
         void debug(const std::string &msg) {
             auto l = SLog::get();
@@ -61,5 +60,5 @@ namespace luna {
             auto l = SLog::get();
             l->error(msg, -1, "luaError");
         };
-    };
+};
 }  // namespace luna

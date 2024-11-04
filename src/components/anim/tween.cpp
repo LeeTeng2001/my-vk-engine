@@ -4,10 +4,8 @@
 
 namespace luna {
 
-TweenComponent::TweenComponent(const std::shared_ptr<Engine> &engine, int ownerId, int updateOrder) :
-        Component(engine, ownerId, updateOrder) {
-}
-
+TweenComponent::TweenComponent(const std::shared_ptr<Engine>& engine, int ownerId, int updateOrder)
+    : Component(engine, ownerId, updateOrder) {}
 
 void TweenComponent::update(float deltaTime) {
     if (!getEnabled() || _animSeqList.empty()) {
@@ -24,7 +22,8 @@ void TweenComponent::update(float deltaTime) {
     _accumTimestampS += deltaTime;
 
     // invoke anim
-    _animSeqList[_curSeqBlock]->invokeF(_accumTimestampS / _animSeqList[_curSeqBlock]->durationS, deltaTime / _animSeqList[_curSeqBlock]->durationS);
+    _animSeqList[_curSeqBlock]->invokeF(_accumTimestampS / _animSeqList[_curSeqBlock]->durationS,
+                                        deltaTime / _animSeqList[_curSeqBlock]->durationS);
 
     // advance next animation
     if (shouldAdvance) {
@@ -40,12 +39,14 @@ void TweenComponent::update(float deltaTime) {
     }
 }
 
-TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet, EaseType easeType) {
+TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
+                                                   EaseType easeType) {
     // TODO: validation duration
     std::unique_ptr<SeqBlock> seqPtr = std::make_unique<SeqBlock>();
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, offSet, easeType](float globalPerc, float stepDelta) {
-        float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
+        float actualPerc =
+            getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
         glm::vec3 pos = getOwner()->getLocalPosition();
         pos += offSet * actualPerc;
         getOwner()->setLocalPosition(pos);
@@ -55,12 +56,14 @@ TweenComponent& TweenComponent::addTranslateOffset(float durS, glm::vec3 offSet,
     return *this;
 }
 
-TweenComponent& TweenComponent::addRotationOffset(float durS, float totalAngle, const glm::vec3 &axis, EaseType easeType) {
+TweenComponent& TweenComponent::addRotationOffset(float durS, float totalAngle,
+                                                  const glm::vec3& axis, EaseType easeType) {
     // TODO: validation duration
     std::unique_ptr<SeqBlock> seqPtr = std::make_unique<SeqBlock>();
     seqPtr->durationS = durS;
     seqPtr->invokeF = [this, axis, totalAngle, easeType](float globalPerc, float stepDelta) {
-        float actualPerc = getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
+        float actualPerc =
+            getEaseVal(easeType, globalPerc) - getEaseVal(easeType, globalPerc - stepDelta);
         glm::quat rot = getOwner()->getRotation();
         rot *= glm::angleAxis(glm::radians(totalAngle) * actualPerc, axis);
         getOwner()->setRotation(rot);
@@ -76,8 +79,9 @@ float TweenComponent::getEaseVal(TweenComponent::EaseType type, float perc) {
         case EEaseLinear:
             return perc;
         case EEaseInOutQuad:
-            return perc < 0.5f ? 2.0f * perc * perc : 1.0f - glm::pow(-2.0f * perc + 2, 2.0f) / 2.0f;
+            return perc < 0.5f ? 2.0f * perc * perc
+                               : 1.0f - glm::pow(-2.0f * perc + 2, 2.0f) / 2.0f;
     }
 }
 
-}
+}  // namespace luna

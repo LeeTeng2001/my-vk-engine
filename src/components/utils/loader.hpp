@@ -7,17 +7,15 @@
 
 namespace luna {
 
-class LoaderComponent: public Component {
-public:
-    explicit LoaderComponent(const std::shared_ptr<Engine> &engine, int ownerId);
-    ~LoaderComponent() override;
+class LoaderComponent : public Component {
+    public:
+        explicit LoaderComponent(const std::shared_ptr<Engine> &engine, int ownerId);
+        ~LoaderComponent() override;
 
-    void loadModal(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
+        void loadModal(const std::string &path, const glm::vec3 &upAxis = glm::vec3{0, 1, 0});
 
-private:
-    std::string _modelPath;
-
-
+    private:
+        std::string _modelPath;
 };
 
-}
+}  // namespace luna

@@ -47,3 +47,10 @@ You might want to put SDL3.dll in the root directory
 sudo dnf install vulkan-headers vulkan-tools vulkan-validation-layers vulkan-utility-libraries-devel glslang
 ```
 
+
+## Utils
+
+```bash
+# Format src files
+$ find src -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i
+```

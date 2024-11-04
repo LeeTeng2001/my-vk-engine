@@ -9,13 +9,12 @@
 #include "core/engine.hpp"
 #include "rigidbody.hpp"
 
-
 namespace luna {
 
 // https://github.com/jrouwe/JoltPhysicsHelloWorld/blob/main/Source/HelloWorld.cpp
 
-RigidBodyComponent::RigidBodyComponent(const std::shared_ptr<Engine> &engine, int ownerId) : Component(engine, ownerId) {
-}
+RigidBodyComponent::RigidBodyComponent(const std::shared_ptr<Engine>& engine, int ownerId)
+    : Component(engine, ownerId) {}
 
 RigidBodyComponent::~RigidBodyComponent() {
     if (!_bodyId.IsInvalid()) {
@@ -33,9 +32,10 @@ void RigidBodyComponent::postUpdate() {
     getOwner()->setWorldPosition(glm::vec3{position[0], position[1], position[2]});
 }
 
-void RigidBodyComponent::createBox(const glm::vec3 &boxHalfExtentDim) {
+void RigidBodyComponent::createBox(const glm::vec3& boxHalfExtentDim) {
     // shape setting (verbose)
-    JPH::BoxShapeSettings shapeSetting(JPH::Vec3(boxHalfExtentDim.x, boxHalfExtentDim.y, boxHalfExtentDim.z));
+    JPH::BoxShapeSettings shapeSetting(
+        JPH::Vec3(boxHalfExtentDim.x, boxHalfExtentDim.y, boxHalfExtentDim.z));
     JPH::ShapeSettings::ShapeResult boxShapeRes = shapeSetting.Create();
     if (boxShapeRes.HasError()) {
         auto l = SLog::get();
@@ -56,8 +56,9 @@ void RigidBodyComponent::createShape(const JPH::ShapeRefC& bodyShapeRef) {
 
     // Create the actual rigid body
     glm::vec3 finalPos = _relPos + getOwner()->getWorldPosition();
-    JPH::BodyCreationSettings bodySetting(bodyShapeRef, JPH::RVec3(finalPos.x, finalPos.y, finalPos.z),
-                                          JPH::Quat::sIdentity(), getMotionType(), getMotionLayer());
+    JPH::BodyCreationSettings bodySetting(
+        bodyShapeRef, JPH::RVec3(finalPos.x, finalPos.y, finalPos.z), JPH::Quat::sIdentity(),
+        getMotionType(), getMotionLayer());
     bodySetting.mRestitution = _bounciness;
     _bodyId = bodyInf.CreateAndAddBody(bodySetting, getInitialActivation());
     if (_bodyId.IsInvalid()) {
@@ -66,10 +67,9 @@ void RigidBodyComponent::createShape(const JPH::ShapeRefC& bodyShapeRef) {
     }
 }
 
-
 void RigidBodyComponent::setLinearVelocity(const glm::vec3& velo) {
     JPH::BodyInterface& bodyInf = getEngine()->getPhysicSystem()->getBodyInf();
     bodyInf.SetLinearVelocity(_bodyId, JPH::Vec3(velo[0], velo[1], velo[2]));
 }
 
-}
+}  // namespace luna

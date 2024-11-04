@@ -7,7 +7,8 @@
 namespace luna {
 
 Actor::~Actor() {
-    // Need to delete components, because ~Component calls RemoveComponent, need a different style loop
+    // Need to delete components, because ~Component calls RemoveComponent, need a different style
+    // loop
     _components.clear();
 }
 
@@ -15,22 +16,22 @@ void Actor::update(float deltaTime) {
     if (_state == EActive) {
         updateComponents(deltaTime);
         updateActor(deltaTime);
-        for (const auto &comp: _components) {
+        for (const auto& comp : _components) {
             comp->postUpdate();
         }
     }
 }
 
 void Actor::updateComponents(float deltaTime) {
-    for (const auto& comp: _components) {
+    for (const auto& comp : _components) {
         comp->update(deltaTime);
     }
 }
 
-void Actor::processInput(const struct InputState &keyState) {
+void Actor::processInput(const struct InputState& keyState) {
     // process input for components, then actor specific
     if (_state == EActive) {
-        for (const auto& comp: _components) {
+        for (const auto& comp : _components) {
             comp->processInput(keyState);
         }
         actorInput(keyState);
@@ -97,7 +98,7 @@ void Actor::removeChild(int childId) {
     _childrenIdList.erase(childId);
 }
 
-const glm::mat4 &Actor::getLocalTransform() {
+const glm::mat4& Actor::getLocalTransform() {
     if (_recomputeLocalTransform) {
         _recomputeLocalTransform = false;
         // Scale, then rotate, then translate
@@ -106,7 +107,8 @@ const glm::mat4 &Actor::getLocalTransform() {
         scaleMat[1][1] = _scale;
         scaleMat[2][2] = _scale;
         scaleMat[3][3] = 1;
-        _localTransform = glm::translate(glm::identity<glm::mat4>(), _position) * glm::mat4_cast(_rotation) * scaleMat;
+        _localTransform = glm::translate(glm::identity<glm::mat4>(), _position) *
+                          glm::mat4_cast(_rotation) * scaleMat;
     }
     return _localTransform;
 }
@@ -147,7 +149,7 @@ glm::vec3 Actor::getWorldPosition() const {
     return finalPos;
 }
 
-void Actor::setWorldPosition(const glm::vec3 &pos) {
+void Actor::setWorldPosition(const glm::vec3& pos) {
     glm::vec3 relPos = pos;
     int recParentId = _parentId;
     while (recParentId != -1) {
@@ -165,4 +167,4 @@ void Actor::setWorldPosition(const glm::vec3 &pos) {
     _recomputeLocalTransform = true;
 }
 
-}
+}  // namespace luna

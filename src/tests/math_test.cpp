@@ -7,8 +7,7 @@
 
 // TODO: Fix test
 
-glm::mat4 getPerspectiveProjectionFromFormula(float fovy, float aspect,
-                                              float near, float far) {
+glm::mat4 getPerspectiveProjectionFromFormula(float fovy, float aspect, float near, float far) {
     const float tanHalfFovy = tan(fovy / 2.0f);
     glm::mat4 projectionMatrix = glm::mat4{0};
     projectionMatrix[0][0] = 1.0f / (aspect * tanHalfFovy);
@@ -22,9 +21,9 @@ glm::mat4 getPerspectiveProjectionFromFormula(float fovy, float aspect,
 // Cross product using left hand rules
 TEST(MathBehaviouTestSuite, CrossProductExpectation) {
     struct TestInfo {
-        glm::vec3 l;
-        glm::vec3 r;
-        glm::vec3 expect;
+            glm::vec3 l;
+            glm::vec3 r;
+            glm::vec3 expect;
     };
 
     vector<TestInfo> testList{
@@ -46,22 +45,20 @@ TEST(MathBehaviouTestSuite, CrossProductExpectation) {
     };
 
     for (const auto &item : testList) {
-        EXPECT_TRUE(glm::all(
-            glm::epsilonEqual(glm::cross(item.l, item.r), item.expect, 0.001f)))
+        EXPECT_TRUE(glm::all(glm::epsilonEqual(glm::cross(item.l, item.r), item.expect, 0.001f)))
             << "l   : " << glm::to_string(item.l) << std::endl
             << "r   : " << glm::to_string(item.r) << std::endl
             << "exp : " << glm::to_string(item.expect) << std::endl
-            << "act : " << glm::to_string(glm::cross(item.l, item.r))
-            << std::endl;
+            << "act : " << glm::to_string(glm::cross(item.l, item.r)) << std::endl;
     }
 }
 
 // rotation using quaternion
 TEST(MathBehaviouTestSuite, QuaterninoRotation) {
     struct TestInfo {
-        glm::vec4 forward;
-        glm::quat rot;
-        glm::vec4 expect;
+            glm::vec4 forward;
+            glm::quat rot;
+            glm::vec4 expect;
     };
 
     vector<TestInfo> testList{
@@ -83,13 +80,11 @@ TEST(MathBehaviouTestSuite, QuaterninoRotation) {
     };
 
     for (const auto &item : testList) {
-        EXPECT_TRUE(glm::all(glm::epsilonEqual(
-            glm::mat4_cast(item.rot) * item.forward, item.expect, 0.001f)))
+        EXPECT_TRUE(glm::all(
+            glm::epsilonEqual(glm::mat4_cast(item.rot) * item.forward, item.expect, 0.001f)))
             << "for : " << glm::to_string(item.forward) << std::endl
             << "exp : " << glm::to_string(item.expect) << std::endl
-            << "act : "
-            << glm::to_string(glm::mat4_cast(item.rot) * item.forward)
-            << std::endl;
+            << "act : " << glm::to_string(glm::mat4_cast(item.rot) * item.forward) << std::endl;
     }
 }
 

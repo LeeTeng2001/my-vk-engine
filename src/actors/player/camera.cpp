@@ -23,20 +23,20 @@ void CameraActor::updateActor(float deltaTime) {
     // set new camera rotation
     if (_moveComp->getEnabled()) {
         glm::vec2 mouseOffset = getEngine()->getInputSystem()->getState().Mouse.getOffsetPosition();
-//        if (mouseOffset.x < 20 && mouseOffset.y < 20) {
-            _yawAngle = (_yawAngle - mouseOffset.x * HOR_ANGLE_SPEED * deltaTime);
-            _pitchAngle = glm::clamp(_pitchAngle - mouseOffset.y * VERT_ANGLE_SPEED * deltaTime,
-                                     MIN_ANGLE_PITCH, MAX_ANGLE_PITCH);
-            while (_yawAngle > 360) {
-                _yawAngle -= 360;
-            }
-            while (_yawAngle < 0) {
-                _yawAngle += 360;
-            }
+        //        if (mouseOffset.x < 20 && mouseOffset.y < 20) {
+        _yawAngle = (_yawAngle - mouseOffset.x * HOR_ANGLE_SPEED * deltaTime);
+        _pitchAngle = glm::clamp(_pitchAngle - mouseOffset.y * VERT_ANGLE_SPEED * deltaTime,
+                                 MIN_ANGLE_PITCH, MAX_ANGLE_PITCH);
+        while (_yawAngle > 360) {
+            _yawAngle -= 360;
+        }
+        while (_yawAngle < 0) {
+            _yawAngle += 360;
+        }
 
-            // set rotation, yaw first then pitch
-            setRotation(glm::eulerAngleYX(glm::radians(_yawAngle), glm::radians(_pitchAngle)));
-//        }
+        // set rotation, yaw first then pitch
+        setRotation(glm::eulerAngleYX(glm::radians(_yawAngle), glm::radians(_pitchAngle)));
+        //        }
     }
 
     // Compute new camera from this actor
@@ -45,11 +45,16 @@ void CameraActor::updateActor(float deltaTime) {
     getEngine()->getRenderer()->setCamPos(getLocalPosition());
 
     // update ui
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Pos     : {:s}", glm::to_string(getLocalPosition())));
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Rot     : {:s}", glm::to_string(getRotation())));
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Rot(eul): {:s}", glm::to_string(eulerAngles(getRotation()))));
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Forward : {:s}", glm::to_string(getForward())));
-    getEngine()->getRenderer()->writeDebugUi(fmt::format("Cam Right   : {:s}", glm::to_string(getRight())));
+    getEngine()->getRenderer()->writeDebugUi(
+        fmt::format("Cam Pos     : {:s}", glm::to_string(getLocalPosition())));
+    getEngine()->getRenderer()->writeDebugUi(
+        fmt::format("Cam Rot     : {:s}", glm::to_string(getRotation())));
+    getEngine()->getRenderer()->writeDebugUi(
+        fmt::format("Cam Rot(eul): {:s}", glm::to_string(eulerAngles(getRotation()))));
+    getEngine()->getRenderer()->writeDebugUi(
+        fmt::format("Cam Forward : {:s}", glm::to_string(getForward())));
+    getEngine()->getRenderer()->writeDebugUi(
+        fmt::format("Cam Right   : {:s}", glm::to_string(getRight())));
 }
 
 void CameraActor::actorInput(const struct InputState &state) {
@@ -84,7 +89,6 @@ void CameraActor::actorInput(const struct InputState &state) {
     _moveComp->setStrafeSpeed(strafSpeed);
 }
 
-
 // our world coordinate is x right, y up, z in
 // get the object in camera space
 glm::mat4 CameraActor::getCamViewTransform() {
@@ -102,10 +106,11 @@ glm::mat4 CameraActor::getCamViewTransform() {
     glm::vec3 camUp = glm::normalize(glm::cross(right, lookAtDir));
     // NOTICE z is inverted cuz we're constructing new basis, and -z as new basis of inverse lookAt
     glm::mat4 camMatrix{
-            glm::vec4{right.x, camUp.x, -lookAtDir.x, 0},
-            glm::vec4{right.y, camUp.y, -lookAtDir.y, 0},
-            glm::vec4{right.z, camUp.z, -lookAtDir.z, 0},
-            glm::vec4{-glm::dot(getLocalPosition(), right), -glm::dot(getLocalPosition(), camUp), glm::dot(getLocalPosition(), lookAtDir), 1},
+        glm::vec4{right.x, camUp.x, -lookAtDir.x, 0},
+        glm::vec4{right.y, camUp.y, -lookAtDir.y, 0},
+        glm::vec4{right.z, camUp.z, -lookAtDir.z, 0},
+        glm::vec4{-glm::dot(getLocalPosition(), right), -glm::dot(getLocalPosition(), camUp),
+                  glm::dot(getLocalPosition(), lookAtDir), 1},
     };  // construct new axis, where 4th arg is the translation
     // REMEMBER translation is the projection of the lenght onto the NEW axis, so
     // you can't just straight up use position.x!! Must be projected into the new axis
@@ -114,8 +119,8 @@ glm::mat4 CameraActor::getCamViewTransform() {
 }
 
 glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
-//    // 1. Transform to camera space and rotation
-//    glm::mat4 view = getCamViewTransform();
+    //    // 1. Transform to camera space and rotation
+    //    glm::mat4 view = getCamViewTransform();
 
     // TODO: refactor, should probably cache the value
     const int viewWidth = getEngine()->getRenderer()->getRenderConfig().windowWidth;
@@ -145,7 +150,7 @@ glm::mat4 CameraActor::getPerspectiveTransformMatrix() {
 
     // 3. scale both side, notice z is scaled depth
     // tan(delta / 2) = newH/2 / near
-//    getEngine()->getRenderer()->
+    //    getEngine()->getRenderer()->
     float aspectRatio = float(viewWidth) / float(viewHeight);
     float nearHeight = glm::tan(glm::radians(_fovYInAngle / 2)) * _nearDepth * 2;
     float nearWidth = nearHeight * aspectRatio;
@@ -182,4 +187,4 @@ glm::mat4 CameraActor::getOrthographicTransformMatrix() {
     return projection;
 }
 
-}
+}  // namespace luna

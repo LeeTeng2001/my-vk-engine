@@ -8,17 +8,17 @@
 
 namespace luna {
 class ScriptingSystem {
-public:
-    bool initialise(const std::shared_ptr<Engine> &engine);
-    void shutdown();
+    public:
+        bool initialise(const std::shared_ptr<Engine>& engine);
+        void shutdown();
 
-    bool execScriptFile(const std::string& path);
+        bool execScriptFile(const std::string& path);
 
-private:
-    void registerGlm();
-    void registerLuna();
+    private:
+        void registerGlm();
+        void registerLuna();
 
-    sol::state _globState;
-    std::shared_ptr<Engine> _engine;
+        sol::state _globState;
+        std::shared_ptr<Engine> _engine;
 };
-}
+}  // namespace luna

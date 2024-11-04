@@ -28,19 +28,11 @@ bool ScriptingSystem::initialise(const std::shared_ptr<Engine> &engine) {
 
 void ScriptingSystem::registerGlm() {
     sol::table glmNs = _globState["glm"].get_or_create<sol::table>();
-    glmNs.new_usertype<glm::vec3>("vec3",
-                                  sol::constructors<glm::vec3(float, float, float)>(),
-                                  "x", &glm::vec3::x,
-                                  "y", &glm::vec3::y,
-                                  "z", &glm::vec3::z
-    );
-    glmNs.new_usertype<glm::quat>("quat",
-                                  sol::constructors<glm::quat(float, float, float, float)>(),
-                                  "x", &glm::quat::x,
-                                  "y", &glm::quat::y,
-                                  "z", &glm::quat::z,
-                                  "w", &glm::quat::w
-    );
+    glmNs.new_usertype<glm::vec3>("vec3", sol::constructors<glm::vec3(float, float, float)>(), "x",
+                                  &glm::vec3::x, "y", &glm::vec3::y, "z", &glm::vec3::z);
+    glmNs.new_usertype<glm::quat>(
+        "quat", sol::constructors<glm::quat(float, float, float, float)>(), "x", &glm::quat::x, "y",
+        &glm::quat::y, "z", &glm::quat::z, "w", &glm::quat::w);
     glmNs.set_function("angleAxis", [](float angle, const glm::vec3 &axis) {
         return glm::angleAxis(angle, axis);
     });
@@ -50,16 +42,12 @@ void ScriptingSystem::registerGlm() {
 void ScriptingSystem::registerLuna() {
     // luna namespace
     sol::table lunaNs = _globState["luna"].get_or_create<sol::table>();
-    lunaNs.new_usertype<LuaLog>("Log",
-                                "debug", &LuaLog::debug,
-                                "info", &LuaLog::info,
-                                "warn", &LuaLog::warn,
-                                "error", &LuaLog::error
-    );
+    lunaNs.new_usertype<LuaLog>("Log", "debug", &LuaLog::debug, "info", &LuaLog::info, "warn",
+                                &LuaLog::warn, "error", &LuaLog::error);
 
     // Creation functions because lifetime is managed in CPP side
-    lunaNs.set_function("GetLog", [](){ return SLog::get(); });
-    lunaNs.set_function("GetEngine", [this](){ return _engine; });
+    lunaNs.set_function("GetLog", []() { return SLog::get(); });
+    lunaNs.set_function("GetEngine", [this]() { return _engine; });
 
     // base actor
     auto luaActor = lunaNs.new_usertype<Actor>("Actor");
@@ -71,19 +59,19 @@ void ScriptingSystem::registerLuna() {
 
     // inherit actor
     lunaNs.new_usertype<EmptyActor>("EmptyActor", sol::base_classes, sol::bases<Actor>());
-    lunaNs.set_function("NewEmptyActor", [this](){
+    lunaNs.set_function("NewEmptyActor", [this]() {
         auto a = std::make_shared<EmptyActor>();
         _engine->addActor(a);
         return a;
     });
     lunaNs.new_usertype<CameraActor>("CameraActor", sol::base_classes, sol::bases<Actor>());
-    lunaNs.set_function("NewCameraActor", [this](){
+    lunaNs.set_function("NewCameraActor", [this]() {
         auto a = std::make_shared<CameraActor>();
         _engine->addActor(a);
         return a;
     });
     lunaNs.new_usertype<StaticActor>("StaticActor", sol::base_classes, sol::bases<Actor>());
-    lunaNs.set_function("NewStaticActor", [this](const std::string &modelPath){
+    lunaNs.set_function("NewStaticActor", [this](const std::string &modelPath) {
         auto a = std::make_shared<StaticActor>(modelPath);
         _engine->addActor(a);
         return a;
@@ -92,44 +80,39 @@ void ScriptingSystem::registerLuna() {
     // base components
     lunaNs.new_usertype<Component>("Component");
 
-    // TODO: use overload to reduce setup code https://sol2.readthedocs.io/en/latest/api/overload.html
-    // inherit components
-    lunaNs.new_usertype<MeshComponent>("MeshComponent", sol::base_classes, sol::bases<Component>(),
-            "generateSquarePlane", &MeshComponent::generateSquarePlane,
-            "generateSphere", &MeshComponent::generateSphere,
-            "loadModal", &MeshComponent::loadModal,
-            "uploadToGpu", &MeshComponent::uploadToGpu
-            );
-    lunaNs.set_function("NewMeshComponent", [this](int actorId){
+    // TODO: use overload to reduce setup code
+    // https://sol2.readthedocs.io/en/latest/api/overload.html inherit components
+    lunaNs.new_usertype<MeshComponent>(
+        "MeshComponent", sol::base_classes, sol::bases<Component>(), "generateSquarePlane",
+        &MeshComponent::generateSquarePlane, "generateSphere", &MeshComponent::generateSphere,
+        "loadModal", &MeshComponent::loadModal, "uploadToGpu", &MeshComponent::uploadToGpu);
+    lunaNs.set_function("NewMeshComponent", [this](int actorId) {
         auto c = std::make_shared<MeshComponent>(_engine, actorId);
         _engine->getActor(actorId)->addComponent(c);
         return c;
     });
 
-    lunaNs.new_usertype<RigidBodyComponent>("RigidBodyComponent", sol::base_classes, sol::bases<Component>(),
-            "setIsStatic", &RigidBodyComponent::setIsStatic,
-            "setBounciness", &RigidBodyComponent::setBounciness,
-            "createBox", &RigidBodyComponent::createBox,
-            "createSphere", &RigidBodyComponent::createSphere,
-            "setLinearVelocity", &RigidBodyComponent::setLinearVelocity
-            );
-    lunaNs.set_function("NewRigidBodyComponent", [this](int actorId){
+    lunaNs.new_usertype<RigidBodyComponent>(
+        "RigidBodyComponent", sol::base_classes, sol::bases<Component>(), "setIsStatic",
+        &RigidBodyComponent::setIsStatic, "setBounciness", &RigidBodyComponent::setBounciness,
+        "createBox", &RigidBodyComponent::createBox, "createSphere",
+        &RigidBodyComponent::createSphere, "setLinearVelocity",
+        &RigidBodyComponent::setLinearVelocity);
+    lunaNs.set_function("NewRigidBodyComponent", [this](int actorId) {
         auto c = std::make_shared<RigidBodyComponent>(_engine, actorId);
         _engine->getActor(actorId)->addComponent(c);
         return c;
     });
 
-    lunaNs.new_usertype<TweenComponent>("TweenComponent", sol::base_classes, sol::bases<Component>(),
-            "addTranslateOffset", &TweenComponent::addTranslateOffset,
-            "addRotationOffset", &TweenComponent::addRotationOffset,
-            "setLoopType", &TweenComponent::setLoopType
-            );
-    lunaNs.set_function("NewTweenComponent", [this](int actorId){
+    lunaNs.new_usertype<TweenComponent>(
+        "TweenComponent", sol::base_classes, sol::bases<Component>(), "addTranslateOffset",
+        &TweenComponent::addTranslateOffset, "addRotationOffset",
+        &TweenComponent::addRotationOffset, "setLoopType", &TweenComponent::setLoopType);
+    lunaNs.set_function("NewTweenComponent", [this](int actorId) {
         auto c = std::make_shared<TweenComponent>(_engine, actorId);
         _engine->getActor(actorId)->addComponent(c);
         return c;
     });
-
 }
 
 void ScriptingSystem::shutdown() {
@@ -138,7 +121,7 @@ void ScriptingSystem::shutdown() {
     _globState = sol::state();  // destroy original
 }
 
-bool ScriptingSystem::execScriptFile(const std::string& path) {
+bool ScriptingSystem::execScriptFile(const std::string &path) {
     sol::load_result script = _globState.load_file(path);
     sol::protected_function_result res = script();
     if (!res.valid()) {
@@ -150,4 +133,4 @@ bool ScriptingSystem::execScriptFile(const std::string& path) {
     return true;
 }
 
-}
+}  // namespace luna

@@ -4,10 +4,10 @@
 namespace luna {
 
 DescriptorBuilder::~DescriptorBuilder() {
-    for (const auto &item: _dynamicImageInfo) {
+    for (const auto& item : _dynamicImageInfo) {
         delete item;
     }
-    for (const auto &item: _dynamicBufferInfo) {
+    for (const auto& item : _dynamicBufferInfo) {
         delete item;
     }
 }
@@ -23,7 +23,8 @@ VkDescriptorSetLayout DescriptorBuilder::buildSetLayout(int targetSet) {
     layoutInfo.bindingCount = static_cast<uint32_t>(_setInfoList[targetSet].setBinding.size());
     layoutInfo.pBindings = _setInfoList[targetSet].setBinding.data();
 
-    l->vk_res(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_setInfoList[targetSet].layout));
+    l->vk_res(vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr,
+                                          &_setInfoList[targetSet].layout));
 
     return _setInfoList[targetSet].layout;
 }
@@ -43,7 +44,7 @@ VkDescriptorSet DescriptorBuilder::buildSet(int targetSet) {
 
     auto l = SLog::get();
     // Create actual descriptor set
-    VkDescriptorSetAllocateInfo allocInfo ={};
+    VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = _descPool;
     allocInfo.descriptorSetCount = 1;
@@ -52,7 +53,7 @@ VkDescriptorSet DescriptorBuilder::buildSet(int targetSet) {
     l->vk_res(vkAllocateDescriptorSets(_device, &allocInfo, &_setInfoList[targetSet].set));
 
     // update set resource info
-    for (auto &item: _setInfoList[targetSet].setWrite) {
+    for (auto& item : _setInfoList[targetSet].setWrite) {
         item.dstSet = _setInfoList[targetSet].set;
     }
     vkUpdateDescriptorSets(_device, _setInfoList[targetSet].setWrite.size(),
@@ -71,7 +72,8 @@ DescriptorBuilder& DescriptorBuilder::setTotalSet(int total) {
     return *this;
 }
 
-DescriptorBuilder& DescriptorBuilder::pushDefaultUniform(int targetSet, VkShaderStageFlags stageFlag) {
+DescriptorBuilder& DescriptorBuilder::pushDefaultUniform(int targetSet,
+                                                         VkShaderStageFlags stageFlag) {
     auto l = SLog::get();
     if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
@@ -92,8 +94,7 @@ DescriptorBuilder& DescriptorBuilder::pushDefaultUniform(int targetSet, VkShader
     return *this;
 }
 
-DescriptorBuilder&
-DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
+DescriptorBuilder& DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
     auto l = SLog::get();
     if (targetSet < 0) {
         l->error(fmt::format("target set cannot be < 0 {:d}", targetSet));
@@ -114,13 +115,12 @@ DescriptorBuilder::pushDefaultFragmentSamplerBinding(int targetSet) {
     return *this;
 }
 
-
 DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
     auto l = SLog::get();
     if (targetSet < -1) {
         l->error(fmt::format("target set cannot be < -1 {:d}", targetSet));
     } else if (targetSet == -1) {
-        for (auto &item: _setInfoList) {
+        for (auto& item : _setInfoList) {
             item.setWrite.clear();
         }
     } else if (targetSet >= _setInfoList.size()) {
@@ -131,8 +131,8 @@ DescriptorBuilder& DescriptorBuilder::clearSetWrite(int targetSet) {
     return *this;
 }
 
-DescriptorBuilder&
-DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, VkSampler sampler, int targetBinding) {
+DescriptorBuilder& DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView,
+                                                             VkSampler sampler, int targetBinding) {
     if (!inConstrain(targetSet)) {
         return *this;
     }
@@ -146,8 +146,9 @@ DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, Vk
     // resource
     VkWriteDescriptorSet setWrite = {};
     setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    setWrite.dstBinding = targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
-    setWrite.dstSet = _setInfoList[targetSet].set; // might not have set before building
+    setWrite.dstBinding =
+        targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
+    setWrite.dstSet = _setInfoList[targetSet].set;  // might not have set before building
     setWrite.descriptorCount = 1;
     setWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     setWrite.pImageInfo = imageInfo;
@@ -157,7 +158,8 @@ DescriptorBuilder::pushSetWriteImgSampler(int targetSet, VkImageView imgView, Vk
     return *this;
 }
 
-DescriptorBuilder &DescriptorBuilder::pushSetWriteUniform(int targetSet, VkBuffer buffer, int bufferSize, int targetBinding) {
+DescriptorBuilder& DescriptorBuilder::pushSetWriteUniform(int targetSet, VkBuffer buffer,
+                                                          int bufferSize, int targetBinding) {
     if (!inConstrain(targetSet)) {
         return *this;
     }
@@ -171,8 +173,9 @@ DescriptorBuilder &DescriptorBuilder::pushSetWriteUniform(int targetSet, VkBuffe
     // resource
     VkWriteDescriptorSet setWrite = {};
     setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    setWrite.dstBinding = targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
-    setWrite.dstSet = _setInfoList[targetSet].set; // might not have set before building
+    setWrite.dstBinding =
+        targetBinding == -1 ? _setInfoList[targetSet].setWrite.size() : targetBinding;
+    setWrite.dstSet = _setInfoList[targetSet].set;  // might not have set before building
     setWrite.descriptorCount = 1;
     setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     setWrite.pBufferInfo = bufferInfo;
@@ -194,4 +197,4 @@ bool DescriptorBuilder::inConstrain(int targetSet) {
     return true;
 }
 
-}
+}  // namespace luna

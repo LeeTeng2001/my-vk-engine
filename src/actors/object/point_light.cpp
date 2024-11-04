@@ -6,11 +6,10 @@
 
 namespace luna {
 
-void PointLightActor::delayInit() {
-}
+void PointLightActor::delayInit() {}
 
 void PointLightActor::updateActor(float deltaTime) {
     getEngine()->getRenderer()->setLightInfo(getLocalPosition(), _color, _radius);
 }
 
-}
+}  // namespace luna

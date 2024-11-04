@@ -13,25 +13,61 @@
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
-namespace luna{
+namespace luna {
 
 bool Renderer::initialise(RenderConfig renderConfig) {
     auto l = SLog::get();
     _renderConf = renderConfig;
     setRequiredFeatures();
 
-    if (!validate()) { l->error("failed to validate"); return false; };
-    if (!initBase()) { l->error("failed to initialise base"); return false; };
-    if (!initCommand()) { l->error("failed to initialise command"); return false; };
-    if (!initBuffer()) { l->error("failed to initialise buffer"); return false; };
-    if (!initRenderResources()) { l->error("failed to create render resources"); return false; };
-    if (!initDescriptors()) { l->error("failed to create descriptors"); return false; };
-    if (!initRenderPass()) { l->error("failed to create renderpass"); return false; };
-    if (!initFramebuffer()) { l->error("failed to create framebuffer"); return false; };
-    if (!initSync()) { l->error("failed to create sync structure"); return false; };
-    if (!initPipeline()) { l->error("failed to create pipeline"); return false; };
-    if (!initImGUI()) { l->error("failed to create imgui"); return false; };
-    if (!initPreApp()) { l->error("failed to init preapp"); return false; };
+    if (!validate()) {
+        l->error("failed to validate");
+        return false;
+    };
+    if (!initBase()) {
+        l->error("failed to initialise base");
+        return false;
+    };
+    if (!initCommand()) {
+        l->error("failed to initialise command");
+        return false;
+    };
+    if (!initBuffer()) {
+        l->error("failed to initialise buffer");
+        return false;
+    };
+    if (!initRenderResources()) {
+        l->error("failed to create render resources");
+        return false;
+    };
+    if (!initDescriptors()) {
+        l->error("failed to create descriptors");
+        return false;
+    };
+    if (!initRenderPass()) {
+        l->error("failed to create renderpass");
+        return false;
+    };
+    if (!initFramebuffer()) {
+        l->error("failed to create framebuffer");
+        return false;
+    };
+    if (!initSync()) {
+        l->error("failed to create sync structure");
+        return false;
+    };
+    if (!initPipeline()) {
+        l->error("failed to create pipeline");
+        return false;
+    };
+    if (!initImGUI()) {
+        l->error("failed to create imgui");
+        return false;
+    };
+    if (!initPreApp()) {
+        l->error("failed to init preapp");
+        return false;
+    };
 
     return true;
 }
@@ -69,45 +105,45 @@ bool Renderer::initBase() {
     // Create SDL window
     SDL_Init(SDL_INIT_VIDEO);
     uint32_t window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
-    _window = SDL_CreateWindow("Luna's Vulkan Engine", _renderConf.windowWidth, _renderConf.windowHeight, window_flags);
+    _window = SDL_CreateWindow("Luna's Vulkan Engine", _renderConf.windowWidth,
+                               _renderConf.windowHeight, window_flags);
 
     // Initialise vulkan through bootstrap  ---------------------------------------------
     vkb::InstanceBuilder instBuilder;
-    instBuilder.set_debug_callback(
-            [] (VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                void *pUserData) -> VkBool32 {
-//                auto severity = vkb::to_string_message_severity(messageSeverity);
-//                auto type = vkb::to_string_message_type(messageType);
-                auto l2 = SLog::get();
-                switch (messageSeverity) {
-                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                    l2->info(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
-                    break;
-                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                    l2->warn(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
-                    break;
-                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-                    l2->error(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
-                    break;
-                default:
-                    l2->warn(fmt::format("vkCallback unrecognised level: {:s}\n", pCallbackData->pMessage));
-                }
-                return VK_FALSE;
-            }
-    );
-//    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+    instBuilder.set_debug_callback([](VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                      VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                      const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                                      void *pUserData) -> VkBool32 {
+        //                auto severity = vkb::to_string_message_severity(messageSeverity);
+        //                auto type = vkb::to_string_message_type(messageType);
+        auto l2 = SLog::get();
+        switch (messageSeverity) {
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+                l2->info(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                l2->warn(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                l2->error(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                break;
+            default:
+                l2->warn(
+                    fmt::format("vkCallback unrecognised level: {:s}\n", pCallbackData->pMessage));
+        }
+        return VK_FALSE;
+    });
+    //    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
     instBuilder.set_debug_messenger_severity(_renderConf.callbackSeverity);
-    auto instBuildRes = instBuilder
-            .set_app_name("Luna Vulkan Engine")
-            .set_engine_name("Luna Engine")
-            .enable_validation_layers()
-            .require_api_version(1, 3)
-            .build();
+    auto instBuildRes = instBuilder.set_app_name("Luna Vulkan Engine")
+                            .set_engine_name("Luna Engine")
+                            .enable_validation_layers()
+                            .require_api_version(1, 3)
+                            .build();
 
     if (!instBuildRes) {
-        l->error(fmt::format("Failed to create Vulkan instance. Error: {:s}", instBuildRes.error().message().c_str()));
+        l->error(fmt::format("Failed to create Vulkan instance. Error: {:s}",
+                             instBuildRes.error().message().c_str()));
         return false;
     }
 
@@ -124,18 +160,19 @@ bool Renderer::initBase() {
 
     // Select physical device, same pattern  ---------------------------------------------
     vkb::PhysicalDeviceSelector physSelector(vkbInst);
-    auto physSelectorBuildRes = physSelector
-            .set_surface(_surface)
-            .set_minimum_version(1, 1)
-            .set_required_features(_requiredPhysicalDeviceFeatures)
-            .select();
+    auto physSelectorBuildRes = physSelector.set_surface(_surface)
+                                    .set_minimum_version(1, 1)
+                                    .set_required_features(_requiredPhysicalDeviceFeatures)
+                                    .select();
     if (!physSelectorBuildRes) {
-        l->error(fmt::format("Failed to create Vulkan physical device. Error: {:s}", physSelectorBuildRes.error().message().c_str()));
+        l->error(fmt::format("Failed to create Vulkan physical device. Error: {:s}",
+                             physSelectorBuildRes.error().message().c_str()));
         return false;
     }
     auto physDevice = physSelectorBuildRes.value();
 
-    // Select logical device, criteria in physical device will automatically propagate to logical device creation
+    // Select logical device, criteria in physical device will automatically propagate to logical
+    // device creation
     vkb::DeviceBuilder deviceBuilder{physDevice};
     vkb::Device vkbDevice = deviceBuilder.build().value();
 
@@ -156,19 +193,24 @@ bool Renderer::initBase() {
     }
 
     // Check
-    l->info(fmt::format("required pushc size ({:d}, {:d}), hardware limit ({:d})", sizeof(MrtPushConstantData),sizeof(CompPushConstantData), _gpuProperties.limits.maxPushConstantsSize));
-    l->info(fmt::format("mrt ubo size ({:d}), composition ubo size ({:d})", sizeof(MrtUboData), sizeof(CompUboData)));
+    l->info(fmt::format("required pushc size ({:d}, {:d}), hardware limit ({:d})",
+                        sizeof(MrtPushConstantData), sizeof(CompPushConstantData),
+                        _gpuProperties.limits.maxPushConstantsSize));
+    l->info(fmt::format("mrt ubo size ({:d}), composition ubo size ({:d})", sizeof(MrtUboData),
+                        sizeof(CompUboData)));
 
-    // Swapchains, remember you'll need to rebuild swapchain if your window is resized ---------------------------------------------
-    vkb::SwapchainBuilder swapchainBuilder{_gpu, _device, _surface };
+    // Swapchains, remember you'll need to rebuild swapchain if your window is resized
+    // ---------------------------------------------
+    vkb::SwapchainBuilder swapchainBuilder{_gpu, _device, _surface};
     auto vkbSwapchainRes = swapchainBuilder
-            .use_default_format_selection()  // B8G8R8A8_SRGB + SRGB non linear
-            .use_default_present_mode_selection()  // mailbox, falback to fifo
-            .use_default_image_usage_flags()  // Color attachment
-            .build();
+                               .use_default_format_selection()  // B8G8R8A8_SRGB + SRGB non linear
+                               .use_default_present_mode_selection()  // mailbox, falback to fifo
+                               .use_default_image_usage_flags()       // Color attachment
+                               .build();
 
-    if (!vkbSwapchainRes){
-        l->error(fmt::format("Failed to create swapchain. Error: {:s}", vkbSwapchainRes.error().message().c_str()));
+    if (!vkbSwapchainRes) {
+        l->error(fmt::format("Failed to create swapchain. Error: {:s}",
+                             vkbSwapchainRes.error().message().c_str()));
         return false;
     }
 
@@ -177,7 +219,8 @@ bool Renderer::initBase() {
     _swapchain = vkbSwapchain.swapchain;
     _swapchainImages = vkbSwapchain.get_images().value();
     _swapChainExtent = vkbSwapchain.extent;
-    // TODO: Fix extent, should query SDL: https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
+    // TODO: Fix extent, should query SDL:
+    // https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
     _swapchainImageFormat = vkbSwapchain.image_format;
 
@@ -195,7 +238,7 @@ bool Renderer::initBase() {
     }
 
     // Cleanup ---------------------------------------------
-    _globCleanup.emplace([this, vkbInst, vkbDevice, vkbSwapchain](){
+    _globCleanup.emplace([this, vkbInst, vkbDevice, vkbSwapchain]() {
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
             delete _flightResources[i];
         }
@@ -249,20 +292,27 @@ void Renderer::printPhysDeviceProps() {
 
     // Print info
     l->debug(fmt::format("Selected gpu: {:s}", _gpuProperties.deviceName));
-    l->debug(fmt::format("\tTotal MSAA color samples bits: {:d}", _gpuProperties.limits.framebufferColorSampleCounts));
-    l->debug(fmt::format("\tTotal MSAA depth samples bits: {:d}", _gpuProperties.limits.framebufferDepthSampleCounts));
-    l->debug(fmt::format("\tMax color attachment: {:d}", _gpuProperties.limits.maxColorAttachments));
-    l->debug(fmt::format("\tMax push constant size: {:d}", _gpuProperties.limits.maxPushConstantsSize));
-    for (auto &q_family: queueFamilies) {
+    l->debug(fmt::format("\tTotal MSAA color samples bits: {:d}",
+                         _gpuProperties.limits.framebufferColorSampleCounts));
+    l->debug(fmt::format("\tTotal MSAA depth samples bits: {:d}",
+                         _gpuProperties.limits.framebufferDepthSampleCounts));
+    l->debug(
+        fmt::format("\tMax color attachment: {:d}", _gpuProperties.limits.maxColorAttachments));
+    l->debug(
+        fmt::format("\tMax push constant size: {:d}", _gpuProperties.limits.maxPushConstantsSize));
+    for (auto &q_family : queueFamilies) {
         l->debug(fmt::format("\t-> Queue Counts: {:d}, Flag: {:s}", q_family.queueCount,
                              std::bitset<4>(q_family.queueFlags).to_string().c_str()));
     }
     l->debug(fmt::format("\tSelected graphic queue family idx: {:d}", _graphicsQueueFamily));
     l->debug(fmt::format("\tSelected present queue family idx: {:d}", _presentsQueueFamily));
-    l->debug(fmt::format("\tWindow extent: {:d}, {:d}", _renderConf.windowWidth, _renderConf.windowWidth));
-    l->debug(fmt::format("\tSwapchain extent: {:d}, {:d}", _swapChainExtent.width, _swapChainExtent.height));
+    l->debug(fmt::format("\tWindow extent: {:d}, {:d}", _renderConf.windowWidth,
+                         _renderConf.windowWidth));
+    l->debug(fmt::format("\tSwapchain extent: {:d}, {:d}", _swapChainExtent.width,
+                         _swapChainExtent.height));
     l->debug(fmt::format("\tSwapchain image counts: {:d}", _swapchainImages.size()));
-    // SDL_Log("\tMinimum buffer alignment of %lld", _gpuProperties.limits.minUniformBufferOffsetAlignment);
+    // SDL_Log("\tMinimum buffer alignment of %lld",
+    // _gpuProperties.limits.minUniformBufferOffsetAlignment);
 }
 
 bool Renderer::initCommand() {
@@ -287,7 +337,7 @@ bool Renderer::initCommand() {
     }
 
     // Command buffer is implicitly deleted when pool is destroyed
-    _globCleanup.emplace([this](){
+    _globCleanup.emplace([this]() {
         vkDestroyCommandPool(_device, _renderCmdPool, nullptr);
         vkDestroyCommandPool(_device, _oneTimeCmdPool, nullptr);
     });
@@ -301,11 +351,13 @@ bool Renderer::initCommand() {
 
     // they'll implicitly free up when command pool clean up
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        if (vkAllocateCommandBuffers(_device, &allocInfo, &_flightResources[i]->mrtCmdBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(_device, &allocInfo, &_flightResources[i]->mrtCmdBuffer) !=
+            VK_SUCCESS) {
             l->error("Failed to allocate mrt command buffers");
             return false;
         }
-        if (vkAllocateCommandBuffers(_device, &allocInfo, &_flightResources[i]->compCmdBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(_device, &allocInfo, &_flightResources[i]->compCmdBuffer) !=
+            VK_SUCCESS) {
             l->error("Failed to allocate composition command buffers");
             return false;
         }
@@ -325,9 +377,7 @@ bool Renderer::initBuffer() {
         l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(CompUboData), buf, alloc,
                                                       _flightResources[i]->compUniformAllocInfo));
         _flightResources[i]->compUniformBuffer = buf;
-        _globCleanup.emplace([this, buf, alloc](){
-            vmaDestroyBuffer(_allocator, buf, alloc);
-        });
+        _globCleanup.emplace([this, buf, alloc]() { vmaDestroyBuffer(_allocator, buf, alloc); });
     }
 
     return true;
@@ -340,9 +390,9 @@ bool Renderer::initRenderPass() {
     // Create MRT render pass ------------------------------------------------------------------d
     // Attachment in render pass
     VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
-            _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
-            _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // Subpass attachments
     VkAttachmentReference depthAttachmentRef{};
@@ -382,8 +432,10 @@ bool Renderer::initRenderPass() {
     VkSubpassDependency depthDependency{};
     depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     depthDependency.dstSubpass = 0;
-    depthDependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    depthDependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.srcStageMask =
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    depthDependency.dstStageMask =
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     depthDependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
     depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
@@ -393,12 +445,11 @@ bool Renderer::initRenderPass() {
     outDependency.dstSubpass = VK_SUBPASS_EXTERNAL;
     outDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     outDependency.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    outDependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    outDependency.srcAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     outDependency.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 
-    std::vector<VkSubpassDependency > allDependencies{
-            inDependency, depthDependency, outDependency
-    };
+    std::vector<VkSubpassDependency> allDependencies{inDependency, depthDependency, outDependency};
 
     // create render pass
     VkRenderPassCreateInfo renderPassInfo{};
@@ -415,14 +466,12 @@ bool Renderer::initRenderPass() {
         return false;
     }
 
-    _globCleanup.emplace([this](){
-        vkDestroyRenderPass(_device, _mrtRenderPass, nullptr);
-    });
+    _globCleanup.emplace([this]() { vkDestroyRenderPass(_device, _mrtRenderPass, nullptr); });
 
-    // Create Composition render pass ------------------------------------------------------------------
-    // Attachments
-    VkAttachmentDescription presentAttachment = CreationHelper::createVkAttDesc(
-            _swapchainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // Create Composition render pass
+    // ------------------------------------------------------------------ Attachments
+    VkAttachmentDescription presentAttachment =
+        CreationHelper::createVkAttDesc(_swapchainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     allAttachments = {presentAttachment};
 
     // Subpass attachments
@@ -440,14 +489,14 @@ bool Renderer::initRenderPass() {
     renderPassInfo.dependencyCount = 0;
     renderPassInfo.pDependencies = nullptr;
 
-    if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_compositionRenderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_compositionRenderPass) !=
+        VK_SUCCESS) {
         l->error("failed to create composition render pass");
         return false;
     }
 
-    _globCleanup.emplace([this](){
-        vkDestroyRenderPass(_device,  _compositionRenderPass, nullptr);
-    });
+    _globCleanup.emplace(
+        [this]() { vkDestroyRenderPass(_device, _compositionRenderPass, nullptr); });
 
     return true;
 }
@@ -463,7 +512,8 @@ bool Renderer::initRenderResources() {
     // MRT: depth, albedo, normal, position, normal.a with position.a forms uv
     _mrtClearColor.resize(MRT_OUT_SIZE);
     _imgInfoList[0].format = _depthFormat;
-    _imgInfoList[0].usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    _imgInfoList[0].usage =
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[0].extent = _swapChainExtent;
     _imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     _mrtClearColor[0].color = {};
@@ -472,52 +522,50 @@ bool Renderer::initRenderResources() {
     _imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[1].extent = _swapChainExtent;
     _imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[1].color =  {{0.8f, 0.6f, 0.4f, 1.0f}};
+    _mrtClearColor[1].color = {{0.8f, 0.6f, 0.4f, 1.0f}};
     _imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
     _imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[2].extent = _swapChainExtent;
     _imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[2].color =  {{0, 0, 0, 1.0f}};
-    _imgInfoList[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
+    _mrtClearColor[2].color = {{0, 0, 0, 1.0f}};
+    _imgInfoList[3].format =
+        VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
     _imgInfoList[3].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[3].extent = _swapChainExtent;
     _imgInfoList[3].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[3].color =  {{0, 0, 0, 1.0f}};
+    _mrtClearColor[3].color = {{0, 0, 0, 1.0f}};
 
     // allocate from GPU LOCAL memory
-    VmaAllocationCreateInfo localAllocInfo {};
+    VmaAllocationCreateInfo localAllocInfo{};
     localAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     localAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        for (const auto &imgInfo: _imgInfoList) {
+        for (const auto &imgInfo : _imgInfoList) {
             auto newImgResource = new ImgResource(imgInfo);
 
             // create image, image view, sampler for each of the resources
-            VkImageCreateInfo createImgInfo = CreationHelper::imageCreateInfo(newImgResource->format,
-                                                                              newImgResource->usage,
-                                                                              newImgResource->extent);
+            VkImageCreateInfo createImgInfo = CreationHelper::imageCreateInfo(
+                newImgResource->format, newImgResource->usage, newImgResource->extent);
             l->vk_res(vmaCreateImage(_allocator, &createImgInfo, &localAllocInfo,
                                      &newImgResource->image, &newImgResource->allocation, nullptr));
-            VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(newImgResource->format,
-                                                                                          newImgResource->image,
-                                                                                          newImgResource->aspect);
-            l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr, &newImgResource->imageView));
+            VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(
+                newImgResource->format, newImgResource->image, newImgResource->aspect);
+            l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr,
+                                        &newImgResource->imageView));
 
             // TODO: assume all resources uses clamp to edge in MRT
-            VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(_gpu,
-                                                                                   VK_FILTER_LINEAR,
-                                                                                   VK_FILTER_LINEAR,
-                                                                                   VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+            VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(
+                _gpu, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
             l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &newImgResource->sampler));
 
             _flightResources[i]->compImgResourceList.push_back(newImgResource);
         }
     }
 
-    _globCleanup.emplace([this](){
+    _globCleanup.emplace([this]() {
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-            for (const auto &imgInfo: _flightResources[i]->compImgResourceList) {
+            for (const auto &imgInfo : _flightResources[i]->compImgResourceList) {
                 vkDestroySampler(_device, imgInfo->sampler, nullptr);
                 vkDestroyImageView(_device, imgInfo->imageView, nullptr);
                 vmaDestroyImage(_allocator, imgInfo->image, imgInfo->allocation);
@@ -546,30 +594,30 @@ bool Renderer::initFramebuffer() {
     // Create frame buffer for each image view in swap-chain
     for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
         // Can have multiple attachment
-        VkImageView attachments[] = {
-                _swapchainImageViews[i]
-        };
+        VkImageView attachments[] = {_swapchainImageViews[i]};
 
         framebufferInfo.attachmentCount = std::size(attachments);
         framebufferInfo.pAttachments = attachments;
 
-        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
+        l->vk_res(
+            vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
     }
 
     // mrt framebuffer for in flight
     framebufferInfo.renderPass = _mrtRenderPass;
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
         std::vector<VkImageView> imgViewList;
-        for (const auto &imgRes: _flightResources[i]->compImgResourceList) {
+        for (const auto &imgRes : _flightResources[i]->compImgResourceList) {
             imgViewList.push_back(imgRes->imageView);
         }
         framebufferInfo.attachmentCount = imgViewList.size();
         framebufferInfo.pAttachments = imgViewList.data();
-        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_flightResources[i]->mrtFramebuffer));
+        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr,
+                                      &_flightResources[i]->mrtFramebuffer));
     }
 
-    _globCleanup.emplace([this](){
-        for (const auto &item: _swapChainFramebuffers) {
+    _globCleanup.emplace([this]() {
+        for (const auto &item : _swapChainFramebuffers) {
             vkDestroyFramebuffer(_device, item, nullptr);
         }
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
@@ -589,19 +637,23 @@ bool Renderer::initSync() {
     VkSemaphoreCreateInfo semInfo = CreationHelper::createSemaphoreInfo();
 
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        if (vkCreateFence(_device, &fenceInfo, nullptr, &_flightResources[i]->renderFence) != VK_SUCCESS) {
+        if (vkCreateFence(_device, &fenceInfo, nullptr, &_flightResources[i]->renderFence) !=
+            VK_SUCCESS) {
             l->error("failed to create fence");
             return false;
         }
-        if ((vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->compSemaphore) != VK_SUCCESS) ||
-                (vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->mrtSemaphore) != VK_SUCCESS) ||
-                (vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->imageAvailableSem) != VK_SUCCESS)) {
+        if ((vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->compSemaphore) !=
+             VK_SUCCESS) ||
+            (vkCreateSemaphore(_device, &semInfo, nullptr, &_flightResources[i]->mrtSemaphore) !=
+             VK_SUCCESS) ||
+            (vkCreateSemaphore(_device, &semInfo, nullptr,
+                               &_flightResources[i]->imageAvailableSem) != VK_SUCCESS)) {
             l->error("failed to create semaphore");
             return false;
         }
     }
 
-    _globCleanup.emplace([this](){
+    _globCleanup.emplace([this]() {
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
             vkDestroyFence(_device, _flightResources[i]->renderFence, nullptr);
             vkDestroySemaphore(_device, _flightResources[i]->mrtSemaphore, nullptr);
@@ -619,8 +671,8 @@ bool Renderer::initDescriptors() {
 
     // Creat pool for binding resources
     std::vector<VkDescriptorPoolSize> sizes = {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 200 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200 },
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 200},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 200},
     };
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -630,8 +682,9 @@ bool Renderer::initDescriptors() {
     pool_info.pPoolSizes = sizes.data();
     vkCreateDescriptorPool(_device, &pool_info, nullptr, &_globalDescPool);
 
-    // MRT description layout and set ------------------------------------------------------------------------
-    // describe binding in single set
+    // MRT description layout and set
+    // ------------------------------------------------------------------------ describe binding in
+    // single set
     l->debug("init mrt set resource");
     DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
     mrtSetBuilder.setTotalSet(1);
@@ -642,7 +695,8 @@ bool Renderer::initDescriptors() {
     _mrtSetLayout = mrtSetBuilder.buildSetLayout(0);
     // resources are handled by application
 
-    // Composition description layout and set ------------------------------------------------------------------------
+    // Composition description layout and set
+    // ------------------------------------------------------------------------
     l->debug("init comp set resource");
     DescriptorBuilder compSetBuilder(_device, _globalDescPool);
     compSetBuilder.setTotalSet(2);
@@ -658,11 +712,12 @@ bool Renderer::initDescriptors() {
         compSetBuilder.clearSetWrite();
 
         // bind set 0 MRT sampler
-        for (const auto &imgResouce: _flightResources[i]->compImgResourceList) {
+        for (const auto &imgResouce : _flightResources[i]->compImgResourceList) {
             compSetBuilder.pushSetWriteImgSampler(0, imgResouce->imageView, imgResouce->sampler);
         }
         // bind set 1 uniform
-        compSetBuilder.pushSetWriteUniform(1, _flightResources[i]->compUniformBuffer, sizeof(CompUboData));
+        compSetBuilder.pushSetWriteUniform(1, _flightResources[i]->compUniformBuffer,
+                                           sizeof(CompUboData));
         _flightResources[i]->compDescSetList.push_back(compSetBuilder.buildSet(0));
         _flightResources[i]->compDescSetList.push_back(compSetBuilder.buildSet(1));
     }
@@ -670,7 +725,7 @@ bool Renderer::initDescriptors() {
     _globCleanup.emplace([this]() {
         vkDestroyDescriptorPool(_device, _globalDescPool, nullptr);
         vkDestroyDescriptorSetLayout(_device, _mrtSetLayout, nullptr);
-        for (const auto &item: _compSetLayoutList) {
+        for (const auto &item : _compSetLayoutList) {
             vkDestroyDescriptorSetLayout(_device, item, nullptr);
         }
     });
@@ -692,8 +747,10 @@ bool Renderer::initPipeline() {
     // Create programmable shaders
     std::vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.vert.spv");
     std::vector<char> mrtFragShaderCode = CreationHelper::readFile("assets/shaders/mrt.frag.spv");
-    VkShaderModule mrtVertShaderModule = CreationHelper::createShaderModule(mrtVertShaderCode, _device);
-    VkShaderModule mrtFragShaderModule = CreationHelper::createShaderModule(mrtFragShaderCode, _device);
+    VkShaderModule mrtVertShaderModule =
+        CreationHelper::createShaderModule(mrtVertShaderCode, _device);
+    VkShaderModule mrtFragShaderModule =
+        CreationHelper::createShaderModule(mrtFragShaderCode, _device);
 
     // shader stage info
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -707,9 +764,7 @@ bool Renderer::initPipeline() {
     fragShaderStageInfo.module = mrtFragShaderModule;
 
     // Combine programmable stages
-    VkPipelineShaderStageCreateInfo shaderStages[] = {
-            vertShaderStageInfo, fragShaderStageInfo
-    };
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     // Pipeline data to be filled
     VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
@@ -727,7 +782,8 @@ bool Renderer::initPipeline() {
     // Push constant
     VkPushConstantRange pushConstantRange{};
     pushConstantRange.size = sizeof(MrtPushConstantData);
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // best to share directly
+    pushConstantRange.stageFlags =
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // best to share directly
 
     // pipeline layout, specify which descriptor set to use (like uniform)
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -737,7 +793,8 @@ bool Renderer::initPipeline() {
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &_mrtSetLayout;
 
-    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_mrtPipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_mrtPipelineLayout) !=
+        VK_SUCCESS) {
         l->error("failed to create mrt pipeline layout");
         return false;
     }
@@ -749,8 +806,9 @@ bool Renderer::initPipeline() {
     pipelineCreateInfo.layout = _mrtPipelineLayout;
     pipelineCreateInfo.renderPass = _mrtRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
-    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device, _swapChainExtent,
-                                           MRT_OUT_SIZE - 1); // total of color attachments
+    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device,
+                                           _swapChainExtent,
+                                           MRT_OUT_SIZE - 1);  // total of color attachments
 
     // Free up immediate resources and delegate cleanup
     vkDestroyShaderModule(_device, mrtVertShaderModule, nullptr);
@@ -758,10 +816,14 @@ bool Renderer::initPipeline() {
 
     // Composition pipeline --------------------------------------------------------
 
-    std::vector<char> compVertShaderCode = CreationHelper::readFile("assets/shaders/composition.vert.spv");
-    std::vector<char> compFragShaderCode = CreationHelper::readFile("assets/shaders/composition.frag.spv");
-    VkShaderModule compVertShaderModule = CreationHelper::createShaderModule(compVertShaderCode, _device);
-    VkShaderModule compFragShaderModule = CreationHelper::createShaderModule(compFragShaderCode, _device);
+    std::vector<char> compVertShaderCode =
+        CreationHelper::readFile("assets/shaders/composition.vert.spv");
+    std::vector<char> compFragShaderCode =
+        CreationHelper::readFile("assets/shaders/composition.frag.spv");
+    VkShaderModule compVertShaderModule =
+        CreationHelper::createShaderModule(compVertShaderCode, _device);
+    VkShaderModule compFragShaderModule =
+        CreationHelper::createShaderModule(compFragShaderCode, _device);
 
     vertShaderStageInfo.module = compVertShaderModule;
     fragShaderStageInfo.module = compFragShaderModule;
@@ -776,11 +838,13 @@ bool Renderer::initPipeline() {
 
     // Push constant
     pushConstantRange.size = sizeof(CompPushConstantData);
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // best to share directly
+    pushConstantRange.stageFlags =
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;  // best to share directly
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_compPipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_compPipelineLayout) !=
+        VK_SUCCESS) {
         l->error("failed to create composition pipeline layout");
         return false;
     }
@@ -796,9 +860,10 @@ bool Renderer::initPipeline() {
     pipelineCreateInfo.layout = _compPipelineLayout;
     pipelineCreateInfo.renderPass = _compositionRenderPass;
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
-    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _compPipeline, _device, _swapChainExtent, 1);
+    CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _compPipeline, _device,
+                                           _swapChainExtent, 1);
 
-    _globCleanup.emplace([this](){
+    _globCleanup.emplace([this]() {
         vkDestroyPipelineLayout(_device, _mrtPipelineLayout, nullptr);
         vkDestroyPipeline(_device, _mrtPipeline, nullptr);
         vkDestroyPipelineLayout(_device, _compPipelineLayout, nullptr);
@@ -808,14 +873,14 @@ bool Renderer::initPipeline() {
     return true;
 }
 
-int Renderer::createMaterial(MaterialCpu& materialCpu) {
+int Renderer::createMaterial(MaterialCpu &materialCpu) {
     auto l = SLog::get();
     std::shared_ptr<MaterialGpu> gpuMaterial = std::make_shared<MaterialGpu>();
 
     // uniform
-    l->vk_res(CreationHelper::createUniformBuffer(_allocator, sizeof(MrtUboData),
-                                                  gpuMaterial->uniformBuffer, gpuMaterial->uniformAlloc,
-                                                  gpuMaterial->uniformAllocInfo));
+    l->vk_res(CreationHelper::createUniformBuffer(
+        _allocator, sizeof(MrtUboData), gpuMaterial->uniformBuffer, gpuMaterial->uniformAlloc,
+        gpuMaterial->uniformAllocInfo));
 
     // Create descriptor set resource
     DescriptorBuilder mrtSetBuilder(_device, _globalDescPool);
@@ -829,16 +894,23 @@ int Renderer::createMaterial(MaterialCpu& materialCpu) {
 
     // upload textures for sample
     if (materialCpu.info.useColor()) {
-        uploadImageForSampling(materialCpu.albedoTexture, gpuMaterial->albedoTex, VK_FORMAT_R8G8B8A8_SRGB);
-        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->albedoTex.imageView, gpuMaterial->albedoTex.sampler, 1);
+        uploadImageForSampling(materialCpu.albedoTexture, gpuMaterial->albedoTex,
+                               VK_FORMAT_R8G8B8A8_SRGB);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->albedoTex.imageView,
+                                             gpuMaterial->albedoTex.sampler, 1);
     }
     if (materialCpu.info.useNormal()) {
-        uploadImageForSampling(materialCpu.normalTexture, gpuMaterial->normalTex, VK_FORMAT_R8G8B8A8_UNORM);
-        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->normalTex.imageView, gpuMaterial->normalTex.sampler, 2);
+        uploadImageForSampling(materialCpu.normalTexture, gpuMaterial->normalTex,
+                               VK_FORMAT_R8G8B8A8_UNORM);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->normalTex.imageView,
+                                             gpuMaterial->normalTex.sampler, 2);
     }
-    if (materialCpu.info.useAo() || materialCpu.info.useHeight() || materialCpu.info.useRoughness()) {
-        uploadImageForSampling(materialCpu.aoRoughnessHeightTexture, gpuMaterial->aoRoughnessHeight, VK_FORMAT_R8G8B8A8_UNORM);
-        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->aoRoughnessHeight.imageView, gpuMaterial->aoRoughnessHeight.sampler, 3);
+    if (materialCpu.info.useAo() || materialCpu.info.useHeight() ||
+        materialCpu.info.useRoughness()) {
+        uploadImageForSampling(materialCpu.aoRoughnessHeightTexture, gpuMaterial->aoRoughnessHeight,
+                               VK_FORMAT_R8G8B8A8_UNORM);
+        mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->aoRoughnessHeight.imageView,
+                                             gpuMaterial->aoRoughnessHeight.sampler, 3);
     }
 
     gpuMaterial->uboData = materialCpu.info;
@@ -849,12 +921,12 @@ int Renderer::createMaterial(MaterialCpu& materialCpu) {
     return _materialList.size() - 1;
 }
 
-
-std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
+std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
     std::shared_ptr<ModalState> newModalState = std::make_shared<ModalState>();
 
     auto l = SLog::get();
-    // VMA best usage info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
+    // VMA best usage info:
+    // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
     // Buffer info
     VkBufferCreateInfo stagingBufferInfo{};
     stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -868,11 +940,13 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
     l->debug(fmt::format("copy vertex buffer to gpu (size: {:d}, total: {:d}, indices: {:d})",
                          sizeof(Vertex), modelData.vertex.size(), modelData.indices.size()));
 
-    // Memory info, must have VMA_ALLOCATION_CREATE_MAPPED_BIT to create persistent map area so we can avoid map / unmap memory
+    // Memory info, must have VMA_ALLOCATION_CREATE_MAPPED_BIT to create persistent map area so we
+    // can avoid map / unmap memory
     VmaAllocationCreateInfo stagingAllocInfo{};
     stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;  // vma way texBufferInfo doing stuff, read doc!
-    stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    stagingAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; // to avoid flushing
+    stagingAllocInfo.flags =
+        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    stagingAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;  // to avoid flushing
 
     VmaAllocationCreateInfo dstAllocInfo{};
     dstAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -880,19 +954,26 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
     dstAllocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     VmaAllocation stagingAllocation;  // represent underlying memory
-    VmaAllocationInfo stagingAllocationInfo; // for persistent mapping: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+    VmaAllocationInfo
+        stagingAllocationInfo;  // for persistent mapping:
+                                // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
     VkBuffer stagingBuffer;
-    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer, &stagingAllocation, &stagingAllocationInfo));
+    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer,
+                              &stagingAllocation, &stagingAllocationInfo));
 
     // Copy vertex data to staging buffer physical memory
     memcpy(stagingAllocationInfo.pMappedData, modelData.vertex.data(), stagingBufferInfo.size);
-    // TODO: Check stagingAllocationInfo.memoryType for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT to avoid flushing all
+    // TODO: Check stagingAllocationInfo.memoryType for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT to
+    // avoid flushing all
     // https://stackoverflow.com/questions/44366839/meaning-of-memorytypes-in-vulkan
-    vmaFlushAllocation(_allocator, stagingAllocation, 0, stagingBufferInfo.size); // TODO: Transfer to destination buffer
-    // Flush for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+    vmaFlushAllocation(_allocator, stagingAllocation, 0,
+                       stagingBufferInfo.size);  // TODO: Transfer to destination buffer
+    // Flush for VK_MEMORY_PROPERTY_HOST_COHERENT_BIT:
+    // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
 
     // transfer and free
-    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->vBuffer, &newModalState->allocation, &stagingAllocationInfo));
+    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->vBuffer,
+                              &newModalState->allocation, &stagingAllocationInfo));
     copyBuffer(stagingBuffer, newModalState->vBuffer, sizeof(Vertex) * modelData.vertex.size());
     vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
 
@@ -901,13 +982,17 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu& modelData) {
     gpuBufferInfo.size = sizeof(modelData.indices[0]) * modelData.indices.size();
     gpuBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer, &stagingAllocation, &stagingAllocationInfo));
+    l->vk_res(vmaCreateBuffer(_allocator, &stagingBufferInfo, &stagingAllocInfo, &stagingBuffer,
+                              &stagingAllocation, &stagingAllocationInfo));
     memcpy(stagingAllocationInfo.pMappedData, modelData.indices.data(), stagingBufferInfo.size);
-    vmaFlushAllocation(_allocator, stagingAllocation, 0, stagingBufferInfo.size); // TODO: Transfer to destination buffer
+    vmaFlushAllocation(_allocator, stagingAllocation, 0,
+                       stagingBufferInfo.size);  // TODO: Transfer to destination buffer
 
     // transfer and free
-    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->iBuffer, &newModalState->allocation, &stagingAllocationInfo));
-    copyBuffer(stagingBuffer, newModalState->iBuffer, sizeof(modelData.indices[0]) * modelData.indices.size());
+    l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->iBuffer,
+                              &newModalState->allocation, &stagingAllocationInfo));
+    copyBuffer(stagingBuffer, newModalState->iBuffer,
+               sizeof(modelData.indices[0]) * modelData.indices.size());
     vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
 
     // update modal state
@@ -929,12 +1014,13 @@ void Renderer::removeModal(const std::shared_ptr<ModalState> &modalState) {
         vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->allocation);
         vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->allocation);
         // TODO: release all material buffer
-//        if (modalState->descriptorSet != nullptr) {
-//            l->debug("removing albedo texture");
-//            vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
-//            vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
-//            vmaDestroyImage(_allocator, modalState->albedoTex.image, modalState->albedoTex.allocation);
-//        }
+        //        if (modalState->descriptorSet != nullptr) {
+        //            l->debug("removing albedo texture");
+        //            vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
+        //            vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
+        //            vmaDestroyImage(_allocator, modalState->albedoTex.image,
+        //            modalState->albedoTex.allocation);
+        //        }
     }
 }
 
@@ -955,20 +1041,17 @@ bool Renderer::initImGUI() {
 
     // 1: Create Descriptor pool for ImGUI
     // the size of the pool is very oversize, but it's copied from imgui demo itself.
-    VkDescriptorPoolSize pool_sizes[] =
-            {
-                    {VK_DESCRIPTOR_TYPE_SAMPLER,                400},
-                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 400},
-                    {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          400},
-                    {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          400},
-                    {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,   400},
-                    {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,   400},
-                    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         400},
-                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         400},
-                    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 400},
-                    {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 400},
-                    {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,       400}
-            };
+    VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 400},
+                                         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 400},
+                                         {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 400},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 400},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 400},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 400},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 400},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 400},
+                                         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 400},
+                                         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 400},
+                                         {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 400}};
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -999,7 +1082,7 @@ bool Renderer::initImGUI() {
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
     ImGui_ImplVulkan_Init(&initInfo, _compositionRenderPass);
-    //execute a gpu command to upload imgui font textures
+    // execute a gpu command to upload imgui font textures
     ImGui_ImplVulkan_CreateFontsTexture();
 
     // add the destroy the imgui created structures
@@ -1023,7 +1106,8 @@ void Renderer::newFrame() {
     vkResetCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0);
 
     VkResult result = vkAcquireNextImageKHR(_device, _swapchain, UINT64_MAX,
-                                            _flightResources[_curFrameInFlight]->imageAvailableSem, VK_NULL_HANDLE, &_curPresentImgIdx);
+                                            _flightResources[_curFrameInFlight]->imageAvailableSem,
+                                            VK_NULL_HANDLE, &_curPresentImgIdx);
     l->vk_res(result);
 }
 
@@ -1034,20 +1118,20 @@ void Renderer::beginRecordCmd() {
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;  // one time / secondary / simultaneous submit
     beginInfo.pInheritanceInfo = nullptr;
-    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &beginInfo) !=
+        VK_SUCCESS) {
         l->error("failed to begin recording command buffer!");
     }
-    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer, &beginInfo) !=
+        VK_SUCCESS) {
         l->error("failed to begin recording command buffer!");
     }
 
     // start render pass
     VkRenderPassBeginInfo mrtRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
-            _mrtRenderPass, _flightResources[_curFrameInFlight]->mrtFramebuffer, _swapChainExtent
-            );
+        _mrtRenderPass, _flightResources[_curFrameInFlight]->mrtFramebuffer, _swapChainExtent);
     VkRenderPassBeginInfo compRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
-            _compositionRenderPass, _swapChainFramebuffers[_curPresentImgIdx], _swapChainExtent
-            );
+        _compositionRenderPass, _swapChainFramebuffers[_curPresentImgIdx], _swapChainExtent);
 
     // Clear value for attachment load op clear
     // Should have the same order as attachments binding index
@@ -1058,15 +1142,20 @@ void Renderer::beginRecordCmd() {
     auto c = VkClearValue{.color = {0, 0, 0}};
     compRenderPassInfo.pClearValues = &c;
 
-    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
-    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
+    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
+    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderPassInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(_flightResources[_curFrameInFlight]->compCmdBuffer,
+                      VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
 
     // global set for both pipeline
-    vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipelineLayout,
-                            0, _flightResources[_curFrameInFlight]->compDescSetList.size(),
-                            _flightResources[_curFrameInFlight]->compDescSetList.data(), 0, nullptr);
+    vkCmdBindDescriptorSets(
+        _flightResources[_curFrameInFlight]->compCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        _compPipelineLayout, 0, _flightResources[_curFrameInFlight]->compDescSetList.size(),
+        _flightResources[_curFrameInFlight]->compDescSetList.data(), 0, nullptr);
 
     // Draw imgui
     ImGui::Text("World coord: up +y, right +x, forward -z");
@@ -1075,24 +1164,28 @@ void Renderer::beginRecordCmd() {
 void Renderer::drawAllModel() {
     MrtPushConstantData mrtData{};
 
-    for (const auto &modalState: _modalStateList) {
+    for (const auto &modalState : _modalStateList) {
         // compute final transform
         mrtData.viewModalTransform = _camViewTransform * modalState->worldTransform;
         mrtData.perspectiveTransform = _camProjectionTransform;
-        vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                           0, sizeof(MrtPushConstantData), &mrtData);
+        vkCmdPushConstants(_flightResources[_curFrameInFlight]->mrtCmdBuffer, _mrtPipelineLayout,
+                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                           sizeof(MrtPushConstantData), &mrtData);
 
         // bind group of vertex and indices
         VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0, 1, &modalState->vBuffer, offsets);
-        vkCmdBindIndexBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modalState->iBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindVertexBuffers(_flightResources[_curFrameInFlight]->mrtCmdBuffer, 0, 1,
+                               &modalState->vBuffer, offsets);
+        vkCmdBindIndexBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer, modalState->iBuffer,
+                             0, VK_INDEX_TYPE_UINT32);
 
         // modal partition based on material
-        for (const auto &modalDataPart: modalState->modelDataPartition) {
+        for (const auto &modalDataPart : modalState->modelDataPartition) {
             auto mat = _materialList[modalDataPart.materialId];
             // bind resources
-            vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout,
-                                    0, 1, &mat->descriptorSet, 0, nullptr);
+            vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout, 0, 1,
+                                    &mat->descriptorSet, 0, nullptr);
             // uniform data
             memcpy(mat->uniformAllocInfo.pMappedData, &mat->uboData, sizeof(MrtUboData));
             // draw index partition
@@ -1102,34 +1195,34 @@ void Renderer::drawAllModel() {
     }
 }
 
-void Renderer::writeDebugUi(const std::string &msg) {
-    _debugUiText.emplace_back(msg);
-}
+void Renderer::writeDebugUi(const std::string &msg) { _debugUiText.emplace_back(msg); }
 
 void Renderer::endRecordCmd() {
     // debug ui text buffer
-    for (const auto &t: _debugUiText) {
+    for (const auto &t : _debugUiText) {
         ImGui::Text("%s", t.c_str());
     }
     _debugUiText.clear();
 
     // uniform data
-    memcpy(_flightResources[_curFrameInFlight]->compUniformAllocInfo.pMappedData,
-           &_nextCompUboData, sizeof(CompUboData));
+    memcpy(_flightResources[_curFrameInFlight]->compUniformAllocInfo.pMappedData, &_nextCompUboData,
+           sizeof(CompUboData));
     _nextLightPos = 0;
 
     // Push constant for composition
     CompPushConstantData pushConstantData{};
     pushConstantData.sobelWidth = 1;
     pushConstantData.sobelHeight = 1;
-    vkCmdPushConstants(_flightResources[_curFrameInFlight]->compCmdBuffer, _compPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0, sizeof(CompPushConstantData), &pushConstantData);
+    vkCmdPushConstants(_flightResources[_curFrameInFlight]->compCmdBuffer, _compPipelineLayout,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(CompPushConstantData), &pushConstantData);
     // Issue draw a single triangle that covers full screen
     vkCmdDraw(_flightResources[_curFrameInFlight]->compCmdBuffer, 3, 1, 0, 0);
 
     // IMGUI draw last call
     ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), _flightResources[_curFrameInFlight]->compCmdBuffer);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),
+                                    _flightResources[_curFrameInFlight]->compCmdBuffer);
 
     auto l = SLog::get();
     vkCmdEndRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer);
@@ -1145,7 +1238,8 @@ void Renderer::endRecordCmd() {
 void Renderer::draw() {
     auto l = SLog::get();
     // Wait for previous frame to finish (takes array of fences)
-    vkWaitForFences(_device, 1, &_flightResources[_curFrameInFlight]->renderFence, VK_TRUE, UINT64_MAX);
+    vkWaitForFences(_device, 1, &_flightResources[_curFrameInFlight]->renderFence, VK_TRUE,
+                    UINT64_MAX);
     // reset to unsignaled only if we're sure we have work to do.
     vkResetFences(_device, 1, &_flightResources[_curFrameInFlight]->renderFence);
 
@@ -1176,7 +1270,8 @@ void Renderer::draw() {
     submitInfo.pWaitSemaphores = mrtSignalSem;
     submitInfo.signalSemaphoreCount = std::size(compSignalSem);
     submitInfo.pSignalSemaphores = compSignalSem;
-    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo, _flightResources[_curFrameInFlight]->renderFence));
+    l->vk_res(vkQueueSubmit(_graphicsQueue, 1, &submitInfo,
+                            _flightResources[_curFrameInFlight]->renderFence));
 
     // Submit result back to swap chain
     // What to signal when we're done
@@ -1193,7 +1288,7 @@ void Renderer::draw() {
     vkQueuePresentKHR(_presentsQueue, &presentInfo);
 
     // Update next frame resources indexes to use
-     _curFrameInFlight = (_curFrameInFlight + 1) % _renderConf.maxFrameInFlight;
+    _curFrameInFlight = (_curFrameInFlight + 1) % _renderConf.maxFrameInFlight;
 }
 
 void Renderer::execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function) {
@@ -1272,16 +1367,18 @@ void Renderer::copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D ex
 
         copyRegion.imageOffset = {0, 0, 0};
         copyRegion.imageExtent = {extent.width, extent.height, 1};
-        vkCmdCopyBufferToImage(cmdBuf, srcBuffer, dstImg,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        vkCmdCopyBufferToImage(cmdBuf, srcBuffer, dstImg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                               &copyRegion);
     };
     execOneTimeCmd(func);
 }
 
-void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
+                                   VkImageLayout newLayout) {
     // We need to handle two kind of layout transformation:
     // 1. Undefined → transferDst: transfer writes that don't need to wait on anything
-    // 2. transferDst → shaderRead: shader reads should wait on transfer writes, specifically the shader reads in the fragment shader, because that's where we're going to use the texture
+    // 2. transferDst → shaderRead: shader reads should wait on transfer writes, specifically the
+    // shader reads in the fragment shader, because that's where we're going to use the texture
     // TODO: should we transit depth image?
 
     auto func = [=](VkCommandBuffer cmdBuf) {
@@ -1290,7 +1387,7 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
         barrier.oldLayout = oldLayout;
         barrier.newLayout = newLayout;
         // We're not transferring queue ownership
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // this is not default value!
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;  // this is not default value!
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
         barrier.image = image;
@@ -1303,12 +1400,14 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
         // determine access stage & mask based on source and destination
         VkPipelineStageFlags sourceStage;
         VkPipelineStageFlags destStage;
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
             sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             barrier.srcAccessMask = VK_ACCESS_NONE;
             destStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+                   newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             destStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -1317,7 +1416,8 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
             throw std::invalid_argument("unsupported layout transition!");
         }
 
-        vkCmdPipelineBarrier(cmdBuf, sourceStage, destStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+        vkCmdPipelineBarrier(cmdBuf, sourceStage, destStage, 0, 0, nullptr, 0, nullptr, 1,
+                             &barrier);
     };
     execOneTimeCmd(func);
 }
@@ -1325,9 +1425,8 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
 void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo,
                                       VkFormat sampleFormat) {
     auto l = SLog::get();
-    l->debug(fmt::format("upload texture dim: ({:d}, {:d}, {:d})",
-                         cpuTexData.texWidth, cpuTexData.texHeight,
-                         cpuTexData.texChannels));
+    l->debug(fmt::format("upload texture dim: ({:d}, {:d}, {:d})", cpuTexData.texWidth,
+                         cpuTexData.texHeight, cpuTexData.texChannels));
 
     // Create buffer for transfer source image
     VkBuffer texBuffer;
@@ -1343,15 +1442,16 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     l->vk_res(vmaCreateBuffer(_allocator, &texBufferCreateInfo, &stagingAllocInfo, &texBuffer,
                               &stagingAllocation, &stagingAllocationInfo));
     memcpy(stagingAllocationInfo.pMappedData, cpuTexData.stbRef, texBufferCreateInfo.size);
-    vmaFlushAllocation(_allocator, stagingAllocation, 0, texBufferCreateInfo.size); // TODO: Transfer to destination buffer
+    vmaFlushAllocation(_allocator, stagingAllocation, 0,
+                       texBufferCreateInfo.size);  // TODO: Transfer to destination buffer
 
     // Create GPU local sampled image
-    VkExtent2D ext{static_cast<uint32_t>(cpuTexData.texWidth), static_cast<uint32_t>(cpuTexData.texHeight)};
-    VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(sampleFormat,
-                                                                         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                                         ext);
+    VkExtent2D ext{static_cast<uint32_t>(cpuTexData.texWidth),
+                   static_cast<uint32_t>(cpuTexData.texHeight)};
+    VkImageCreateInfo textureImageInfo = CreationHelper::imageCreateInfo(
+        sampleFormat, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, ext);
     // allocate from GPU LOCAL memory
-    VmaAllocationCreateInfo texAllocInfo {};
+    VmaAllocationCreateInfo texAllocInfo{};
     texAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     texAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     VkResult result = vmaCreateImage(_allocator, &textureImageInfo, &texAllocInfo,
@@ -1359,39 +1459,35 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     l->vk_res(result);
 
     // transition the layout image for layout destination
-    transitionImgLayout(outResourceInfo.image, sampleFormat,
-                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transitionImgLayout(outResourceInfo.image, sampleFormat, VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     // perform copy operation
     copyBufferToImg(texBuffer, outResourceInfo.image, ext);
 
     // make it optimal for sampling
-    transitionImgLayout(outResourceInfo.image, sampleFormat,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImgLayout(outResourceInfo.image, sampleFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // staging buffer can be destroyed as src textures are no longer used
     vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);
 
     // image view and sampler
-    VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(sampleFormat,
-                                                                                  outResourceInfo.image,
-                                                                                  VK_IMAGE_ASPECT_COLOR_BIT);
+    VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(
+        sampleFormat, outResourceInfo.image, VK_IMAGE_ASPECT_COLOR_BIT);
     l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr, &outResourceInfo.imageView));
-    VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(_gpu,
-                                                                           VK_FILTER_LINEAR,
-                                                                           VK_FILTER_LINEAR,
-                                                                           VK_SAMPLER_ADDRESS_MODE_REPEAT);
+    VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(
+        _gpu, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT);
     l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &outResourceInfo.sampler));
 }
 
 bool Renderer::initPreApp() {
     // Initialise default material for all object
-    auto mat = MaterialCpu{
-            .info = {.diffuse = glm::vec4{0, 0.2, 0.2, 1},}
-    };
+    auto mat = MaterialCpu{.info = {
+                               .diffuse = glm::vec4{0, 0.2, 0.2, 1},
+                           }};
     createMaterial(mat);
 
     return true;
 }
-}
-
+}  // namespace luna

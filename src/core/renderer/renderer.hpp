@@ -13,144 +13,151 @@ constexpr int MRT_OUT_SIZE = 4;
 
 // resources in a single flight
 struct FlightResource {
-    // MRT
-    VkFramebuffer mrtFramebuffer{};
-    VkSemaphore mrtSemaphore{};
-    VkCommandBuffer mrtCmdBuffer{};
+        // MRT
+        VkFramebuffer mrtFramebuffer{};
+        VkSemaphore mrtSemaphore{};
+        VkCommandBuffer mrtCmdBuffer{};
 
-    // Img Resources
-    std::vector<ImgResource*> compImgResourceList;
+        // Img Resources
+        std::vector<ImgResource *> compImgResourceList;
 
-    // Composition
-    std::vector<VkDescriptorSet> compDescSetList{};
-    VkSemaphore compSemaphore{};
-    VkCommandBuffer compCmdBuffer{};
+        // Composition
+        std::vector<VkDescriptorSet> compDescSetList{};
+        VkSemaphore compSemaphore{};
+        VkCommandBuffer compCmdBuffer{};
 
-    // Comp Uniform
-    VkBuffer compUniformBuffer;
-    VmaAllocationInfo compUniformAllocInfo{};
+        // Comp Uniform
+        VkBuffer compUniformBuffer;
+        VmaAllocationInfo compUniformAllocInfo{};
 
-    VkSemaphore imageAvailableSem{};
-    VkFence renderFence{};
+        VkSemaphore imageAvailableSem{};
+        VkFence renderFence{};
 };
 
 class Renderer {
-public:
-    Renderer() = default;
+    public:
+        Renderer() = default;
 
-    // used during screen resize
-    bool initialise(RenderConfig renderConfig = {});
-    void shutdown();
-    // void rebuild();
+        // used during screen resize
+        bool initialise(RenderConfig renderConfig = {});
+        void shutdown();
+        // void rebuild();
 
-    // render related, should invoke in order
-    void newFrame();
-    void beginRecordCmd();
-    void drawAllModel();
-    void writeDebugUi(const std::string &msg);
-    void endRecordCmd();
-    void draw();
+        // render related, should invoke in order
+        void newFrame();
+        void beginRecordCmd();
+        void drawAllModel();
+        void writeDebugUi(const std::string &msg);
+        void endRecordCmd();
+        void draw();
 
-    // data related
-    int createMaterial(MaterialCpu& materialCpu); // return material id
-    std::shared_ptr<ModalState> uploadModel(ModelDataCpu& modelData);
-    void removeModal(const std::shared_ptr<ModalState>& modelData);
+        // data related
+        int createMaterial(MaterialCpu &materialCpu);  // return material id
+        std::shared_ptr<ModalState> uploadModel(ModelDataCpu &modelData);
+        void removeModal(const std::shared_ptr<ModalState> &modelData);
 
-    // setter
-    void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
-    void setProjectionMatrix(const glm::mat4 &projectionTransform) { _camProjectionTransform = projectionTransform; };
-    void setCamPos(const glm::vec3 &pos) { _nextCompUboData.camPos = glm::vec4{pos, 1}; };
-    void setLightInfo(const glm::vec3 &pos, const glm::vec3 &color, float radius);
-    void setDirLight(const glm::vec3 &dir, const glm::vec3 &color) { _nextCompUboData.dirLight = {glm::vec4{dir, 1}, glm::vec4{color, 1}};};
+        // setter
+        void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
+        void setProjectionMatrix(const glm::mat4 &projectionTransform) {
+            _camProjectionTransform = projectionTransform;
+        };
+        void setCamPos(const glm::vec3 &pos) { _nextCompUboData.camPos = glm::vec4{pos, 1}; };
+        void setLightInfo(const glm::vec3 &pos, const glm::vec3 &color, float radius);
+        void setDirLight(const glm::vec3 &dir, const glm::vec3 &color) {
+            _nextCompUboData.dirLight = {glm::vec4{dir, 1}, glm::vec4{color, 1}};
+        };
 
-    // getter
-    [[nodiscard]] const RenderConfig& getRenderConfig() { return _renderConf; }
+        // getter
+        [[nodiscard]] const RenderConfig &getRenderConfig() { return _renderConf; }
 
-private:
-    // internal creations
-    void setRequiredFeatures();
-    void printPhysDeviceProps();
-    bool validate();
-    bool initBase();
-    bool initCommand();
-    bool initBuffer();
-    bool initRenderResources();
-    bool initDescriptors();
-    bool initRenderPass();
-    bool initFramebuffer();
-    bool initSync();
-    bool initPipeline();
-    bool initImGUI();
-    bool initPreApp();
+    private:
+        // internal creations
+        void setRequiredFeatures();
+        void printPhysDeviceProps();
+        bool validate();
+        bool initBase();
+        bool initCommand();
+        bool initBuffer();
+        bool initRenderResources();
+        bool initDescriptors();
+        bool initRenderPass();
+        bool initFramebuffer();
+        bool initSync();
+        bool initPipeline();
+        bool initImGUI();
+        bool initPreApp();
 
-    // Command Helper
-    void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
-    void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-    void uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo, VkFormat sampleFormat);
+        // Command Helper
+        void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);
+        void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+        void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
+        void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
+                                 VkImageLayout newLayout);
+        void uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo,
+                                    VkFormat sampleFormat);
 
-    // Current draw state
-    int _curFrameInFlight = 0;
-    uint32_t _curPresentImgIdx = 0;
-    glm::mat4 _camViewTransform{};
-    glm::mat4 _camProjectionTransform{};
-    CompUboData _nextCompUboData{};
-    int _nextLightPos{};
-    std::vector<std::string> _debugUiText;
-    std::vector<std::shared_ptr<MaterialGpu>> _materialList;
-    std::vector<std::shared_ptr<ModalState>> _modalStateList;
+        // Current draw state
+        int _curFrameInFlight = 0;
+        uint32_t _curPresentImgIdx = 0;
+        glm::mat4 _camViewTransform{};
+        glm::mat4 _camProjectionTransform{};
+        CompUboData _nextCompUboData{};
+        int _nextLightPos{};
+        std::vector<std::string> _debugUiText;
+        std::vector<std::shared_ptr<MaterialGpu>> _materialList;
+        std::vector<std::shared_ptr<ModalState>> _modalStateList;
 
-    // members
-    RenderConfig _renderConf;
-    std::stack<std::function<void ()>> _interCleanup{};
-    std::stack<std::function<void ()>> _globCleanup;
+        // members
+        RenderConfig _renderConf;
+        std::stack<std::function<void()>> _interCleanup{};
+        std::stack<std::function<void()>> _globCleanup;
 
-    // core
-    class SDL_Window* _window{};
-    VkInstance _instance{};
-    VkPhysicalDevice _gpu{};
-    VkPhysicalDeviceProperties _gpuProperties{};
-    VkDevice _device{};
-    VkSurfaceKHR _surface{};
-    VmaAllocator _allocator{};  // Memory allocator by gpuopen
+        // core
+        class SDL_Window *_window{};
+        VkInstance _instance{};
+        VkPhysicalDevice _gpu{};
+        VkPhysicalDeviceProperties _gpuProperties{};
+        VkDevice _device{};
+        VkSurfaceKHR _surface{};
+        VmaAllocator _allocator{};  // Memory allocator by gpuopen
 
-    // defer info
-    std::array<ImgResource, MRT_OUT_SIZE> _imgInfoList = {};
+        // defer info
+        std::array<ImgResource, MRT_OUT_SIZE> _imgInfoList = {};
 
-    // props
-    VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures{};
-    VkFormat _depthFormat{};
+        // props
+        VkPhysicalDeviceFeatures _requiredPhysicalDeviceFeatures{};
+        VkFormat _depthFormat{};
 
-    // Queues
-    VkQueue _graphicsQueue{};
-    uint32_t _graphicsQueueFamily{};
-    VkQueue _presentsQueue{};
-    uint32_t _presentsQueueFamily{};
+        // Queues
+        VkQueue _graphicsQueue{};
+        uint32_t _graphicsQueueFamily{};
+        VkQueue _presentsQueue{};
+        uint32_t _presentsQueueFamily{};
 
-    // Swapchain & Renderpass & framebuffer
-    VkSwapchainKHR _swapchain{};
-    VkFormat _swapchainImageFormat{};
-    VkExtent2D _swapChainExtent{};
-    std::vector<VkImage> _swapchainImages;
-    std::vector<VkImageView> _swapchainImageViews;
-    std::vector<VkFramebuffer> _swapChainFramebuffers;
+        // Swapchain & Renderpass & framebuffer
+        VkSwapchainKHR _swapchain{};
+        VkFormat _swapchainImageFormat{};
+        VkExtent2D _swapChainExtent{};
+        std::vector<VkImage> _swapchainImages;
+        std::vector<VkImageView> _swapchainImageViews;
+        std::vector<VkFramebuffer> _swapChainFramebuffers;
 
-    // Descriptions & layout
-    VkRenderPass _mrtRenderPass{}; // render to multiple attachment output
-    VkDescriptorSetLayout _mrtSetLayout{};
-    VkPipelineLayout _mrtPipelineLayout{};
-    VkPipeline _mrtPipeline{};
-    VkRenderPass _compositionRenderPass{};  // use multiple attachment as sampler, do some composition and present
-    std::vector<VkDescriptorSetLayout> _compSetLayoutList{};
-    VkPipelineLayout _compPipelineLayout{};
-    VkPipeline _compPipeline{};
+        // Descriptions & layout
+        VkRenderPass _mrtRenderPass{};  // render to multiple attachment output
+        VkDescriptorSetLayout _mrtSetLayout{};
+        VkPipelineLayout _mrtPipelineLayout{};
+        VkPipeline _mrtPipeline{};
+        VkRenderPass _compositionRenderPass{};  // use multiple attachment as sampler, do some
+                                                // composition and present
+        std::vector<VkDescriptorSetLayout> _compSetLayoutList{};
+        VkPipelineLayout _compPipelineLayout{};
+        VkPipeline _compPipeline{};
 
-    // Resources
-    VkCommandPool _renderCmdPool{};
-    VkCommandPool _oneTimeCmdPool{};
-    VkDescriptorPool _globalDescPool{};
-    std::vector<VkClearValue> _mrtClearColor;
-    std::vector<FlightResource*> _flightResources;
+        // Resources
+        VkCommandPool _renderCmdPool{};
+        VkCommandPool _oneTimeCmdPool{};
+        VkDescriptorPool _globalDescPool{};
+        std::vector<VkClearValue> _mrtClearColor;
+        std::vector<FlightResource *> _flightResources;
 };
-}
+}  // namespace luna
