@@ -39,4 +39,11 @@ You might want to put SDL3.dll in the root directory
 - Quaternion: https://www.youtube.com/watch?v=xoTqBqQtrY4
 - Profiling website: https://www.speedscope.app/
 - For MSVC look up at cmake project profiler in Visual Studio
+- CPP [clang style](https://dev.to/dhanu0510/how-to-configure-c-code-formatting-in-visual-studio-code-4d5m) format guide
+
+## Build guide (fedora arm64) 
+
+```
+sudo dnf install vulkan-headers vulkan-tools vulkan-validation-layers vulkan-utility-libraries-devel glslang
+```
 

@@ -22,6 +22,11 @@ file(GLOB_RECURSE GLSL_UTILS_FILES
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.glsl"
 )
 
+# Check for glsl lang compiler 
+if((NOT Vulkan_GLSLANG_VALIDATOR_EXECUTABLE))
+    message(FATAL_ERROR "glslang validation does not exist in path")
+endif()
+
 ## iterate each shader and compile
 foreach (GLSL ${GLSL_SOURCE_FILES})
     message(STATUS "BUILDING SHADER")
