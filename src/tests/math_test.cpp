@@ -26,7 +26,7 @@ TEST(MathBehaviouTestSuite, CrossProductExpectation) {
             glm::vec3 expect;
     };
 
-    vector<TestInfo> testList{
+    std::vector<TestInfo> testList{
         {
             {1, 0, 0},
             {0, 1, 0},
@@ -61,7 +61,7 @@ TEST(MathBehaviouTestSuite, QuaterninoRotation) {
             glm::vec4 expect;
     };
 
-    vector<TestInfo> testList{
+    std::vector<TestInfo> testList{
         {
             {1, 0, 0, 1},
             glm::angleAxis(glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f)),
