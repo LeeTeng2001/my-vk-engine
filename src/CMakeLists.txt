@@ -68,8 +68,10 @@ target_link_libraries(${EXE_NAME}
         tinygltf
         spdlog::spdlog
         Jolt # physic
-        # Lua scripting
-        lua::lua
+        lua::lua # Lua scripting
+        # ${JS_CORE_LDFRAGS} # js scripting
+        # jscore # js scripting
+        V8::V8 # js scripting
         sol2::sol2
 )
 

@@ -1,8 +1,6 @@
 #pragma once
 
-// https://stackoverflow.com/questions/48488460/how-to-safely-call-a-c-function-from-lua
-#define SOL_SAFE_USERTYPE 1
-#include <sol/sol.hpp>
+#include <v8.h>
 
 #include "core/engine.hpp"
 
@@ -18,7 +16,11 @@ class ScriptingSystem {
         void registerGlm();
         void registerLuna();
 
-        sol::state _globState;
+        // global v8 state
         std::shared_ptr<Engine> _engine;
+        std::unique_ptr<v8::Platform> _v8platform;
+        v8::ArrayBuffer::Allocator* _v8alloc;
+        v8::Isolate* _isolate;
+        v8::Global<v8::Context> _globCtx;
 };
 }  // namespace luna
