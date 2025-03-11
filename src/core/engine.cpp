@@ -182,7 +182,7 @@ void Engine::addActor(const std::shared_ptr<Actor> &actor) {
 bool Engine::prepareScene() {
     // rely on external lua script to setup scene
     // flexible!
-    if (!_scriptSystem->execScriptFile("assets/scene/scene.lua")) {
+    if (!_scriptSystem->execScriptFile("assets/scene/main.js")) {
         return false;
     }
 

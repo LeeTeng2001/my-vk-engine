@@ -10,6 +10,7 @@
 
 #include "renderer.hpp"
 #include "utils/common.hpp"
+#include "utils/algo.hpp"
 #include "creation_helper.hpp"
 #include "builder.hpp"
 
@@ -745,8 +746,8 @@ bool Renderer::initPipeline() {
     // MRT Pipeline ------------------------------------------------------------
 
     // Create programmable shaders
-    std::vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.vert.spv");
-    std::vector<char> mrtFragShaderCode = CreationHelper::readFile("assets/shaders/mrt.frag.spv");
+    std::vector<char> mrtVertShaderCode = HelperAlgo::readFile("assets/shaders/mrt.vert.spv");
+    std::vector<char> mrtFragShaderCode = HelperAlgo::readFile("assets/shaders/mrt.frag.spv");
     VkShaderModule mrtVertShaderModule =
         CreationHelper::createShaderModule(mrtVertShaderCode, _device);
     VkShaderModule mrtFragShaderModule =
@@ -817,9 +818,9 @@ bool Renderer::initPipeline() {
     // Composition pipeline --------------------------------------------------------
 
     std::vector<char> compVertShaderCode =
-        CreationHelper::readFile("assets/shaders/composition.vert.spv");
+        HelperAlgo::readFile("assets/shaders/composition.vert.spv");
     std::vector<char> compFragShaderCode =
-        CreationHelper::readFile("assets/shaders/composition.frag.spv");
+        HelperAlgo::readFile("assets/shaders/composition.frag.spv");
     VkShaderModule compVertShaderModule =
         CreationHelper::createShaderModule(compVertShaderCode, _device);
     VkShaderModule compFragShaderModule =

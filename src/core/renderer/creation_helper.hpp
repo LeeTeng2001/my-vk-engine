@@ -156,22 +156,6 @@ class CreationHelper {
                                    &outAllocInfo);
         }
 
-        static std::vector<char> readFile(const std::string &filename) {
-            std::ifstream f(filename, std::ios::ate | std::ios::binary);
-
-            if (!f.is_open()) {
-                std::string errMsg = "Failed to open f: " + filename;
-                throw std::runtime_error(errMsg);
-            }
-
-            size_t fileSize = (size_t)f.tellg();
-            std::vector<char> buffer(fileSize);
-            f.seekg(0);
-            f.read(buffer.data(), fileSize);
-
-            return buffer;
-        }
-
         static VkShaderModule createShaderModule(const std::vector<char> &code, VkDevice device) {
             VkShaderModuleCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

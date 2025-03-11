@@ -1,4 +1,5 @@
 #include "utils/common.hpp"
+#include "utils/algo.hpp"
 #include "lua.hpp"
 #include "core/physic/physic.hpp"
 #include "actors/actor.hpp"
@@ -44,6 +45,7 @@ const char *ToCString(const v8::String::Utf8Value &value) {
 }
 
 void Print(const v8::FunctionCallbackInfo<v8::Value> &info) {
+    auto l = SLog::get();
     bool first = true;
     for (int i = 0; i < info.Length(); i++) {
         v8::HandleScope handle_scope(info.GetIsolate());
@@ -61,6 +63,8 @@ void Print(const v8::FunctionCallbackInfo<v8::Value> &info) {
 }
 
 void ScriptingSystem::registerGlm() {
+    auto l = SLog::get();
+    l->info("create glm");
     v8::HandleScope handleScope(_isolate);
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(_isolate);
     global->Set(_isolate, "print", v8::FunctionTemplate::New(_isolate, Print));
@@ -166,35 +170,24 @@ void ScriptingSystem::shutdown() {
 }
 
 bool ScriptingSystem::execScriptFile(const std::string &path) {
-    // sol::load_result script = _globState.load_file(path);
-    // sol::protected_function_result res = script();
-    // if (!res.valid()) {
-    //     auto l = SLog::get();
-    //     sol::error err = res;
-    //     l->error(fmt::format("failed to run lua script {:s}", err.what()));
-    //     return false;
-    // }
-    // return true;
-
-    // load file
-
-    // Create local Isolate & execute
-    v8::HandleScope handle_scope(_isolate);
-    v8::Context::Scope context_scope(_globCtx.Get(_isolate));
-
-    // v8::Local<v8::String> file_name = v8::String::NewFromUtf8Literal(_isolate, "unnamed");
-    // v8::Local<v8::String> source;
-    // if (!v8::String::NewFromUtf8(isolate, argv[++i]).ToLocal(&source)) {
-    //     return 1;
-    // }
-
-    // Execute JavaScript
-    v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, "2 + 2");
-    v8::Local<v8::Script> script = v8::Script::Compile(context, source).ToLocalChecked();
-    v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
-    v8::String::Utf8Value utf8(isolate, result);
     auto l = SLog::get();
-    l->info(fmt::format("v8 result {:s}", *utf8));
+    // load file
+    std::vector<char> scriptContent = HelperAlgo::readFile(path);
+
+    // execute in context
+    {
+        v8::HandleScope handleScope(_isolate);
+        v8::Context::Scope contextScope(_globCtx.Get(_isolate));
+        v8::Local<v8::String> source =
+            v8::String::NewFromUtf8(_isolate, scriptContent.data(), v8::NewStringType::kNormal,
+                                    scriptContent.size())
+                .ToLocalChecked();
+        v8::Local<v8::Context> context(_isolate->GetCurrentContext());
+        v8::Local<v8::Script> script = v8::Script::Compile(context, source).ToLocalChecked();
+        v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+        v8::String::Utf8Value utf8(_isolate, result);
+        l->info(fmt::format("{:s} result {:s}", path, *utf8));
+    }
 
     return true;
 }
