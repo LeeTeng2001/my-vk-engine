@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 project(my_vk_engine)
 set(CMAKE_CXX_STANDARD 20)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libs/cmake")
 
 # If you're on windows: please use MSVC instead of MingW to avoid a lot of pain
 find_package(Vulkan REQUIRED)
+find_package(V8 REQUIRED)
+message("Found v8 ${V8_LIBRARY}, version ${V8_VERSION}")
 
 # Necessary config for Jolt
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
