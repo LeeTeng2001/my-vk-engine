@@ -18,10 +18,12 @@ ButtonState KeyboardState::getKeyState(SDL_Scancode keyCode) const {
     }
 }
 
-bool MouseState::getButtonValue(int button) const { return (SDL_BUTTON(button) & _curButtons); }
+bool MouseState::getButtonValue(int button) const {
+    return (SDL_BUTTON_MASK(button) & _curButtons);
+}
 
 ButtonState MouseState::getButtonState(int button) const {
-    int mask = SDL_BUTTON(button);
+    int mask = SDL_BUTTON_MASK(button);
 
     if ((mask & _prevButtons) == 0) {
         return (mask & _curButtons) == 0 ? ENone : EPressed;
@@ -44,10 +46,11 @@ ButtonState ControllerState::getButtonState(SDL_GamepadButton button) const {
 
 bool InputSystem::initialise() {
     // Keyboard
+    // TODO: validate access to state with curlen
     // Assign current state pointer
-    _inputState.Keyboard._curState = SDL_GetKeyboardState(nullptr);
+    _inputState.Keyboard._curState = SDL_GetKeyboardState(&_inputState.Keyboard._curStateLen);
     // Clear previous state memory
-    memset(_inputState.Keyboard._prevState, 0, SDL_NUM_SCANCODES);
+    memset(_inputState.Keyboard._prevState, 0, SDL_SCANCODE_COUNT);
 
     // Mouse (just set everything to 0)
     _inputState.Mouse._curButtons = 0;
@@ -58,8 +61,8 @@ bool InputSystem::initialise() {
     _controller = SDL_OpenGamepad(0);
     // Initialize controller state
     _inputState.Controller._isConnected = (_controller != nullptr);
-    memset(_inputState.Controller._curButtons, 0, SDL_GAMEPAD_BUTTON_MAX);
-    memset(_inputState.Controller._prevButtons, 0, SDL_GAMEPAD_BUTTON_MAX);
+    memset(_inputState.Controller._curButtons, 0, SDL_GAMEPAD_BUTTON_COUNT);
+    memset(_inputState.Controller._prevButtons, 0, SDL_GAMEPAD_BUTTON_COUNT);
 
     return true;
 }
@@ -69,7 +72,8 @@ void InputSystem::shutdown() { SDL_CloseGamepad(_controller); }
 void InputSystem::prepareForUpdate() {
     // Copy current state to previous (because SDL overwrite its original key buffer)
     // Keyboard + Mouse + controller
-    memcpy(_inputState.Keyboard._prevState, _inputState.Keyboard._curState, SDL_NUM_SCANCODES);
+    memcpy(_inputState.Keyboard._prevState, _inputState.Keyboard._curState,
+           _inputState.Keyboard._curStateLen);
 
     // mState.Mouse.mIsRelative = false;  // TODO: Bug reset?
     _inputState.Mouse._prevButtons = _inputState.Mouse._curButtons;
@@ -77,7 +81,7 @@ void InputSystem::prepareForUpdate() {
                                       0};  // only triggers on frames where the scroll wheel moves
 
     memcpy(_inputState.Controller._prevButtons, _inputState.Controller._curButtons,
-           SDL_GAMEPAD_BUTTON_MAX);
+           SDL_GAMEPAD_BUTTON_COUNT);
 }
 
 void InputSystem::update() {
@@ -95,7 +99,7 @@ void InputSystem::update() {
 
     // Controller --------------------------------------------------------
     // Buttons
-    for (int i = 0; i < SDL_GAMEPAD_BUTTON_MAX; i++) {
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++) {
         _inputState.Controller._curButtons[i] =
             SDL_GetGamepadButton(_controller, SDL_GamepadButton(i));
     }
@@ -127,7 +131,7 @@ void InputSystem::processEvent(union SDL_Event &event) {
 }
 
 void InputSystem::setRelativeMouseMode(bool value) {
-    SDL_SetRelativeMouseMode(value);
+    // SDL_SetWindowRelativeMouseMode(value); // TODO: fix me with windows argument
     if (value) SDL_GetRelativeMouseState(nullptr, nullptr);  // clear out for relative
     _inputState.Mouse._isRelative = value;
 }

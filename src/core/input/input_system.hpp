@@ -21,8 +21,9 @@ class KeyboardState {
         [[nodiscard]] ButtonState getKeyState(SDL_Scancode keyCode) const;
 
     private:
-        const Uint8* _curState;
-        Uint8 _prevState[SDL_NUM_SCANCODES];  // buffer to save state before update
+        int _curStateLen;
+        const bool* _curState;
+        bool _prevState[SDL_SCANCODE_COUNT];  // buffer to save state before update
 };
 
 // Helper for mouse input
@@ -69,8 +70,8 @@ class ControllerState {
 
     private:
         // Current/previous buttons
-        Uint8 _curButtons[SDL_GAMEPAD_BUTTON_MAX];
-        Uint8 _prevButtons[SDL_GAMEPAD_BUTTON_MAX];
+        Uint8 _curButtons[SDL_GAMEPAD_BUTTON_COUNT];
+        Uint8 _prevButtons[SDL_GAMEPAD_BUTTON_COUNT];
         // Left/right sticks
         glm::vec2 _leftStick;
         glm::vec2 _rightStick;

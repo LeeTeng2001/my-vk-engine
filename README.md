@@ -47,6 +47,9 @@ You might want to put SDL3.dll in the root directory
 sudo dnf install vulkan-headers vulkan-tools vulkan-validation-layers vulkan-utility-libraries-devel glslang
 ```
 
+## Build guide (windows amd64) 
+
+Mingw? Vulkan SDK must be installed, SDL3.dll should be copied to run directory
 
 ## Utils
 

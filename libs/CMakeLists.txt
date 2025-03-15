@@ -1,66 +1,84 @@
+# CPM package manager
+file(
+        DOWNLOAD
+        https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.40.7/CPM.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
+        EXPECTED_HASH SHA256=c0fc82149e00c43a21febe7b2ca57b2ffea2b8e88ab867022c21d6b81937eb50
+)
+include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+
 # You should have Vulkan installed on your machine
 find_package(Vulkan REQUIRED)
 
-add_library(vma INTERFACE)
-add_library(stb_image INTERFACE)
-
-# Lua related because lua doesn't provide CMAKE
-# Script reference: https://github.com/eliasdaler/cmake-lua-with-sol2-example/blob/main/third_party/CMakeLists.txt
-# Rn it's pointing at v5.4.6, if the version bump up SOL_LUA_VERSION should change too
-# Don't use glob, be explicit
-add_library(lua
-        lua/lapi.c      lua/lctype.c  lua/lfunc.c   lua/lmathlib.c  lua/loslib.c   lua/ltable.c   lua/lundump.c
-        lua/lauxlib.c   lua/ldblib.c  lua/lgc.c     lua/lmem.c      lua/lparser.c  lua/ltablib.c  lua/lutf8lib.c
-        lua/lbaselib.c  lua/ldebug.c  lua/linit.c   lua/loadlib.c   lua/lstate.c   lua/ltests.c   lua/lvm.c
-        lua/lcode.c     lua/ldo.c     lua/liolib.c  lua/lobject.c   lua/lstring.c  lua/ltm.c      lua/lzio.c
-        lua/lcorolib.c  lua/ldump.c   lua/llex.c    lua/lopcodes.c  lua/lstrlib.c  lua/lua.c
+# add easy to include 3rd party packages
+CPMAddPackage(
+        GITHUB_REPOSITORY jrouwe/JoltPhysics
+        GIT_TAG v5.2.0
+        SOURCE_SUBDIR "Build"
 )
-add_library(lua::lua ALIAS lua)
-target_include_directories(lua PUBLIC lua)
-if (WIN32)
-        target_compile_definitions(lua PRIVATE LUA_USE_WINDOWS)
-endif()
-if (UNIX)
-        target_compile_definitions(lua PRIVATE LUA_USE_LINUX)
-        target_link_libraries(lua PRIVATE dl)
-endif()
+CPMAddPackage("gh:libsdl-org/SDL#release-3.2.8")
+CPMAddPackage("gh:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator#v3.2.1")
+CPMAddPackage(
+        GITHUB_REPOSITORY syoyo/tinygltf
+        GIT_TAG v2.9.5
+        OPTIONS "TINYGLTF_INSTALL OFF" "TINYGLTF_HEADER_ONLY ON" 
+)
+CPMAddPackage("gh:tinyobjloader/tinyobjloader#v2.0.0rc13")
+CPMAddPackage("gh:google/googletest#v1.16.0")
+CPMAddPackage(
+        GITHUB_REPOSITORY charles-lunarg/vk-bootstrap
+        GIT_TAG v1.4.310
+        OPTIONS "VK_BOOTSTRAP_VULKAN_HEADER_DIR """
+)
+CPMAddPackage("gh:g-truc/glm#1.0.1")
+CPMAddPackage("gh:gabime/spdlog#v1.15.1")
 
-### sol2
-set(SOL2_LUA_VERSION "5.4.6" CACHE STRING "The version of Lua used")
-set(SOL2_BUILD_LUA FALSE CACHE BOOL "Always build Lua, do not search for it in the system")
-add_subdirectory(sol2)
+# lua, remove main executable source
+CPMAddPackage(
+        GITHUB_REPOSITORY lua/lua
+        GIT_TAG v5.4.7
+        DOWNLOAD_ONLY YES
+)
+FILE(GLOB lua_sources ${lua_SOURCE_DIR}/*.c)
+list(REMOVE_ITEM lua_sources "${lua_SOURCE_DIR}/lua.c" "${lua_SOURCE_DIR}/luac.c" "${lua_SOURCE_DIR}/onelua.c")
+add_library(lua STATIC ${lua_sources})
+target_include_directories(lua PUBLIC $<BUILD_INTERFACE:${lua_SOURCE_DIR}>)
 
-# Include package with provided CMakeList
-set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
-set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
-add_subdirectory(tinygltf)
-add_subdirectory(tinyobjloader)
-add_subdirectory(googletest)
-set(VK_BOOTSTRAP_VULKAN_HEADER_DIR ${Vulkan_INCLUDE_DIRS} CACHE INTERNAL "" FORCE)
-add_subdirectory(vkbootstrap)
-add_subdirectory(glm)
-add_subdirectory(spdlog)
-add_subdirectory(sdl EXCLUDE_FROM_ALL)
-add_subdirectory(joltphysics/Build)
+# sol2, do not depend on internal LUA! It's not stable
+CPMAddPackage(
+        GITHUB_REPOSITORY ThePhD/sol2
+        GIT_TAG v3.5.0
+        OPTIONS "SOL2_LUA_VERSION 5.4.7" "SOL2_BUILD_LUA FALSE"
+)
 
-# include path
-target_include_directories(vma INTERFACE vma/include)
-target_include_directories(stb_image INTERFACE stb)
+# stb image
+CPMAddPackage(
+        GITHUB_REPOSITORY nothings/stb
+        GIT_TAG f0569113c93ad095470c54bf34a17b36646bbbb5
+        DOWNLOAD_ONLY YES
+)
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image INTERFACE $<BUILD_INTERFACE:${stb_SOURCE_DIR}>)
 
-# Imgui path
+# Imgui
+CPMAddPackage(
+        GITHUB_REPOSITORY ocornut/imgui
+        GIT_TAG v1.91.9
+        DOWNLOAD_ONLY YES
+)
 add_library(imgui STATIC)
-target_include_directories(imgui PUBLIC imgui)
+target_include_directories(imgui PUBLIC $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>)
 target_sources(imgui PRIVATE
-        imgui/imgui.h
-        imgui/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui.h
+        ${imgui_SOURCE_DIR}/imgui.cpp
 
-        imgui/imgui_demo.cpp
-        imgui/imgui_draw.cpp
-        imgui/imgui_widgets.cpp
-        imgui/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_demo.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
 
-        imgui/backends/imgui_impl_vulkan.cpp
-        imgui/backends/imgui_impl_sdl3.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
         )
 target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL3::SDL3)
 

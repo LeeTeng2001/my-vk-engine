@@ -1080,8 +1080,9 @@ bool Renderer::initImGUI() {
     initInfo.MinImageCount = _swapchainImageViews.size();
     initInfo.ImageCount = _swapchainImageViews.size();
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    initInfo.RenderPass = _compositionRenderPass;
 
-    ImGui_ImplVulkan_Init(&initInfo, _compositionRenderPass);
+    ImGui_ImplVulkan_Init(&initInfo);
     // execute a gpu command to upload imgui font textures
     ImGui_ImplVulkan_CreateFontsTexture();
 

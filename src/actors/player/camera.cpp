@@ -1,10 +1,10 @@
-#include <glm/gtx/string_cast.hpp>
-
 #include "camera.hpp"
 #include "components/control/move.hpp"
 #include "core/input/input_system.hpp"
 #include "core/engine.hpp"
 #include "core/renderer/renderer.hpp"
+
+#include <glm/gtx/string_cast.hpp>
 
 namespace luna {
 

@@ -60,7 +60,7 @@ target_link_libraries(${EXE_NAME}
         ${Vulkan_LIBRARIES}   # Vulkan for graphic
         SDL3::SDL3  # Window manager & a lot more
         vk-bootstrap::vk-bootstrap  # Bootstrap vulkan
-        vma  # Memory allocator by AMD
+        GPUOpen::VulkanMemoryAllocator  # Memory allocator by AMD
         glm  # Math lib
         tinyobjloader # model loader
         imgui
@@ -69,12 +69,12 @@ target_link_libraries(${EXE_NAME}
         spdlog::spdlog
         Jolt # physic
         # Lua scripting
-        lua::lua
+        lua
         sol2::sol2
 )
 
 # For MSVC profiler
-if (MSVC AND ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if (MSVC AND "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     message(STATUS "debug mode + MSVC, adding profile flag")
     set_target_properties(${EXE_NAME} PROPERTIES LINK_FLAGS "/PROFILE")
 endif()

@@ -16,7 +16,7 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.frag"
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.vert"
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.comp"
-        )
+)
 
 file(GLOB_RECURSE GLSL_UTILS_FILES
         "${PROJECT_SOURCE_DIR}/assets/shaders/*.glsl"

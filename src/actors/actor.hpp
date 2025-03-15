@@ -1,10 +1,10 @@
 #pragma once
 
+#include "utils/common.hpp"
+
 #include <set>
 #include <unordered_set>
 #include <glm/gtx/euler_angles.hpp>
-
-#include "utils/common.hpp"
 
 namespace luna {
 
