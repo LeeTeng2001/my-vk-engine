@@ -36,7 +36,6 @@ void CameraActor::updateActor(float deltaTime) {
 
         // set rotation, yaw first then pitch
         setRotation(glm::eulerAngleYX(glm::radians(_yawAngle), glm::radians(_pitchAngle)));
-        //        }
     }
 
     // Compute new camera from this actor

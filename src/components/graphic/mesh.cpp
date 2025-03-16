@@ -328,7 +328,8 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model &modal,
 
     // compute children
     if (!node.children.empty()) {
-        l->debug(fmt::format("parsing node {:s} children {:d}", node.name, node.children.size()));
+        // l->debug(fmt::format("parsing node {:s} children {:d}", node.name,
+        // node.children.size()));
         for (const auto &childNodeIdx : node.children) {
             recurParseGlb(childNodeIdx, modal, gpuMatId, partition, currentTransform);
         }
@@ -338,7 +339,7 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model &modal,
     // parse node info
     // https://github.com/KhronosGroup/glTF-Tutorials/blob/master/gltfTutorial/gltfTutorial_003_MinimalGltfFile.md
     if (node.mesh == -1) {  // parent node
-        l->warn(fmt::format("node {:s} has no children and empty mesh", node.name));
+        // l->warn(fmt::format("node {:s} has no children and empty mesh", node.name));
         return;
     }
 
@@ -446,7 +447,7 @@ void MeshComponent::recurParseGlb(int nodeIdx, const tinygltf::Model &modal,
                            4);
                     // TODO: might need to flip sign
                 } else {
-                    l->error(fmt::format("unrecognised attribute name {:s}", pAttr.first));
+                    // l->error(fmt::format("unrecognised attribute name {:s}", pAttr.first));
                     //                            return false;
                 }
             }

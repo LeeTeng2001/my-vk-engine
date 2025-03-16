@@ -121,6 +121,8 @@ void ScriptingSystem::shutdown() {
     _globState = sol::state();  // destroy original
 }
 
+void ScriptingSystem::gc() { _globState.collect_garbage(); }
+
 bool ScriptingSystem::execScriptFile(const std::string &path) {
     sol::load_result script = _globState.load_file(path);
     sol::protected_function_result res = script();

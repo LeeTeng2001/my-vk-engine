@@ -95,6 +95,13 @@ void Engine::processInput() {
 }
 
 void Engine::updateGame() {
+    // if we're reloading, destroy every resources and reload
+    if (_gameState == EReload) {
+        destroyScene();
+        prepareScene();
+        _gameState = EGameplay;
+    }
+
     // Simple solution for frame limiting.
     // Wait until 16ms has elapsed since last frame
     Uint64 deadline = SDL_GetTicks() + 16;
@@ -231,11 +238,27 @@ bool Engine::prepareScene() {
     return true;
 }
 
+void Engine::destroyScene() {
+    auto l = SLog::get();
+    _scriptSystem->gc();  // important to release unused reference
+    l->info(fmt::format("destroying scene: actor count {:d}", _actorMap.size()));
+    for (const auto &pair : _actorMap) {
+        l->info(fmt::format("{:s} reference {:d}", pair.second->displayName(),
+                            pair.second.use_count()));
+    }
+    _actorMap.clear();
+}
+
 void Engine::handleGlobalInput(const InputState &key) {
     if (key.Keyboard.getKeyState(SDL_SCANCODE_ESCAPE) == EPressed) {
         auto l = SLog::get();
         l->info("detected exit key, exiting");
         _gameState = EQuit;
+    }
+    if (key.Keyboard.getKeyState(SDL_SCANCODE_R) == EPressed) {
+        auto l = SLog::get();
+        l->info("detected reload key, rebuilding world from script");
+        _gameState = EReload;
     }
 }
 }  // namespace luna

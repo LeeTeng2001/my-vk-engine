@@ -11,10 +11,10 @@ Component::Component(std::shared_ptr<Engine> engine, int ownerId, int updateOrde
 bool Component::operator<(const Component &rhs) const { return _updateOrder < rhs._updateOrder; }
 
 std::shared_ptr<Actor> Component::getOwner() {
-    if (_parentCache == nullptr) {
+    if (_parentCache.expired()) {
         _parentCache = _engine->getActor(_ownerId);
     }
-    return _parentCache;
+    return _parentCache.lock();
 }
 
 Component::~Component() = default;

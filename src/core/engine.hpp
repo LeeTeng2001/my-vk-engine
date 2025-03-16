@@ -24,6 +24,7 @@ class Engine {
         void run();
 
         bool prepareScene();
+        void destroyScene();
         void processInput();
         void updateGame();
         void drawOutput();
@@ -31,7 +32,7 @@ class Engine {
         void drawDebugUiActorRecursive(const std::shared_ptr<Actor>& actor);
         void handleGlobalInput(const InputState& key);
 
-        enum GameState { EGameplay, EPaused, EQuit };
+        enum GameState { EGameplay, EReload, EPaused, EQuit };
 
         // Create or delete actors
         void addActor(const std::shared_ptr<Actor>& actor);

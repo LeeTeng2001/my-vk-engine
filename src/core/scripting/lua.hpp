@@ -10,6 +10,7 @@ namespace luna {
 class ScriptingSystem {
     public:
         bool initialise(const std::shared_ptr<Engine>& engine);
+        void gc();
         void shutdown();
 
         bool execScriptFile(const std::string& path);

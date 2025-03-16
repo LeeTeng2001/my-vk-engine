@@ -973,7 +973,7 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
 
     // transfer and free
     l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->vBuffer,
-                              &newModalState->allocation, &stagingAllocationInfo));
+                              &newModalState->vAllocation, &stagingAllocationInfo));
     copyBuffer(stagingBuffer, newModalState->vBuffer, sizeof(Vertex) * modelData.vertex.size());
     vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
 
@@ -990,7 +990,7 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
 
     // transfer and free
     l->vk_res(vmaCreateBuffer(_allocator, &gpuBufferInfo, &dstAllocInfo, &newModalState->iBuffer,
-                              &newModalState->allocation, &stagingAllocationInfo));
+                              &newModalState->iAllocation, &stagingAllocationInfo));
     copyBuffer(stagingBuffer, newModalState->iBuffer,
                sizeof(modelData.indices[0]) * modelData.indices.size());
     vmaDestroyBuffer(_allocator, stagingBuffer, stagingAllocation);
@@ -1011,8 +1011,8 @@ void Renderer::removeModal(const std::shared_ptr<ModalState> &modalState) {
     if (iter != _modalStateList.end()) {
         l->debug("removing modal");
         _modalStateList.erase(iter);
-        vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->allocation);
-        vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->allocation);
+        vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->vAllocation);
+        vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->iAllocation);
         // TODO: release all material buffer
         //        if (modalState->descriptorSet != nullptr) {
         //            l->debug("removing albedo texture");

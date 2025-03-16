@@ -172,7 +172,8 @@ struct ModalState {
         // update by application
         glm::mat4 worldTransform{};
         // populated by renderer
-        VmaAllocation allocation{};
+        VmaAllocation vAllocation{};
+        VmaAllocation iAllocation{};
         VkBuffer vBuffer{};
         VkBuffer iBuffer{};
         uint32_t indicesSize{};

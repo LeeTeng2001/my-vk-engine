@@ -1,9 +1,8 @@
 #include <gtest/gtest.h>
 
+#include "../utils/common.hpp"
 #include <glm/gtc/epsilon.hpp>
 #include <glm/gtx/string_cast.hpp>
-
-#include "../utils/common.hpp"
 
 // TODO: Fix test
 

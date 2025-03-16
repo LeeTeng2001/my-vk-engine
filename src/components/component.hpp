@@ -36,7 +36,7 @@ class Component {
 
     private:
         bool _enable = true;
-        std::shared_ptr<Actor> _parentCache;
+        std::weak_ptr<Actor> _parentCache;
         std::shared_ptr<Engine> _engine;
         int _ownerId = -1;
         int _updateOrder;

@@ -2,7 +2,6 @@
 #include "components/graphic/mesh.hpp"
 
 namespace luna {
-
 void StaticActor::delayInit() {
     _meshComp = std::make_shared<MeshComponent>(getEngine(), getId());
     if (!_modelPath.empty()) {
