@@ -1,6 +1,9 @@
 require('assets.scene.demo')
 
 function init()
+    local l = luna.Log.new()
+    l:info("lua script is running")
+
     -- Camera
     local camAct = luna.NewCameraActor()
     local pos = glm.vec3.new(0, -0.5, 3)

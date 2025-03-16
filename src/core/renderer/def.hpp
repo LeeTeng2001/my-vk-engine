@@ -108,14 +108,14 @@ struct Vertex {
 
 struct TextureData {
         // populated by application
-        std::string path;
-        stbi_uc* stbRef;
+        const unsigned char* data;
         int texWidth;
         int texHeight;
         int texChannels;
 };
 
 struct ImgResource {
+        bool inuse;
         // info
         VkFormat format;
         VkImageUsageFlags usage;

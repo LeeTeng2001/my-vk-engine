@@ -86,8 +86,8 @@ void Engine::processInput() {
     const InputState &state = _inputSystem->getState();
 
     // propagate input to global / actors / ui
+    handleGlobalInput(state);
     if (_gameState == EGameplay) {
-        handleGlobalInput(state);
         for (const auto &actorIter : _actorMap) {
             actorIter.second->processInput(state);
         }
@@ -98,8 +98,12 @@ void Engine::updateGame() {
     // if we're reloading, destroy every resources and reload
     if (_gameState == EReload) {
         destroyScene();
-        prepareScene();
-        _gameState = EGameplay;
+        if (prepareScene()) {
+            _gameState = EGameplay;
+        } else {
+            _gameState = EPaused;  // wait for valid script
+            return;
+        }
     }
 
     // Simple solution for frame limiting.
@@ -140,6 +144,8 @@ void Engine::updateGame() {
 }
 
 void Engine::drawOutput() {
+    // TODO: too crude, should consider ui frame
+    if (_gameState != EGameplay) return;
     // new frame
     _renderer->newFrame();
     _renderer->beginRecordCmd();

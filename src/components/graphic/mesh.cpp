@@ -53,6 +53,7 @@ void MeshComponent::loadObj(const std::string &path, const glm::vec3 &upAxis) {
     std::array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
 
     // Upload materials info
+    std::stack<std::function<void()>> cpuMatCleanup;
     std::vector<int> gpuMatId{};
     for (const auto &mat : materials) {
         MaterialCpu matCpu{};
@@ -61,34 +62,41 @@ void MeshComponent::loadObj(const std::string &path, const glm::vec3 &upAxis) {
 
         // Load texture if any
         if (!mat.diffuse_texname.empty()) {
-            matCpu.albedoTexture.path = mat.diffuse_texname;
-            matCpu.albedoTexture.stbRef =
+            stbi_uc *data =
                 stbi_load(mat.diffuse_texname.c_str(), &matCpu.albedoTexture.texWidth,
                           &matCpu.albedoTexture.texHeight, &matCpu.albedoTexture.texChannels, 4);
+            matCpu.albedoTexture.data = data;
             matCpu.albedoTexture.texChannels = 4;
-            if (!matCpu.albedoTexture.stbRef) {
+            if (!matCpu.albedoTexture.data) {
                 l->error(fmt::format("failed to load diffuse texture at path: {:s}",
                                      mat.diffuse_texname));
             } else {
                 matCpu.info.setColor();
+                cpuMatCleanup.emplace([this, data]() { stbi_image_free(data); });
             }
         }
         if (!mat.normal_texname.empty()) {
-            matCpu.normalTexture.path = mat.normal_texname;
-            matCpu.normalTexture.stbRef =
+            stbi_uc *data =
                 stbi_load(mat.normal_texname.c_str(), &matCpu.normalTexture.texWidth,
                           &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
+            matCpu.albedoTexture.data = data;
             matCpu.normalTexture.texChannels = 4;
-            if (!matCpu.normalTexture.stbRef) {
+            if (!matCpu.normalTexture.data) {
                 l->error(
                     fmt::format("failed to load normal texture at path: {:s}", mat.normal_texname));
             } else {
                 matCpu.info.setNormal();
+                cpuMatCleanup.emplace([this, data]() { stbi_image_free(data); });
             }
         }
         // TODO: load ao, height, roughness into single image
 
         gpuMatId.push_back(getEngine()->getRenderer()->createMaterial(matCpu));
+    }
+    while (!cpuMatCleanup.empty()) {
+        auto nextCleanup = cpuMatCleanup.top();
+        cpuMatCleanup.pop();
+        nextCleanup();
     }
 
     // Usage Guide: https://github.com/tinyobjloader/tinyobjloader
@@ -220,8 +228,9 @@ void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
         l->warn(warn);
     }
 
-    l->info(fmt::format("model shapes: {:d}", modal.meshes.size()));
-    l->info(fmt::format("model materials: {:d}", modal.materials.size()));
+    l->debug(fmt::format("model shapes: {:d}", modal.meshes.size()));
+    l->debug(fmt::format("model materials: {:d}", modal.materials.size()));
+    l->debug(fmt::format("model textures: {:d}", modal.textures.size()));
 
     std::array<int, 3> axisIdxOrder = HelperAlgo::getAxisOrder(upAxis);
 
@@ -237,31 +246,29 @@ void MeshComponent::loadGlb(const std::string &path, const glm::vec3 &upAxis) {
 
         // Load texture if any
         if (gltfMat.pbrMetallicRoughness.baseColorTexture.index != -1) {
-            matCpu.albedoTexture.path =
-                modal.textures[gltfMat.pbrMetallicRoughness.baseColorTexture.index].name;
-            matCpu.albedoTexture.stbRef =
-                stbi_load(matCpu.albedoTexture.path.c_str(), &matCpu.albedoTexture.texWidth,
-                          &matCpu.albedoTexture.texHeight, &matCpu.albedoTexture.texChannels, 4);
-            matCpu.albedoTexture.texChannels = 4;
-            if (!matCpu.albedoTexture.stbRef) {
-                l->error(fmt::format("failed to load diffuse texture at path: {:s}",
-                                     matCpu.albedoTexture.path.c_str()));
-            } else {
-                matCpu.info.setColor();
+            const tinygltf::Texture &gltfTex =
+                modal.textures[gltfMat.pbrMetallicRoughness.baseColorTexture.index];
+            const tinygltf::Image &image = modal.images[gltfTex.source];
+            if (image.component != 4) {
+                l->warn(fmt::format("texture {:s} is not RGBA", image.name));
             }
+            matCpu.albedoTexture.data = image.image.data();
+            matCpu.albedoTexture.texWidth = image.width;
+            matCpu.albedoTexture.texHeight = image.height;
+            matCpu.albedoTexture.texChannels = image.component;
+            matCpu.info.setColor();
         }
         if (gltfMat.normalTexture.index != -1) {
-            matCpu.normalTexture.path = modal.textures[gltfMat.normalTexture.index].name;
-            matCpu.normalTexture.stbRef =
-                stbi_load(matCpu.normalTexture.path.c_str(), &matCpu.normalTexture.texWidth,
-                          &matCpu.normalTexture.texHeight, &matCpu.normalTexture.texChannels, 4);
-            matCpu.normalTexture.texChannels = 4;
-            if (!matCpu.normalTexture.stbRef) {
-                l->error(fmt::format("failed to load normal texture at path: {:s}",
-                                     matCpu.normalTexture.path.c_str()));
-            } else {
-                matCpu.info.setNormal();
+            const tinygltf::Texture &gltfTex = modal.textures[gltfMat.normalTexture.index];
+            const tinygltf::Image &image = modal.images[gltfTex.source];
+            if (image.component != 4) {
+                l->warn(fmt::format("texture {:s} is not RGBA", image.name));
             }
+            matCpu.normalTexture.data = image.image.data();
+            matCpu.normalTexture.texWidth = image.width;
+            matCpu.normalTexture.texHeight = image.height;
+            matCpu.normalTexture.texChannels = image.component;
+            matCpu.info.setNormal();
         }
         // TODO: load ao, height, roughness into single image
 

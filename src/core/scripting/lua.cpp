@@ -10,6 +10,8 @@
 #include "components/physic/rigidbody.hpp"
 #include "components/anim/tween.hpp"
 
+constexpr const char *SCRIPT_MODULE_PATH = "assets.scene.demo";
+
 namespace luna {
 bool ScriptingSystem::initialise(const std::shared_ptr<Engine> &engine) {
     _engine = engine;
@@ -121,7 +123,17 @@ void ScriptingSystem::shutdown() {
     _globState = sol::state();  // destroy original
 }
 
-void ScriptingSystem::gc() { _globState.collect_garbage(); }
+void ScriptingSystem::gc() {
+    sol::table loaded = _globState["package"]["loaded"];
+    for (auto &pair : loaded) {
+        std::string key = pair.first.as<std::string>();
+        if (key.find(SCRIPT_MODULE_PATH) == 0) {  // Check if the key starts with our script package
+            // SLog::get()->info(fmt::format("removing cache lua package {:s}", key));
+            loaded[key] = sol::nil;
+        }
+    }
+    _globState.collect_garbage();
+}
 
 bool ScriptingSystem::execScriptFile(const std::string &path) {
     sol::load_result script = _globState.load_file(path);

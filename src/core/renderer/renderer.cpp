@@ -894,12 +894,14 @@ int Renderer::createMaterial(MaterialCpu &materialCpu) {
 
     // upload textures for sample
     if (materialCpu.info.useColor()) {
+        gpuMaterial->albedoTex.inuse = true;
         uploadImageForSampling(materialCpu.albedoTexture, gpuMaterial->albedoTex,
                                VK_FORMAT_R8G8B8A8_SRGB);
         mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->albedoTex.imageView,
                                              gpuMaterial->albedoTex.sampler, 1);
     }
     if (materialCpu.info.useNormal()) {
+        gpuMaterial->normalTex.inuse = true;
         uploadImageForSampling(materialCpu.normalTexture, gpuMaterial->normalTex,
                                VK_FORMAT_R8G8B8A8_UNORM);
         mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->normalTex.imageView,
@@ -907,6 +909,7 @@ int Renderer::createMaterial(MaterialCpu &materialCpu) {
     }
     if (materialCpu.info.useAo() || materialCpu.info.useHeight() ||
         materialCpu.info.useRoughness()) {
+        gpuMaterial->aoRoughnessHeight.inuse = true;
         uploadImageForSampling(materialCpu.aoRoughnessHeightTexture, gpuMaterial->aoRoughnessHeight,
                                VK_FORMAT_R8G8B8A8_UNORM);
         mrtSetBuilder.pushSetWriteImgSampler(0, gpuMaterial->aoRoughnessHeight.imageView,
@@ -916,9 +919,8 @@ int Renderer::createMaterial(MaterialCpu &materialCpu) {
     gpuMaterial->uboData = materialCpu.info;
     gpuMaterial->descriptorSet = mrtSetBuilder.buildSet(0);
 
-    _materialList.push_back(gpuMaterial);
-
-    return _materialList.size() - 1;
+    _materialMap[_nextMatId] = gpuMaterial;
+    return _nextMatId++;
 }
 
 std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
@@ -1006,21 +1008,34 @@ std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
 
 void Renderer::removeModal(const std::shared_ptr<ModalState> &modalState) {
     auto l = SLog::get();
-    // TODO: should check
     auto iter = std::find(_modalStateList.begin(), _modalStateList.end(), modalState);
     if (iter != _modalStateList.end()) {
-        l->debug("removing modal");
+        l->debug("removing modal & materials");
         _modalStateList.erase(iter);
+        // remove model data
         vmaDestroyBuffer(_allocator, modalState->vBuffer, modalState->vAllocation);
         vmaDestroyBuffer(_allocator, modalState->iBuffer, modalState->iAllocation);
-        // TODO: release all material buffer
-        //        if (modalState->descriptorSet != nullptr) {
-        //            l->debug("removing albedo texture");
-        //            vkDestroySampler(_device, modalState->albedoTex.sampler, nullptr);
-        //            vkDestroyImageView(_device, modalState->albedoTex.imageView, nullptr);
-        //            vmaDestroyImage(_allocator, modalState->albedoTex.image,
-        //            modalState->albedoTex.allocation);
-        //        }
+        // delete all materials data
+        for (const auto &modalDataPart : modalState->modelDataPartition) {
+            if (!_materialMap.contains(modalDataPart.materialId)) {
+                continue;
+            }
+            const auto mat = _materialMap[modalDataPart.materialId];
+            _materialMap.erase(modalDataPart.materialId);
+            // remove image sampler resource
+            std::function<void(ImgResource &)> delImgIfUsed = [&](ImgResource &img) {
+                if (img.inuse) {
+                    vkDestroySampler(_device, img.sampler, nullptr);
+                    vkDestroyImageView(_device, img.imageView, nullptr);
+                    vmaDestroyImage(_allocator, img.image, img.allocation);
+                }
+            };
+            delImgIfUsed(mat->albedoTex);
+            delImgIfUsed(mat->normalTex);
+            delImgIfUsed(mat->aoRoughnessHeight);
+            vkFreeDescriptorSets(_device, _globalDescPool, 1, &mat->descriptorSet);
+            vmaDestroyBuffer(_allocator, mat->uniformBuffer, mat->uniformAlloc);
+        }
     }
 }
 
@@ -1182,7 +1197,7 @@ void Renderer::drawAllModel() {
 
         // modal partition based on material
         for (const auto &modalDataPart : modalState->modelDataPartition) {
-            auto mat = _materialList[modalDataPart.materialId];
+            auto mat = _materialMap[modalDataPart.materialId];
             // bind resources
             vkCmdBindDescriptorSets(_flightResources[_curFrameInFlight]->mrtCmdBuffer,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipelineLayout, 0, 1,
@@ -1442,7 +1457,7 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     texBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     l->vk_res(vmaCreateBuffer(_allocator, &texBufferCreateInfo, &stagingAllocInfo, &texBuffer,
                               &stagingAllocation, &stagingAllocationInfo));
-    memcpy(stagingAllocationInfo.pMappedData, cpuTexData.stbRef, texBufferCreateInfo.size);
+    memcpy(stagingAllocationInfo.pMappedData, cpuTexData.data, texBufferCreateInfo.size);
     vmaFlushAllocation(_allocator, stagingAllocation, 0,
                        texBufferCreateInfo.size);  // TODO: Transfer to destination buffer
 

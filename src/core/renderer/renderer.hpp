@@ -104,7 +104,8 @@ class Renderer {
         CompUboData _nextCompUboData{};
         int _nextLightPos{};
         std::vector<std::string> _debugUiText;
-        std::vector<std::shared_ptr<MaterialGpu>> _materialList;
+        int _nextMatId = 0;
+        std::unordered_map<int, std::shared_ptr<MaterialGpu>> _materialMap;
         std::vector<std::shared_ptr<ModalState>> _modalStateList;
 
         // members
