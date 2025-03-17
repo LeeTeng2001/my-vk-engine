@@ -66,6 +66,7 @@ class Renderer {
         void setDirLight(const glm::vec3 &dir, const glm::vec3 &color) {
             _nextCompUboData.dirLight = {glm::vec4{dir, 1}, glm::vec4{color, 1}};
         };
+        void setClearColor(const glm::vec3 &color) { _clearVal = {color.x, color.y, color.z, 1}; };
 
         // getter
         [[nodiscard]] const RenderConfig &getRenderConfig() { return _renderConf; }
@@ -107,6 +108,9 @@ class Renderer {
         int _nextMatId = 0;
         std::unordered_map<int, std::shared_ptr<MaterialGpu>> _materialMap;
         std::vector<std::shared_ptr<ModalState>> _modalStateList;
+
+        // user settable basic config?
+        VkClearValue _clearVal = {.color = {0, 0, 0}};
 
         // members
         RenderConfig _renderConf;

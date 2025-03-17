@@ -1,8 +1,10 @@
 #include "utils/common.hpp"
 #include "lua.hpp"
 #include "core/physic/physic.hpp"
+#include "core/renderer/renderer.hpp"
 #include "actors/actor.hpp"
 #include "actors/player/camera.hpp"
+#include "actors/object/point_light.hpp"
 #include "actors/object/static.hpp"
 #include "actors/object/empty.hpp"
 #include "components/component.hpp"
@@ -51,6 +53,11 @@ void ScriptingSystem::registerLuna() {
     lunaNs.set_function("GetLog", []() { return SLog::get(); });
     lunaNs.set_function("GetEngine", [this]() { return _engine; });
 
+    // set render functions
+    lunaNs.set_function("SetGraphicBgColor", [this](const glm::vec3 &color) {
+        _engine->getRenderer()->setClearColor(color);
+    });
+
     // base actor
     auto luaActor = lunaNs.new_usertype<Actor>("Actor");
     luaActor["setLocalPosition"] = &Actor::setLocalPosition;
@@ -75,6 +82,12 @@ void ScriptingSystem::registerLuna() {
     lunaNs.new_usertype<StaticActor>("StaticActor", sol::base_classes, sol::bases<Actor>());
     lunaNs.set_function("NewStaticActor", [this](const std::string &modelPath) {
         auto a = std::make_shared<StaticActor>(modelPath);
+        _engine->addActor(a);
+        return a;
+    });
+    lunaNs.new_usertype<PointLightActor>("PointLightActor", sol::base_classes, sol::bases<Actor>());
+    lunaNs.set_function("NewPointLightActor", [this](const glm::vec3 &color, float radius) {
+        auto a = std::make_shared<PointLightActor>(color, 0.3, radius);
         _engine->addActor(a);
         return a;
     });

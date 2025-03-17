@@ -159,8 +159,8 @@ void drawBlinnPhong() {
 }
 
 void main() {
-    drawSobet();
-//    drawBlinnPhong();
+    // drawSobet(); // sobet shadaing
+    drawBlinnPhong(); // normal blinn phong shader
 
     // NOTE: gamma correction is already being handled by SRGB frambuffer,
     // https://learnopengl.com/Advanced-Lighting/Gamma-Correction

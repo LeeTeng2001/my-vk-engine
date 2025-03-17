@@ -82,6 +82,8 @@ float TweenComponent::getEaseVal(TweenComponent::EaseType type, float perc) {
             return perc < 0.5f ? 2.0f * perc * perc
                                : 1.0f - glm::pow(-2.0f * perc + 2, 2.0f) / 2.0f;
     }
+    SLog::get()->warn("unsupported ease type");
+    return 0;
 }
 
 }  // namespace luna

@@ -28,7 +28,7 @@ CPMAddPackage("gh:google/googletest#v1.16.0")
 CPMAddPackage(
         GITHUB_REPOSITORY charles-lunarg/vk-bootstrap
         GIT_TAG v1.4.310
-        OPTIONS "VK_BOOTSTRAP_VULKAN_HEADER_DIR """
+        OPTIONS "VK_BOOTSTRAP_VULKAN_HEADER_DIR ''"
 )
 CPMAddPackage("gh:g-truc/glm#1.0.1")
 CPMAddPackage("gh:gabime/spdlog#v1.15.1")
