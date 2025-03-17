@@ -53,9 +53,12 @@ void ScriptingSystem::registerLuna() {
     lunaNs.set_function("GetLog", []() { return SLog::get(); });
     lunaNs.set_function("GetEngine", [this]() { return _engine; });
 
-    // set render functions
+    // graphics functions
     lunaNs.set_function("SetGraphicBgColor", [this](const glm::vec3 &color) {
         _engine->getRenderer()->setClearColor(color);
+    });
+    lunaNs.set_function("SetGraphicSunlight", [this](const glm::vec3 &dir, const glm::vec3 &color) {
+        _engine->getRenderer()->setDirLight(glm::normalize(dir), color);
     });
 
     // base actor

@@ -239,7 +239,7 @@ bool Engine::prepareScene() {
     //    0, 0}).addTranslateOffset(3, glm::vec3{5, 0, 0}); lightAct->addComponent(tweenComp);
 
     // Dir light, right now set it like this
-    getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});
+    // getRenderer()->setDirLight(glm::normalize(glm::vec3{1, -1, 0}), glm::vec3{1, 1, 1});
 
     return true;
 }

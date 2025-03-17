@@ -14,8 +14,9 @@ function init()
     camAct:setRotation(glm.angleAxis(glm.radians(0), glm.vec3.new(1, 0, 0)))
 
     -- Default point light
-    local pointLight = luna.NewPointLightActor(glm.vec3.new(1, 1, 1), 20)
-    pointLight:setLocalPosition(glm.vec3.new(0, 5, 0))
+    luna.SetGraphicSunlight(glm.vec3.new(1, -1, 0), glm.vec3.new(1, 1, 1))
+    -- local pointLight = luna.NewPointLightActor(glm.vec3.new(1, 1, 1), 20)
+    -- pointLight:setLocalPosition(glm.vec3.new(0, 5, 0))
 
     -- Maybe do some additional configuration here like
     -- setting up screen resolution etc.
