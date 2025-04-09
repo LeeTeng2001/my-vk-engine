@@ -43,6 +43,11 @@ function glm.vec3.new(x, y, z) end
 ---@field w number
 glm.quat = {}
 
+---@param angle number
+---@param axis glm.vec3
+---@return glm.quat
+function glm.angleAxis(angle, axis) end
+
 ---@param degree number
 ---@return number
 function glm.radians(degree) end
@@ -118,6 +123,7 @@ luna.MeshComponent = {}
 function luna.NewMeshComponent(actorId) end
 
 function luna.MeshComponent:generateSquarePlane() end
+
 function luna.MeshComponent:generateSphere() end
 
 ---@param modelPath string
@@ -139,6 +145,7 @@ function luna.RigidBodyComponent:setIsStatic(isStatic) end
 function luna.RigidBodyComponent:setBounciness(bounciness) end
 
 function luna.RigidBodyComponent:createBox() end
+
 function luna.RigidBodyComponent:createSphere() end
 
 ---@param velocity glm.vec3
