@@ -19,7 +19,7 @@ struct FlightResource {
         VkCommandBuffer mrtCmdBuffer{};
 
         // Img Resources
-        std::vector<ImgResource *> compImgResourceList;
+        std::vector<ImgResource> compImgResourceList;
 
         // Composition
         std::vector<VkDescriptorSet> compDescSetList{};
@@ -81,8 +81,6 @@ class Renderer {
         bool initBuffer();
         bool initRenderResources();
         bool initDescriptors();
-        bool initRenderPass();
-        bool initFramebuffer();
         bool initSync();
         bool initPipeline();
         bool initImGUI();
@@ -92,8 +90,9 @@ class Renderer {
         void execOneTimeCmd(const std::function<void(VkCommandBuffer)> &function);
         void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
         void copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D extent);
-        void transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                 VkImageLayout newLayout);
+        std::function<void(VkCommandBuffer)> transitionImgLayout(VkImage image,
+                                                                 VkImageLayout oldLayout,
+                                                                 VkImageLayout newLayout);
         void uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo,
                                     VkFormat sampleFormat);
 
@@ -145,15 +144,12 @@ class Renderer {
         VkExtent2D _swapChainExtent{};
         std::vector<VkImage> _swapchainImages;
         std::vector<VkImageView> _swapchainImageViews;
-        std::vector<VkFramebuffer> _swapChainFramebuffers;
 
         // Descriptions & layout
-        VkRenderPass _mrtRenderPass{};  // render to multiple attachment output
         VkDescriptorSetLayout _mrtSetLayout{};
         VkPipelineLayout _mrtPipelineLayout{};
         VkPipeline _mrtPipeline{};
-        VkRenderPass _compositionRenderPass{};  // use multiple attachment as sampler, do some
-                                                // composition and present
+
         std::vector<VkDescriptorSetLayout> _compSetLayoutList{};
         VkPipelineLayout _compPipelineLayout{};
         VkPipeline _compPipeline{};
@@ -162,7 +158,6 @@ class Renderer {
         VkCommandPool _renderCmdPool{};
         VkCommandPool _oneTimeCmdPool{};
         VkDescriptorPool _globalDescPool{};
-        std::vector<VkClearValue> _mrtClearColor;
         std::vector<FlightResource *> _flightResources;
 };
 }  // namespace luna

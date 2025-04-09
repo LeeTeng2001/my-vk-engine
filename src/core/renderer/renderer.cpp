@@ -44,14 +44,6 @@ bool Renderer::initialise(RenderConfig renderConfig) {
         l->error("failed to create descriptors");
         return false;
     };
-    if (!initRenderPass()) {
-        l->error("failed to create renderpass");
-        return false;
-    };
-    if (!initFramebuffer()) {
-        l->error("failed to create framebuffer");
-        return false;
-    };
     if (!initSync()) {
         l->error("failed to create sync structure");
         return false;
@@ -114,10 +106,11 @@ bool Renderer::initBase() {
                                       VkDebugUtilsMessageTypeFlagsEXT messageType,
                                       const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
                                       void *pUserData) -> VkBool32 {
-        //                auto severity = vkb::to_string_message_severity(messageSeverity);
-        //                auto type = vkb::to_string_message_type(messageType);
         auto l2 = SLog::get();
         switch (messageSeverity) {
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+                l2->debug(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
+                break;
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
                 l2->info(fmt::format("vkCallback: {:s}\n", pCallbackData->pMessage));
                 break;
@@ -133,11 +126,17 @@ bool Renderer::initBase() {
         }
         return VK_FALSE;
     });
-    //    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+
+    auto enableValidation = false;
+#ifdef DEBUG
+    instBuilder.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+    enableValidation = true;
+#endif
+
     instBuilder.set_debug_messenger_severity(_renderConf.callbackSeverity);
     auto instBuildRes = instBuilder.set_app_name("Luna Vulkan Engine")
                             .set_engine_name("Luna Engine")
-                            .enable_validation_layers()
+                            .enable_validation_layers(enableValidation)
                             .require_api_version(1, 3)
                             .build();
 
@@ -150,7 +149,11 @@ bool Renderer::initBase() {
     // Store initialised instances
     vkb::Instance vkbInst = instBuildRes.value();
     _instance = vkbInst.instance;
-    // _debug_messenger = vkbInst.debug_messenger;
+    l->info(fmt::format(
+        "Vulkan instance created, instance version: {:d}.{:d}, api version: {:d}.{:d}",
+        VK_API_VERSION_MAJOR(vkbInst.instance_version),
+        VK_API_VERSION_MINOR(vkbInst.instance_version), VK_API_VERSION_MAJOR(vkbInst.api_version),
+        VK_API_VERSION_MINOR(vkbInst.api_version)));
 
     // Surface (window handle for different os)
     if (!SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface)) {
@@ -161,8 +164,9 @@ bool Renderer::initBase() {
     // Select physical device, same pattern  ---------------------------------------------
     vkb::PhysicalDeviceSelector physSelector(vkbInst);
     auto physSelectorBuildRes = physSelector.set_surface(_surface)
-                                    .set_minimum_version(1, 1)
+                                    .set_minimum_version(1, 3)
                                     .set_required_features(_requiredPhysicalDeviceFeatures)
+                                    .add_required_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
                                     .select();
     if (!physSelectorBuildRes) {
         l->error(fmt::format("Failed to create Vulkan physical device. Error: {:s}",
@@ -171,10 +175,16 @@ bool Renderer::initBase() {
     }
     auto physDevice = physSelectorBuildRes.value();
 
+    // dynamic rendering struct
+    VkPhysicalDeviceDynamicRenderingFeatures dynRenderFeature{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+        .dynamicRendering = VK_TRUE,
+    };
+
     // Select logical device, criteria in physical device will automatically propagate to logical
     // device creation
     vkb::DeviceBuilder deviceBuilder{physDevice};
-    vkb::Device vkbDevice = deviceBuilder.build().value();
+    vkb::Device vkbDevice = deviceBuilder.add_pNext(&dynRenderFeature).build().value();
 
     // Store results of physical device and logical device
     _gpu = physDevice.physical_device;
@@ -383,124 +393,6 @@ bool Renderer::initBuffer() {
     return true;
 }
 
-bool Renderer::initRenderPass() {
-    auto l = SLog::get();
-    l->debug("initialising renderpass");
-
-    // Create MRT render pass ------------------------------------------------------------------d
-    // Attachment in render pass
-    VkAttachmentDescription depthAttachment = CreationHelper::createVkAttDesc(
-        _depthFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    VkAttachmentDescription colorAttachment = CreationHelper::createVkAttDesc(
-        _swapchainImageFormat, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    // Subpass attachments
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 0;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 1;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    std::vector<VkAttachmentDescription> allAttachments{depthAttachment};
-    std::vector<VkAttachmentReference> colorAttachmentRefList{};
-
-    for (int i = 1; i < MRT_OUT_SIZE; ++i) {
-        colorAttachment.format = _imgInfoList[i].format;
-        allAttachments.push_back(colorAttachment);
-        colorAttachmentRef.attachment = i;
-        colorAttachmentRefList.push_back(colorAttachmentRef);
-    }
-
-    // Subpass & dependencies
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = colorAttachmentRefList.size();
-    subpass.pColorAttachments = colorAttachmentRefList.data();
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-    VkSubpassDependency inDependency{};
-    inDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    inDependency.dstSubpass = 0;
-    // wait for swap-chain to finish reading before accessing it.
-    // we should wait at color attachment stage or early fragment testing stage
-    inDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    inDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    inDependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
-    inDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    VkSubpassDependency depthDependency{};
-    depthDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    depthDependency.dstSubpass = 0;
-    depthDependency.srcStageMask =
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    depthDependency.dstStageMask =
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    depthDependency.srcAccessMask = VK_ACCESS_NONE;  // relates to memory access
-    depthDependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    // transition to read only for composition render pass
-    VkSubpassDependency outDependency{};
-    outDependency.srcSubpass = 0;
-    outDependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-    outDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    outDependency.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    outDependency.srcAccessMask =
-        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    outDependency.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-
-    std::vector<VkSubpassDependency> allDependencies{inDependency, depthDependency, outDependency};
-
-    // create render pass
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = allAttachments.size();
-    renderPassInfo.pAttachments = allAttachments.data();
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = allDependencies.size();
-    renderPassInfo.pDependencies = allDependencies.data();
-
-    if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_mrtRenderPass) != VK_SUCCESS) {
-        l->error("failed to create mrt render pass");
-        return false;
-    }
-
-    _globCleanup.emplace([this]() { vkDestroyRenderPass(_device, _mrtRenderPass, nullptr); });
-
-    // Create Composition render pass
-    // ------------------------------------------------------------------ Attachments
-    VkAttachmentDescription presentAttachment =
-        CreationHelper::createVkAttDesc(_swapchainImageFormat, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    allAttachments = {presentAttachment};
-
-    // Subpass attachments
-    std::array<VkAttachmentReference, 1> colorAtt = {};
-    colorAtt[0] = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-
-    // Subpass & dependencies
-    subpass.colorAttachmentCount = std::size(colorAtt);
-    subpass.pColorAttachments = colorAtt.data();
-    subpass.pDepthStencilAttachment = nullptr;
-
-    // Create render pass
-    renderPassInfo.attachmentCount = allAttachments.size();
-    renderPassInfo.pAttachments = allAttachments.data();
-    renderPassInfo.dependencyCount = 0;
-    renderPassInfo.pDependencies = nullptr;
-
-    if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_compositionRenderPass) !=
-        VK_SUCCESS) {
-        l->error("failed to create composition render pass");
-        return false;
-    }
-
-    _globCleanup.emplace(
-        [this]() { vkDestroyRenderPass(_device, _compositionRenderPass, nullptr); });
-
-    return true;
-}
-
 bool Renderer::initRenderResources() {
     auto l = SLog::get();
     l->debug("initialising render resources");
@@ -510,30 +402,36 @@ bool Renderer::initRenderResources() {
     // https://computergraphics.stackexchange.com/questions/4969/how-much-precision-do-i-need-in-my-g-buffer
     // one of the unused A channel can be used to store specular/bump highlight
     // MRT: depth, albedo, normal, position, normal.a with position.a forms uv
-    _mrtClearColor.resize(MRT_OUT_SIZE);
     _imgInfoList[0].format = _depthFormat;
     _imgInfoList[0].usage =
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[0].extent = _swapChainExtent;
     _imgInfoList[0].aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-    _mrtClearColor[0].color = {};
-    _mrtClearColor[0].depthStencil.depth = 1.0f;
+    _imgInfoList[0].clearValue = {
+        .depthStencil =
+            {
+                .depth = 1.0f,
+            },
+    };
+
     _imgInfoList[1].format = VK_FORMAT_R8G8B8A8_UNORM;
     _imgInfoList[1].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[1].extent = _swapChainExtent;
     _imgInfoList[1].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[1].color = {{0.8f, 0.6f, 0.4f, 1.0f}};
+    _imgInfoList[1].clearValue = {.color = {{0.8f, 0.6f, 0.4f, 1.0f}}};
+
     _imgInfoList[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
     _imgInfoList[2].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[2].extent = _swapChainExtent;
     _imgInfoList[2].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[2].color = {{0, 0, 0, 1.0f}};
+    _imgInfoList[2].clearValue = {.color = {{0, 0, 0, 1.0f}}};
+
     _imgInfoList[3].format =
         VK_FORMAT_R16G16B16A16_SFLOAT;  // TODO: position requires high precision
     _imgInfoList[3].usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     _imgInfoList[3].extent = _swapChainExtent;
     _imgInfoList[3].aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    _mrtClearColor[3].color = {{0, 0, 0, 1.0f}};
+    _imgInfoList[3].clearValue = {.color = {{0, 0, 0, 1.0f}}};
 
     // allocate from GPU LOCAL memory
     VmaAllocationCreateInfo localAllocInfo{};
@@ -542,22 +440,22 @@ bool Renderer::initRenderResources() {
 
     for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
         for (const auto &imgInfo : _imgInfoList) {
-            auto newImgResource = new ImgResource(imgInfo);
+            auto newImgResource = imgInfo;
 
             // create image, image view, sampler for each of the resources
             VkImageCreateInfo createImgInfo = CreationHelper::imageCreateInfo(
-                newImgResource->format, newImgResource->usage, newImgResource->extent);
+                newImgResource.format, newImgResource.usage, newImgResource.extent);
             l->vk_res(vmaCreateImage(_allocator, &createImgInfo, &localAllocInfo,
-                                     &newImgResource->image, &newImgResource->allocation, nullptr));
+                                     &newImgResource.image, &newImgResource.allocation, nullptr));
             VkImageViewCreateInfo createImgViewInfo = CreationHelper::imageViewCreateInfo(
-                newImgResource->format, newImgResource->image, newImgResource->aspect);
-            l->vk_res(vkCreateImageView(_device, &createImgViewInfo, nullptr,
-                                        &newImgResource->imageView));
+                newImgResource.format, newImgResource.image, newImgResource.aspect);
+            l->vk_res(
+                vkCreateImageView(_device, &createImgViewInfo, nullptr, &newImgResource.imageView));
 
             // TODO: assume all resources uses clamp to edge in MRT
             VkSamplerCreateInfo createSampInfo = CreationHelper::samplerCreateInfo(
                 _gpu, VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-            l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &newImgResource->sampler));
+            l->vk_res(vkCreateSampler(_device, &createSampInfo, nullptr, &newImgResource.sampler));
 
             _flightResources[i]->compImgResourceList.push_back(newImgResource);
         }
@@ -566,62 +464,10 @@ bool Renderer::initRenderResources() {
     _globCleanup.emplace([this]() {
         for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
             for (const auto &imgInfo : _flightResources[i]->compImgResourceList) {
-                vkDestroySampler(_device, imgInfo->sampler, nullptr);
-                vkDestroyImageView(_device, imgInfo->imageView, nullptr);
-                vmaDestroyImage(_allocator, imgInfo->image, imgInfo->allocation);
+                vkDestroySampler(_device, imgInfo.sampler, nullptr);
+                vkDestroyImageView(_device, imgInfo.imageView, nullptr);
+                vmaDestroyImage(_allocator, imgInfo.image, imgInfo.allocation);
             }
-        }
-    });
-
-    return true;
-}
-
-bool Renderer::initFramebuffer() {
-    auto l = SLog::get();
-    l->debug("initialising framebuffer");
-
-    // swapchain frame buffer
-    _swapChainFramebuffers.resize(_swapchainImageViews.size());
-
-    // Base info
-    VkFramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = _compositionRenderPass;
-    framebufferInfo.width = _swapChainExtent.width;
-    framebufferInfo.height = _swapChainExtent.height;
-    framebufferInfo.layers = 1;  // number of layers in image array
-
-    // Create frame buffer for each image view in swap-chain
-    for (size_t i = 0; i < _swapchainImageViews.size(); i++) {
-        // Can have multiple attachment
-        VkImageView attachments[] = {_swapchainImageViews[i]};
-
-        framebufferInfo.attachmentCount = std::size(attachments);
-        framebufferInfo.pAttachments = attachments;
-
-        l->vk_res(
-            vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]));
-    }
-
-    // mrt framebuffer for in flight
-    framebufferInfo.renderPass = _mrtRenderPass;
-    for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-        std::vector<VkImageView> imgViewList;
-        for (const auto &imgRes : _flightResources[i]->compImgResourceList) {
-            imgViewList.push_back(imgRes->imageView);
-        }
-        framebufferInfo.attachmentCount = imgViewList.size();
-        framebufferInfo.pAttachments = imgViewList.data();
-        l->vk_res(vkCreateFramebuffer(_device, &framebufferInfo, nullptr,
-                                      &_flightResources[i]->mrtFramebuffer));
-    }
-
-    _globCleanup.emplace([this]() {
-        for (const auto &item : _swapChainFramebuffers) {
-            vkDestroyFramebuffer(_device, item, nullptr);
-        }
-        for (int i = 0; i < _renderConf.maxFrameInFlight; ++i) {
-            vkDestroyFramebuffer(_device, _flightResources[i]->mrtFramebuffer, nullptr);
         }
     });
 
@@ -713,7 +559,7 @@ bool Renderer::initDescriptors() {
 
         // bind set 0 MRT sampler
         for (const auto &imgResouce : _flightResources[i]->compImgResourceList) {
-            compSetBuilder.pushSetWriteImgSampler(0, imgResouce->imageView, imgResouce->sampler);
+            compSetBuilder.pushSetWriteImgSampler(0, imgResouce.imageView, imgResouce.sampler);
         }
         // bind set 1 uniform
         compSetBuilder.pushSetWriteUniform(1, _flightResources[i]->compUniformBuffer,
@@ -799,12 +645,30 @@ bool Renderer::initPipeline() {
         return false;
     }
 
+    // replaced render pass with dynamic rendering
+    // thus we need to provide this structure
+    // TODO: we're getting the first one fromt the list, plus this iteration is dirty
+    std::vector<VkFormat> colorFormats;
+    for (const auto &imgRes : _flightResources[0]->compImgResourceList) {
+        if (imgRes.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            continue;
+        }
+        colorFormats.push_back(imgRes.format);
+    }
+    VkPipelineRenderingCreateInfo pipelineRenderCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .colorAttachmentCount = static_cast<uint32_t>(colorFormats.size()),
+        .pColorAttachmentFormats = colorFormats.data(),
+        .depthAttachmentFormat = _depthFormat,
+    };
+
     // Fill in incomplete stages and create pipeline
     pipelineCreateInfo.pVertexInputState = &vertexInputInfo;
     pipelineCreateInfo.stageCount = std::size(shaderStages);
     pipelineCreateInfo.pStages = shaderStages;
     pipelineCreateInfo.layout = _mrtPipelineLayout;
-    pipelineCreateInfo.renderPass = _mrtRenderPass;
+    pipelineCreateInfo.pNext = &pipelineRenderCreateInfo;
+    pipelineCreateInfo.renderPass = VK_NULL_HANDLE;  // _mrtRenderPass
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
     CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _mrtPipeline, _device,
                                            _swapChainExtent,
@@ -853,12 +717,21 @@ bool Renderer::initPipeline() {
     vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
+    // replaced render pass with dynamic rendering
+    // TODO: we're hardcoding the amount
+    pipelineRenderCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &_swapchainImageFormat,
+    };
+
     // fill in pipeline create info
     pipelineCreateInfo.pVertexInputState = &vertexInputInfo;
     pipelineCreateInfo.stageCount = std::size(shaderStages);
     pipelineCreateInfo.pStages = shaderStages;
     pipelineCreateInfo.layout = _compPipelineLayout;
-    pipelineCreateInfo.renderPass = _compositionRenderPass;
+    pipelineCreateInfo.pNext = &pipelineRenderCreateInfo;
+    pipelineCreateInfo.renderPass = VK_NULL_HANDLE;  // _compositionRenderPass
     pipelineCreateInfo.subpass = 0;  // index of subpass where this pipeline will be used
     CreationHelper::fillAndCreateGPipeline(pipelineCreateInfo, _compPipeline, _device,
                                            _swapChainExtent, 1);
@@ -1095,7 +968,14 @@ bool Renderer::initImGUI() {
     initInfo.MinImageCount = _swapchainImageViews.size();
     initInfo.ImageCount = _swapchainImageViews.size();
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    initInfo.RenderPass = _compositionRenderPass;
+    // initInfo.RenderPass = _compositionRenderPass;
+    initInfo.UseDynamicRendering = true;
+    // TODO: refactor this to be the same place as initpipeline?
+    initInfo.PipelineRenderingCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+        .colorAttachmentCount = 1,
+        .pColorAttachmentFormats = &_swapchainImageFormat,
+    };
 
     ImGui_ImplVulkan_Init(&initInfo);
     // execute a gpu command to upload imgui font textures
@@ -1129,7 +1009,7 @@ void Renderer::newFrame() {
 
 void Renderer::beginRecordCmd() {
     auto l = SLog::get();
-    // render start for MRT ---------------------------------------------
+    // render start ---------------------------------------------
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;  // one time / secondary / simultaneous submit
@@ -1143,27 +1023,90 @@ void Renderer::beginRecordCmd() {
         l->error("failed to begin recording command buffer!");
     }
 
+    // transition image layout at the start of the stage
+    // TODO: we're hardcoding depth position to be 0
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    barrier.image = _flightResources[_curFrameInFlight]->compImgResourceList[0].image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    vkCmdPipelineBarrier(
+        _flightResources[_curFrameInFlight]->mrtCmdBuffer,
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, 0,
+        0, nullptr, 0, nullptr, 1, &barrier);
+
+    // FIXME: some attachment is read only,
+    std::vector<VkImageMemoryBarrier> barriers;
+    for (int i = 1; i < MRT_OUT_SIZE; ++i) {
+        barrier.image = _flightResources[_curFrameInFlight]->compImgResourceList[0].image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        barriers.push_back(barrier);
+    }
+    vkCmdPipelineBarrier(
+        _flightResources[_curFrameInFlight]->mrtCmdBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,  // or VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, barriers.size(),
+        barriers.data());
+
+    // create render info
+    VkRenderingInfo mrtRenderInfo = {};
+    mrtRenderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    mrtRenderInfo.renderArea.offset = {0, 0};
+    mrtRenderInfo.renderArea.extent = _swapChainExtent;
+    mrtRenderInfo.layerCount = 1;
+
+    std::vector<VkRenderingAttachmentInfo> depthInfo;
+    std::vector<VkRenderingAttachmentInfo> colorInfo;
+    // TODO: remove hardcoded logic where first image is depth, should also check for multiple
+    // depth images
+    for (const auto &imgRes : _flightResources[_curFrameInFlight]->compImgResourceList) {
+        if (imgRes.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            VkRenderingAttachmentInfo attachmentInfo =
+                CreationHelper::convertImgResourceToAttachmentInfo(
+                    imgRes, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+            depthInfo.push_back(attachmentInfo);
+        } else {
+            VkRenderingAttachmentInfo attachmentInfo =
+                CreationHelper::convertImgResourceToAttachmentInfo(
+                    imgRes, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR,
+                    VK_ATTACHMENT_STORE_OP_STORE);
+            colorInfo.push_back(attachmentInfo);
+        }
+    }
+    mrtRenderInfo.pDepthAttachment = depthInfo.data();
+    mrtRenderInfo.pColorAttachments = colorInfo.data();
+    mrtRenderInfo.colorAttachmentCount = colorInfo.size();
+
+    VkRenderingAttachmentInfo compAttachmentInfo = {};
+    compAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    compAttachmentInfo.imageView = _swapchainImageViews[_curPresentImgIdx];
+    compAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    compAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    compAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    compAttachmentInfo.clearValue = VkClearValue{.color = {0, 0, 0}};
+
+    VkRenderingInfo compRenderInfo = mrtRenderInfo;
+    compRenderInfo.pDepthAttachment = nullptr;
+    compRenderInfo.colorAttachmentCount = 1;
+    compRenderInfo.pColorAttachments = &compAttachmentInfo;
+
     // start render pass
-    VkRenderPassBeginInfo mrtRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
-        _mrtRenderPass, _flightResources[_curFrameInFlight]->mrtFramebuffer, _swapChainExtent);
-    VkRenderPassBeginInfo compRenderPassInfo = CreationHelper::createRenderPassBeginInfo(
-        _compositionRenderPass, _swapChainFramebuffers[_curPresentImgIdx], _swapChainExtent);
-
-    // Clear value for attachment load op clear
-    // Should have the same order as attachments binding index
-    mrtRenderPassInfo.clearValueCount = _mrtClearColor.size();
-    mrtRenderPassInfo.pClearValues = _mrtClearColor.data();
-
-    compRenderPassInfo.clearValueCount = 1;
-    auto c = VkClearValue{.color = {0, 0, 0}};
-    compRenderPassInfo.pClearValues = &c;
-
-    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderPassInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRendering(_flightResources[_curFrameInFlight]->mrtCmdBuffer, &mrtRenderInfo);
     vkCmdBindPipeline(_flightResources[_curFrameInFlight]->mrtCmdBuffer,
                       VK_PIPELINE_BIND_POINT_GRAPHICS, _mrtPipeline);
-    vkCmdBeginRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderPassInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRendering(_flightResources[_curFrameInFlight]->compCmdBuffer, &compRenderInfo);
     vkCmdBindPipeline(_flightResources[_curFrameInFlight]->compCmdBuffer,
                       VK_PIPELINE_BIND_POINT_GRAPHICS, _compPipeline);
 
@@ -1240,12 +1183,18 @@ void Renderer::endRecordCmd() {
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),
                                     _flightResources[_curFrameInFlight]->compCmdBuffer);
 
+    // transition image layout for presentation
     auto l = SLog::get();
-    vkCmdEndRenderPass(_flightResources[_curFrameInFlight]->mrtCmdBuffer);
+    vkCmdEndRendering(_flightResources[_curFrameInFlight]->mrtCmdBuffer);
     if (vkEndCommandBuffer(_flightResources[_curFrameInFlight]->mrtCmdBuffer) != VK_SUCCESS) {
         l->error("failed to end record command buffer!");
     }
-    vkCmdEndRenderPass(_flightResources[_curFrameInFlight]->compCmdBuffer);
+
+    vkCmdEndRendering(_flightResources[_curFrameInFlight]->compCmdBuffer);
+    auto transFn = transitionImgLayout(_swapchainImages[_curFrameInFlight],
+                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                       VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    transFn(_flightResources[_curFrameInFlight]->compCmdBuffer);
     if (vkEndCommandBuffer(_flightResources[_curFrameInFlight]->compCmdBuffer) != VK_SUCCESS) {
         l->error("failed to end record command buffer!");
     }
@@ -1389,15 +1338,16 @@ void Renderer::copyBufferToImg(VkBuffer srcBuffer, VkImage dstImg, VkExtent2D ex
     execOneTimeCmd(func);
 }
 
-void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                   VkImageLayout newLayout) {
+std::function<void(VkCommandBuffer)> Renderer::transitionImgLayout(VkImage image,
+                                                                   VkImageLayout oldLayout,
+                                                                   VkImageLayout newLayout) {
     // We need to handle two kind of layout transformation:
     // 1. Undefined → transferDst: transfer writes that don't need to wait on anything
     // 2. transferDst → shaderRead: shader reads should wait on transfer writes, specifically the
     // shader reads in the fragment shader, because that's where we're going to use the texture
     // TODO: should we transit depth image?
 
-    auto func = [=](VkCommandBuffer cmdBuf) {
+    return [=](VkCommandBuffer cmdBuf) {
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.oldLayout = oldLayout;
@@ -1428,6 +1378,13 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             destStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL &&
+                   newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            // swapchain presentation
+            sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            destStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_NONE;
         } else {
             throw std::invalid_argument("unsupported layout transition!");
         }
@@ -1435,7 +1392,6 @@ void Renderer::transitionImgLayout(VkImage image, VkFormat format, VkImageLayout
         vkCmdPipelineBarrier(cmdBuf, sourceStage, destStage, 0, 0, nullptr, 0, nullptr, 1,
                              &barrier);
     };
-    execOneTimeCmd(func);
 }
 
 void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource &outResourceInfo,
@@ -1475,15 +1431,17 @@ void Renderer::uploadImageForSampling(const TextureData &cpuTexData, ImgResource
     l->vk_res(result);
 
     // transition the layout image for layout destination
-    transitionImgLayout(outResourceInfo.image, sampleFormat, VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    auto transFn = transitionImgLayout(outResourceInfo.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    execOneTimeCmd(transFn);
 
     // perform copy operation
     copyBufferToImg(texBuffer, outResourceInfo.image, ext);
 
     // make it optimal for sampling
-    transitionImgLayout(outResourceInfo.image, sampleFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transFn = transitionImgLayout(outResourceInfo.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    execOneTimeCmd(transFn);
 
     // staging buffer can be destroyed as src textures are no longer used
     vmaDestroyBuffer(_allocator, texBuffer, stagingAllocation);

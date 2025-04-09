@@ -107,6 +107,20 @@ class CreationHelper {
             return createInfo;
         }
 
+        static VkRenderingAttachmentInfo convertImgResourceToAttachmentInfo(
+            const ImgResource &imgResource, VkImageLayout imageLayout, VkAttachmentLoadOp loadOp,
+            VkAttachmentStoreOp storeOp) {
+            VkRenderingAttachmentInfo attachmentInfo = {};
+            attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            attachmentInfo.imageView = imgResource.imageView;
+            attachmentInfo.imageLayout = imageLayout;
+            attachmentInfo.clearValue = imgResource.clearValue;
+            attachmentInfo.loadOp = loadOp;
+            attachmentInfo.storeOp = storeOp;
+
+            return attachmentInfo;
+        }
+
         static VkFenceCreateInfo createFenceInfo(bool initSignalOn = false) {
             VkFenceCreateInfo fenceCreateInfo = {};
             fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

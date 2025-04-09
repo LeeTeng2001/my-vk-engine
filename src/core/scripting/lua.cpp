@@ -50,7 +50,6 @@ void ScriptingSystem::registerLuna() {
                                 &LuaLog::warn, "error", &LuaLog::error);
 
     // Creation functions because lifetime is managed in CPP side
-    lunaNs.set_function("GetLog", []() { return SLog::get(); });
     lunaNs.set_function("GetEngine", [this]() { return _engine; });
 
     // graphics functions

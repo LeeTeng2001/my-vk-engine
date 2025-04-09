@@ -27,4 +27,3 @@ init()
 -- Select demo here
 staticDemoScene()
 --physicDemoScene()
-

@@ -121,6 +121,7 @@ struct ImgResource {
         VkImageUsageFlags usage;
         VkExtent2D extent;
         VkImageAspectFlags aspect;
+        VkClearValue clearValue;
 
         // alloc
         VkImage image;
