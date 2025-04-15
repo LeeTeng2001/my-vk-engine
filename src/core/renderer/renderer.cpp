@@ -180,11 +180,16 @@ bool Renderer::initBase() {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
         .dynamicRendering = VK_TRUE,
     };
+    VkPhysicalDeviceSynchronization2Features sync2Feature{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+        .synchronization2 = VK_TRUE,
+    };
 
     // Select logical device, criteria in physical device will automatically propagate to logical
     // device creation
     vkb::DeviceBuilder deviceBuilder{physDevice};
-    vkb::Device vkbDevice = deviceBuilder.add_pNext(&dynRenderFeature).build().value();
+    vkb::Device vkbDevice =
+        deviceBuilder.add_pNext(&dynRenderFeature).add_pNext(&sync2Feature).build().value();
 
     // Store results of physical device and logical device
     _gpu = physDevice.physical_device;
@@ -1033,7 +1038,8 @@ void Renderer::beginRecordCmd() {
     barrier.subresourceRange.layerCount = 1;
 
     barrier.image = _flightResources[_curFrameInFlight]->compImgResourceList[0].image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    barrier.subresourceRange.aspectMask =
+        VK_IMAGE_ASPECT_DEPTH_BIT;  // if sencil is enabled, add VK_IMAGE_ASPECT_STENCIL_BIT
     barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -1046,11 +1052,11 @@ void Renderer::beginRecordCmd() {
     // FIXME: some attachment is read only,
     std::vector<VkImageMemoryBarrier> barriers;
     for (int i = 1; i < MRT_OUT_SIZE; ++i) {
-        barrier.image = _flightResources[_curFrameInFlight]->compImgResourceList[0].image;
+        barrier.image = _flightResources[_curFrameInFlight]->compImgResourceList[i].image;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
         barriers.push_back(barrier);
     }
     vkCmdPipelineBarrier(

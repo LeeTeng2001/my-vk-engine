@@ -125,15 +125,17 @@ void drawBlinnPhong() {
     vec3 lighting = albedo * 0.02; // hard-coded ambient component
 
     vec3 viewDir = normalize(ubo.camPos.xyz - fragPos);
-    for (int i = 0; i < LIGHT_COUNT; ++i) {
+    for (int i = -1; i < LIGHT_COUNT; ++i) {
         // early stop condition
-        if (ubo.lights[i].colorAndRadius.rgb == vec3(0, 0, 0)) {
+        if (i != -1 && ubo.lights[i].colorAndRadius.rgb == vec3(0, 0, 0)) {
             break;
         }
         // TODO: check for light distance
 
         // diffuse
-        vec3 lightDir = normalize(ubo.lights[i].position.xyz - fragPos);
+        vec3 lightDir;
+        if (i >= 0) { lightDir = normalize(ubo.lights[i].position.xyz - fragPos); }
+        else { lightDir = -ubo.globalDirLight.direction.xyz; }
         vec3 diffuse = max(dot(normal, lightDir), 0.0) * albedo * ubo.lights[i].colorAndRadius.xyz;
         lighting += diffuse;
         // specular
