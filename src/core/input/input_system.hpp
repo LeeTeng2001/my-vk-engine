@@ -111,6 +111,7 @@ class InputSystem {
 
         InputState _inputState{};
         SDL_Gamepad* _controller = nullptr;
+        bool _mouseInWindow = true;
 };
 
 }  // namespace luna

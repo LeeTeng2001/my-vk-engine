@@ -76,7 +76,7 @@ void Engine::processInput() {
             case SDL_EVENT_QUIT:
                 _gameState = EQuit;
                 break;
-            case SDL_EVENT_MOUSE_WHEEL:
+            default:
                 _inputSystem->processEvent(event);
                 break;
         }

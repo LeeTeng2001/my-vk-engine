@@ -85,17 +85,26 @@ void InputSystem::prepareForUpdate() {
 }
 
 void InputSystem::update() {
+    // Do no update when window is not focused?
+    if (!_mouseInWindow) return;
+
     // Mouse
     float x = 0, y = 0;
     _inputState.Mouse._curButtons = _inputState.Mouse._isRelative
                                         ? SDL_GetRelativeMouseState(&x, &y)
                                         : SDL_GetMouseState(&x, &y);
-    _inputState.Mouse._mouseOffsetPos.x =
-        _inputState.Mouse._isRelative ? x : x - _inputState.Mouse._mousePos.x;
-    _inputState.Mouse._mouseOffsetPos.y =
-        _inputState.Mouse._isRelative ? y : y - _inputState.Mouse._mousePos.y;
-    _inputState.Mouse._mousePos.x = x;
-    _inputState.Mouse._mousePos.y = y;
+    if (_inputState.Mouse._mousePos.x == -1 &&
+        _inputState.Mouse._mousePos.y == -1) {  // avoid abruptly jumping
+        _inputState.Mouse._mousePos.x = x;
+        _inputState.Mouse._mousePos.y = y;
+    } else {
+        _inputState.Mouse._mouseOffsetPos.x =
+            _inputState.Mouse._isRelative ? x : x - _inputState.Mouse._mousePos.x;
+        _inputState.Mouse._mouseOffsetPos.y =
+            _inputState.Mouse._isRelative ? y : y - _inputState.Mouse._mousePos.y;
+        _inputState.Mouse._mousePos.x = x;
+        _inputState.Mouse._mousePos.y = y;
+    }
 
     // Controller --------------------------------------------------------
     // Buttons
@@ -124,6 +133,14 @@ void InputSystem::processEvent(union SDL_Event &event) {
     switch (event.type) {
         case SDL_EVENT_MOUSE_WHEEL:
             _inputState.Mouse._scrollWheel = {event.wheel.x, event.wheel.y};
+            break;
+        case SDL_EVENT_WINDOW_MOUSE_ENTER:
+            _mouseInWindow = true;
+            _inputState.Mouse._mousePos = {-1, -1};
+            break;
+        case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+            _mouseInWindow = false;
+            _inputState.Mouse._mouseOffsetPos = {0, 0};
             break;
         default:
             break;
