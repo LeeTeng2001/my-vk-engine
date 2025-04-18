@@ -55,6 +55,7 @@ class Renderer {
         int createMaterial(MaterialCpu &materialCpu);  // return material id
         std::shared_ptr<ModalState> uploadModel(ModelDataCpu &modelData);
         void removeModal(const std::shared_ptr<ModalState> &modelData);
+        void createCompute();
 
         // setter
         void setViewMatrix(const glm::mat4 &viewTransform) { _camViewTransform = viewTransform; };
@@ -135,6 +136,8 @@ class Renderer {
         // Queues
         VkQueue _graphicsQueue{};
         uint32_t _graphicsQueueFamily{};
+        VkQueue _computeQueue{};
+        uint32_t _computeQueueFamily{};
         VkQueue _presentsQueue{};
         uint32_t _presentsQueueFamily{};
 

@@ -199,6 +199,8 @@ bool Renderer::initBase() {
     // Get queues (bootstrap will enable one queue for each family cuz in practice one is enough)
     _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
     _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+    _computeQueue = vkbDevice.get_queue(vkb::QueueType::compute).value();
+    _computeQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::compute).value();
     _presentsQueue = vkbDevice.get_queue(vkb::QueueType::present).value();
     _presentsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::present).value();
 
@@ -593,10 +595,23 @@ bool Renderer::initPipeline() {
         return false;
     }
 
+    // Particle Compute pipeline -----------------------------------------------
+
+    std::vector<char> particleShaderCode =
+        CreationHelper::readFile("assets/shaders/particle.comp.spv");
+    VkShaderModule particleShaderModule =
+        CreationHelper::createShaderModule(particleShaderCode, _device);
+
+    VkPipelineShaderStageCreateInfo compShaderStageInfo{};
+    compShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    compShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    compShaderStageInfo.module = particleShaderModule;
+    compShaderStageInfo.pName = "main";  // entrypoint
+
     // MRT Pipeline ------------------------------------------------------------
 
     // Create programmable shaders
-    std::vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.vert.spv");
+    std::vector<char> mrtVertShaderCode = CreationHelper::readFile("assets/shaders/mrt.comp.spv");
     std::vector<char> mrtFragShaderCode = CreationHelper::readFile("assets/shaders/mrt.frag.spv");
     VkShaderModule mrtVertShaderModule =
         CreationHelper::createShaderModule(mrtVertShaderCode, _device);
@@ -799,6 +814,32 @@ int Renderer::createMaterial(MaterialCpu &materialCpu) {
 
     _materialMap[_nextMatId] = gpuMaterial;
     return _nextMatId++;
+}
+
+void Renderer::createCompute() {
+    auto l = SLog::get();
+
+    // create 2 * n
+    _renderConf.maxFrameInFlight
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(Vertex) * modelData.vertex.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                       VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VkBuffer buffer;
+    VmaAllocation allocation;  // represent underlying memory
+    VmaAllocationInfo alocationInfo;
+
+    l->vk_res(
+        vmaCreateBuffer(_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, &alocationInfo));
 }
 
 std::shared_ptr<ModalState> Renderer::uploadModel(ModelDataCpu &modelData) {
